@@ -58,6 +58,7 @@ const Discover = lazy(() =>
 const StarPage = lazy(() =>
   import('./pages/StarPage').then((module) => ({ default: module.StarPage })),
 );
+const Chats = lazy(() => import('./pages/Chats').then((module) => ({ default: module.Chats })));
 const UpdateChecker = lazy(() =>
   import('./components/UpdateChecker').then((module) => ({ default: module.UpdateChecker })),
 );
@@ -357,6 +358,22 @@ export default function App() {
                   element={
                     <RouteLoader>
                       <Settings />
+                    </RouteLoader>
+                  }
+                />
+                <Route
+                  path="chats"
+                  element={
+                    <RouteLoader>
+                      <Chats />
+                    </RouteLoader>
+                  }
+                />
+                <Route
+                  path="chats/:id"
+                  element={
+                    <RouteLoader>
+                      <Chats />
                     </RouteLoader>
                   }
                 />
