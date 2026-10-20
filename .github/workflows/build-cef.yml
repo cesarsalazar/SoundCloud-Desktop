@@ -50,7 +50,7 @@ jobs:
 
       - name: System deps (macOS)
         if: runner.os == 'macOS'
-        run: brew install protobuf
+        run: brew install autoconf automake libtool protobuf
 
       - name: System deps (Windows)
         if: runner.os == 'Windows'
