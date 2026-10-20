@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, chat/main]
     paths-ignore: ['themes/**']
   pull_request:
     branches: [main]
@@ -96,6 +96,9 @@ jobs:
       - name: Tests compile
         if: runner.os == 'Windows'
         run: cargo test --no-run
+
+      - name: Chat core tests
+        run: cargo test --manifest-path ../../utils/chat-core/Cargo.toml --target-dir target
 
   real-crates:
     name: Real call and decrypt-client crates
