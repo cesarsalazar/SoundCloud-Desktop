@@ -24,7 +24,14 @@
     "opener:default",
     "dialog:default",
     "fs:allow-exists",
-    "fs:allow-mkdir",
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [
+        {
+          "path": "$APPDATA"
+        }
+      ]
+    },
     "fs:allow-read-dir",
     "fs:allow-read-file",
     "fs:allow-read-text-file",
@@ -34,9 +41,6 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        {
-          "path": "$APPDATA"
-        },
         {
           "path": "$APPDATA/sc-*.json"
         },

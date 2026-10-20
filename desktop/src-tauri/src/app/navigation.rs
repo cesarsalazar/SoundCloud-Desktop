@@ -214,6 +214,25 @@ mod tests {
     }
 
     #[test]
+    fn the_app_data_root_can_be_made_but_never_removed_whole() {
+        let window: serde_json::Value =
+            serde_json::from_str(include_str!("../../capabilities/default.json")).unwrap();
+        let root = serde_json::json!({ "path": "$APPDATA" });
+        let holders: Vec<&str> = window["permissions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|permission| {
+                permission["allow"]
+                    .as_array()
+                    .is_some_and(|allow| allow.contains(&root))
+            })
+            .filter_map(|permission| permission["identifier"].as_str())
+            .collect();
+        assert_eq!(holders, ["fs:allow-mkdir"]);
+    }
+
+    #[test]
     fn the_question_follows_the_app_language() {
         assert_eq!(question("ru"), "Открыть ссылку в браузере?");
         assert_eq!(question("ko"), "이 링크를 브라우저에서 열까요?");
