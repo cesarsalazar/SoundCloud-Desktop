@@ -21,6 +21,7 @@ import {
   preferredControlBase,
   SLOW_RESPONSE_MS,
 } from './host-status';
+import type { NetInit } from './net/fetch';
 import { notifyError } from './notify';
 import { getIsPremium, requestPremiumRecheck } from './premium-cache';
 
@@ -128,7 +129,7 @@ function isRateLimitError(status: number, body: string): boolean {
 
 // ─── Helpers ────────────────────────────────────────────────
 
-function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
+function fetchWithTimeout(url: string, options: NetInit, timeoutMs: number): Promise<Response> {
   return edgeFetch(url, options, timeoutMs);
 }
 
@@ -153,6 +154,7 @@ export type ApiRequestOptions = RequestInit & {
    */
   silentStatuses?: number[];
   quiet?: boolean;
+  longPoll?: boolean;
 };
 
 /**
@@ -241,9 +243,10 @@ function planeTimeout(path: string): number {
  * только вне `/auth/*`: там бэк round-trip'ит в SoundCloud, и замеренные на
  * логине 4.2–11.7 с это норма хендлера, а не состояние хоста.
  */
-function isMainBadSample(path: string, ok: boolean, elapsedMs: number): boolean {
+function isMainBadSample(path: string, ok: boolean, elapsedMs: number, longPoll: boolean): boolean {
   if (!ok) return true;
-  return !path.startsWith('/auth/') && elapsedMs >= SLOW_RESPONSE_MS;
+  if (longPoll || path.startsWith('/auth/')) return false;
+  return elapsedMs >= SLOW_RESPONSE_MS;
 }
 
 /** Короткое имя хоста для логов перебора. */
@@ -289,7 +292,7 @@ export async function apiRequest<T = unknown>(
   options: ApiRequestOptions = {},
   timeoutMs?: number,
 ): Promise<T> {
-  const { silentStatuses, quiet, ...init } = options;
+  const { silentStatuses, quiet, longPoll = false, ...init } = options;
   // Мост мог ещё не дойти до зеркала — иначе запрос уйдёт без сессии в никуда.
   if (!sessionKnown) await awaitSessionKnown();
   const headers = new Headers(init.headers);
@@ -325,7 +328,8 @@ export async function apiRequest<T = unknown>(
     try {
       const res = await trackAsync(
         `http:${label}`,
-        fetchWithTimeout(url, { ...init, headers }, attemptTimeout),
+        fetchWithTimeout(url, { ...init, headers, longPoll }, attemptTimeout),
+        longPoll ? attemptTimeout : undefined,
       );
 
       const body = res.ok ? '' : await res.text();
@@ -337,7 +341,8 @@ export async function apiRequest<T = unknown>(
       // ≥500 — пассивный фейл: cooldown + проба main; вердикт down ставит только проба.
       if (answered) markHealthy(base);
       else markUnhealthy(base);
-      if (base === API_BASE && isMainBadSample(path, answered, performance.now() - attemptStart)) {
+      const elapsedMs = performance.now() - attemptStart;
+      if (base === API_BASE && isMainBadSample(path, answered, elapsedMs, longPoll)) {
         noteMainBadResponse();
       }
       // Успех star для не-премиума — probe-сигнал, не «онлайн» (иначе флап offline↔online).
