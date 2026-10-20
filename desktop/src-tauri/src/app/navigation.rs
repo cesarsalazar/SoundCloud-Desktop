@@ -7,9 +7,9 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::app::diagnostics;
 
-#[cfg(any(windows, feature = "cef"))]
+#[cfg(windows)]
 const APP_ORIGIN: (&str, &str) = ("http", "tauri.localhost");
-#[cfg(not(any(windows, feature = "cef")))]
+#[cfg(not(windows))]
 const APP_ORIGIN: (&str, &str) = ("tauri", "localhost");
 const OVERLAY_HOST: &str = "127.0.0.1";
 const OVERLAY_PATH: &str = "/overlay";

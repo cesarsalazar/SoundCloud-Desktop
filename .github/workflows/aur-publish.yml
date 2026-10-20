@@ -109,8 +109,14 @@ jobs:
           rm ./*.deb
           
           # Обновляем значения в PKGBUILD
+          OLD_VER=$(sed -n 's/^pkgver=//p' PKGBUILD)
+          OLD_REL=$(sed -n 's/^pkgrel=//p' PKGBUILD)
+          if [ "$OLD_VER" = "$NEW_VER" ]; then REL=$((OLD_REL + 1)); else REL=1; fi
           sed -i "s/^pkgver=.*/pkgver=${NEW_VER}/" PKGBUILD
-          sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=${REL}/" PKGBUILD
+          for dep in opus alsa-lib; do
+            grep -Eq "^depends=\\(.*'${dep}'" PKGBUILD || sed -i "s/^depends=(\\(.*\\))$/depends=(\\1 '${dep}')/" PKGBUILD
+          done
           sed -i "s/^sha256sums_x86_64=.*/sha256sums_x86_64=('${SHA_AMD}')/" PKGBUILD
           sed -i "s/^sha256sums_aarch64=.*/sha256sums_aarch64=('${SHA_ARM}')/" PKGBUILD
           

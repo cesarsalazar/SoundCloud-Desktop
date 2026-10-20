@@ -17,7 +17,7 @@ pub mod tray_labels;
 pub mod updater;
 pub mod visibility;
 pub mod webview_data;
-#[cfg(all(windows, not(feature = "cef")))]
+#[cfg(windows)]
 pub mod webview2;
 
 pub const APP_IDENTIFIER: &str = "com.soundcloud.desktop";

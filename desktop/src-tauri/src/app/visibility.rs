@@ -33,7 +33,7 @@ pub fn set_page_visible(window: &WebviewWindow, visible: bool) {
     if visible {
         PAGES_HIDDEN.store(false, Ordering::Relaxed);
     }
-    if !cfg!(all(windows, not(feature = "cef"))) {
+    if !cfg!(windows) {
         return;
     }
     let webview: &tauri::Webview<Rt> = window.as_ref();

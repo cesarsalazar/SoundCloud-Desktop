@@ -70,7 +70,6 @@ Every desktop row is the real Tauri binary started with `--store-probe`: write, 
 | Flatpak | GNOME 49 manifest | ok |
 | AUR `soundcloud-bin` | .deb unpacked like the PKGBUILD on Arch | ok |
 | Arch source build | `cargo build --release` with makepkg.conf flags | ok |
-| CEF | `--features cef` on Linux, Windows, macOS arm64 | ok |
 | Android | cargo-ndk 4.1.2, API 24, arm64-v8a, armeabi-v7a, x86_64, x86 | cdylib links, needs only libc, libm, libdl, exports no sqlite3 or crypto symbol |
 | iOS | xcframework, ios-arm64 and arm64 + x86_64 simulator | store test passes in the simulator |
 
@@ -78,4 +77,3 @@ CI runs (spike branch deleted after):
 - SQLCipher and the unflagged Linux exports: https://github.com/zxcloli666/SoundCloud-Desktop/actions/runs/39439666287
 - final config on every target: https://github.com/zxcloli666/SoundCloud-Desktop/actions/runs/39442572938
 - AUR bin on the final deb: https://github.com/zxcloli666/SoundCloud-Desktop/actions/runs/39443995204
-- CEF macOS on the final config: https://github.com/zxcloli666/SoundCloud-Desktop/actions/runs/39446934164

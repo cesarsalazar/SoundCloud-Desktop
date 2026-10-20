@@ -1,10 +1,8 @@
 //! System tray.
 //!
-//! Linux: нативный StatusNotifierItem через `ksni` (D-Bus, без GTK) — работает и в
-//! wry, и в CEF-рантайме (CEF не инициализирует GTK, поэтому GTK-путь tray-icon/muda
-//! паниковал бы `GTK has not been initialized`).
+//! Linux: нативный StatusNotifierItem через `ksni` (D-Bus, без GTK).
 //! Windows/macOS: нативный Tauri `tray-icon`/`muda` (Win32 Shell_NotifyIcon / AppKit
-//! NSStatusItem) — GTK там не нужен, под CEF работает.
+//! NSStatusItem).
 //!
 //! Колбэки трея могут приходить НЕ с main-потока (у ksni — задача D-Bus), а оконные
 //! операции Tauri обязаны идти с main-потока → действия гоним через
@@ -69,15 +67,6 @@ pub fn run_action(app: &AppHandle, id: &str) {
         "mini" => popover::open_pinned(&h),
         "quit" => {
             h.state::<popover::TrayState>().persist_position();
-            // На CEF graceful `app.exit()` может зависнуть в teardown (кросс-процессный
-            // OnBeforeClose окон/вебвью не завершается) → жёсткий выход; Chromium-хелперы
-            // сами умирают по смерти родителя. На wry — обычный graceful exit.
-            #[cfg(feature = "cef")]
-            {
-                crate::app::themes::clear_applying(&h);
-                std::process::exit(0);
-            }
-            #[cfg(not(feature = "cef"))]
             h.exit(0);
         }
         "play_pause" | "next" | "prev" => {
