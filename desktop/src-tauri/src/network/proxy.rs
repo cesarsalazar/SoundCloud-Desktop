@@ -9,7 +9,7 @@ use tokio::fs;
 use crate::network::fail;
 use crate::network::netcheck::model::Role;
 use crate::network::netcheck::paths;
-use crate::shared::constants::is_domain_whitelisted;
+use crate::shared::constants::{is_domain_whitelisted, is_image_upstream};
 
 const SOURCE: &str = "proxy";
 
@@ -122,6 +122,13 @@ pub async fn proxy_request(encoded: &str) -> ProxyResult {
             status: 400,
             content_type: "text/plain".into(),
             data: b"missing upstream".to_vec(),
+        };
+    }
+    if !upstreams.iter().all(|upstream| is_image_upstream(upstream)) {
+        return ProxyResult {
+            status: 403,
+            content_type: "text/plain".into(),
+            data: b"upstream not allowed".to_vec(),
         };
     }
 

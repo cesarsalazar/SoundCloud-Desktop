@@ -120,7 +120,7 @@ desktop/
 - `app_cache_dir/assets/` — кеш ответов прокси (картинки/шрифты/css/js)
 - `app_cache_dir/wallpapers/` — скачанные обои
 - `app_data_dir/images/` — постоянный кеш картинок (чистится только вручную)
-- `app_data_dir/*.json` — zustand-сторы через `tauri-storage.ts`
+- `app_data_dir/*.json` — zustand-сторы через `tauri-storage.ts` (новые только `sc-*.json`, см. fs-скоупы)
 - `app_data_dir/call_enabled.json` — флаг call-режима
 - `app_log_dir/desktop.log` — лог из `diagnostics_log` и нативной части (`diagnostics::log/warn/error`, panic hook); ротация в `desktop.old.log` при старте, если больше 5 МБ
 - Профиль вебвью (WebView2 `EBWebView`, папки WebKit/WebKitGTK, `cef`) стирается при каждом запуске до создания окна, если не запущена другая копия (`app/webview_data.rs`, лок `instance.lock`). Список имён там же: свои файлы так не называть, на Linux вебвью пишет прямо в `app_data_dir`
@@ -194,6 +194,14 @@ desktop/
   non-macOS используется sharded `http://scproxy-N.localhost:PORT/p/...` (N=0..19) — обходит per-host лимит соединений
   WebView и параллелит загрузки.
 - **`#[cfg(not(dev))]`** — для localhost plugin / navigate. В dev — Vite devUrl.
+- **CSP** (`tauri.conf.json` → `app.security.csp`): только точные хосты, без `https:` и `*`. Новый внешний хост картинок
+  в CSP не добавлять: `<img>` (и `src`, и `setAttribute('src')`) уходит в локальный прокси через `lib/scproxy.ts`,
+  `art()` и `proxiedAssetUrl` тоже. Запросы в сеть только через `net_fetch`, `connect-src` пускает лишь IPC и loopback.
+- **Навигация** (`app/navigation.rs`): окно остаётся на origin приложения, кадр OBS `/overlay` и `about:blank`,
+  остальное открывается в браузере после подтверждения.
+- **fs-скоупы** (`capabilities/default.json`): вебвью видит только свои файлы. Имя нового zustand-стора начинать с `sc-`,
+  иначе он молча не сохранится. Файлы Rust (`auth_session.json`, `scrobble_accounts.json` и т.п.) и `chat/**` закрыты.
+  `remote`-доступ для dev-сервера в `dev/remote.json`, подключается только в dev.
 - **Не буферизовать** большие ответы целиком, если не нужно кешировать — стримить через `Body::wrap_stream`.
 - **Ошибки** — возвращать HTTP-статусы (502, 400, 404), НЕ паниковать. `.unwrap()` допустим только для заведомо валидных
   builder-операций, `.expect("...")` — только в `setup` для критической инициализации.
