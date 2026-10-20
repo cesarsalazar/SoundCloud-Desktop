@@ -40,8 +40,9 @@ libsqlite3 sending its own calls into another SQLite copy mixes two engines on o
 
 - Key: 32 bytes from the keychain (`KeyStore`). Subkeys: `HMAC-SHA256(key, "chat-store body")` for bodies, `HMAC-SHA256(key, "chat-store fts")` for search.
 - Body: XChaCha20-Poly1305, random 24-byte nonce per row, aad `conv_id || seq` (seq as big-endian i64). Columns `nonce BLOB, body BLOB`. A row copied to another `(conv, seq)` does not open.
-- Search: FTS5 table with `content='', contentless_delete=1, tokenize='ascii'`, rowid = message rowid. Each word is lowercased and its prefixes of 2..16 chars are indexed as `hex(HMAC-SHA256(fts_key, prefix)[..12])`. The query is the token of the typed prefix, so "прив" finds "Привет". `DELETE ... WHERE rowid = ?` drops the entry.
+- Search: FTS5 table with `content='', contentless_delete=1, tokenize='ascii'`, rowid = message rowid. Each word is lowercased and its prefixes of 2..16 chars are indexed as `hex(HMAC-SHA256(fts_key, prefix)[..12])`. The query is the token of the typed prefix (first 16 chars), so "прив" finds "Привет". `DELETE ... WHERE rowid = ?` drops the entry.
 - Token hashes show which messages share a word, nothing else. Ids, seq, class and timestamps stay plain for queries.
+- Purge (`gone`, room end, expiry): a plain `DELETE` leaves the sealed body and its tokens in free pages and in the WAL. Every connection sets `PRAGMA secure_delete = ON`, and each purge batch ends with `INSERT INTO search(search) VALUES('optimize')` and `PRAGMA wal_checkpoint(TRUNCATE)`. Checked on 3.53.2: with all three no byte of the purged row is left in the db or WAL file. Without `secure_delete` the body and tokens stay in the db, without `optimize` the tokens stay, without the checkpoint the WAL keeps the body.
 
 ### Why not SQLCipher
 
