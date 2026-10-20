@@ -1,6 +1,7 @@
 mod app;
 mod audio;
 mod auth;
+pub mod chat;
 mod discord;
 mod import;
 mod local_library;
@@ -51,6 +52,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(app::hotkeys::plugin())
         .plugin(app::navigation::plugin())
+        .plugin(tauri_plugin_notification::init())
         .register_asynchronous_uri_scheme_protocol("scproxy", |_ctx, request, responder| {
             let Some(state) = network::proxy::STATE.get() else {
                 responder.respond(
@@ -197,6 +199,8 @@ pub fn run() {
             let auth_state =
                 auth::SessionStore::init(data_dir.clone(), auth_http_client, rt_handle.clone());
             app.manage(auth_state);
+
+            chat::start(app.handle(), rt_handle.clone(), &data_dir);
 
             let call_state = network::call::CallState::init(data_dir.clone(), rt_handle);
             network::call::manage_state(app.handle(), call_state.clone());
@@ -370,6 +374,57 @@ pub fn run() {
             network::wallpapers::wallpaper_search,
             app::desktop_wallpaper::desktop_wallpaper_found,
             app::desktop_wallpaper::desktop_wallpaper_sync,
+            chat::commands::chat_status,
+            chat::commands::chat_config,
+            chat::commands::chat_login_begin,
+            chat::commands::chat_login_poll,
+            chat::commands::chat_link_create_pull,
+            chat::commands::chat_link_claim_push,
+            chat::commands::chat_link_poll,
+            chat::commands::chat_list,
+            chat::commands::chat_open,
+            chat::commands::chat_history,
+            chat::commands::chat_create,
+            chat::commands::chat_conversation_update,
+            chat::commands::chat_conversation_delete,
+            chat::commands::chat_set_ttl,
+            chat::commands::chat_send,
+            chat::commands::chat_edit,
+            chat::commands::chat_delete,
+            chat::commands::chat_react,
+            chat::commands::chat_pin,
+            chat::commands::chat_mark_read,
+            chat::commands::chat_typing,
+            chat::commands::chat_focus,
+            chat::commands::chat_draft_save,
+            chat::commands::chat_search,
+            chat::commands::chat_members,
+            chat::commands::chat_member_add,
+            chat::commands::chat_member_remove,
+            chat::commands::chat_member_role,
+            chat::commands::chat_accept,
+            chat::commands::chat_decline,
+            chat::commands::chat_requests,
+            chat::commands::chat_invite_create,
+            chat::commands::chat_invite_revoke,
+            chat::commands::chat_invite_join,
+            chat::commands::chat_block,
+            chat::commands::chat_unblock,
+            chat::commands::chat_report,
+            chat::commands::chat_settings_get,
+            chat::commands::chat_settings_put,
+            chat::commands::chat_user_card,
+            chat::commands::chat_devices,
+            chat::commands::chat_device_confirm,
+            chat::commands::chat_device_not_me,
+            chat::commands::chat_device_remove,
+            chat::commands::chat_room_chat,
+            chat::commands::chat_room_preview,
+            chat::commands::chat_room_moderate,
+            chat::commands::chat_room_settings,
+            chat::commands::chat_room_suggest,
+            chat::commands::chat_logout,
+            chat::commands::chat_notify_prefs,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
