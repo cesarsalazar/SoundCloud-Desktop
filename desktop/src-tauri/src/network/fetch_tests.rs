@@ -8,7 +8,8 @@ use wreq::Method;
 use wreq::http2::Http2Options;
 
 use super::{
-    FetchRequest, Head, NetKind, Route, configured, frame, net_kind, outgoing, perform, ping,
+    FetchRequest, Head, NetKind, Route, configured, exchange, frame, net_kind, outgoing, perform,
+    ping,
 };
 use crate::network::edge::Tier;
 use crate::network::fail::FailKind;
@@ -31,7 +32,28 @@ fn request(url: String, method: &str, timeout_ms: Option<u64>) -> FetchRequest {
         body: None,
         timeout_ms,
         route: None,
+        long_poll: false,
     }
+}
+
+fn routed(url: String, origin: &str, long_poll: bool) -> FetchRequest {
+    FetchRequest {
+        route: Some(Route {
+            tier: Tier::Direct,
+            origin: origin.to_string(),
+            attempt: 0,
+            last: true,
+        }),
+        long_poll,
+        ..request(url, "GET", Some(5_000))
+    }
+}
+
+fn recorded(origin: &str) -> usize {
+    paths::recent(100)
+        .iter()
+        .filter(|event| event.origin == origin)
+        .count()
 }
 
 fn client() -> wreq::Client {
@@ -211,6 +233,46 @@ async fn an_answer_comes_back_whole_and_the_route_is_recorded() {
     assert_eq!(event.role, Role::Failover);
     assert_eq!(event.source, "api");
     assert_eq!(event.status, Some(201));
+}
+
+#[test]
+fn the_long_poll_flag_comes_from_the_frontend_and_defaults_to_off() {
+    let asked = json!({
+        "id": 7,
+        "url": "https://api.scnative.dev/rooms/abc",
+        "method": "GET",
+        "headers": [],
+        "body": null,
+        "timeoutMs": 35_000,
+        "route": null,
+    });
+    let plain: FetchRequest = serde_json::from_value(asked.clone()).unwrap();
+    assert!(!plain.long_poll);
+    let mut flagged = asked;
+    flagged["longPoll"] = json!(true);
+    let held: FetchRequest = serde_json::from_value(flagged).unwrap();
+    assert!(held.long_poll);
+}
+
+#[tokio::test]
+async fn a_long_poll_answer_feeds_neither_the_pace_nor_the_paths() {
+    let reply = b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok";
+    let hold = Duration::from_millis(300);
+    let client = client();
+
+    let (url, _heard) = server(reply, hold).await;
+    let held = routed(url, "fetch-long-poll.scnative.dev", true);
+    let (head, body, answered_in) = exchange(&client, &client, &held).await;
+    assert!(matches!(head, Head::Answer { status: 200, .. }), "{head:?}");
+    assert_eq!(body, b"ok");
+    assert_eq!(answered_in, None);
+    assert_eq!(recorded("fetch-long-poll.scnative.dev"), 0);
+
+    let (url, _heard) = server(reply, hold).await;
+    let plain = routed(url, "fetch-short-poll.scnative.dev", false);
+    let (_, _, answered_in) = exchange(&client, &client, &plain).await;
+    assert!(answered_in.is_some_and(|took| took >= hold));
+    assert_eq!(recorded("fetch-short-poll.scnative.dev"), 1);
 }
 
 #[tokio::test]

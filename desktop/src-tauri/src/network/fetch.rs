@@ -36,6 +36,8 @@ pub struct FetchRequest {
     body: Option<String>,
     timeout_ms: Option<u64>,
     route: Option<Route>,
+    #[serde(default)]
+    long_poll: bool,
 }
 
 #[derive(Deserialize)]
@@ -181,18 +183,30 @@ async fn perform(
     fresh: &wreq::Client,
     request: FetchRequest,
 ) -> (Head, Vec<u8>) {
+    let (head, body, answered_in) = exchange(pooled, fresh, &request).await;
+    if let Some(took) = answered_in {
+        pace::note(took);
+    }
+    (head, body)
+}
+
+async fn exchange(
+    pooled: &wreq::Client,
+    fresh: &wreq::Client,
+    request: &FetchRequest,
+) -> (Head, Vec<u8>, Option<Duration>) {
     let started = Instant::now();
     let deadline = request
         .timeout_ms
         .map(|ms| tokio::time::Instant::now() + Duration::from_millis(ms));
     let Ok(method) = Method::from_bytes(request.method.to_ascii_uppercase().as_bytes()) else {
-        return (Head::failed(NetKind::Other, "bad method"), Vec::new());
+        return (Head::failed(NetKind::Other, "bad method"), Vec::new(), None);
     };
     let headers = outgoing(&method, &request.headers, request.body.is_some());
     let replayable = matches!(method, Method::GET | Method::HEAD)
         && request.route.as_ref().is_none_or(|route| route.last);
     let mut stalled = false;
-    let response = loop {
+    let (response, answered_in) = loop {
         let client = if stalled { fresh } else { pooled };
         let asked = Instant::now();
         let mut builder = client
@@ -203,31 +217,34 @@ async fn perform(
         }
         match within(deadline, builder.send()).await {
             None => {
-                settle(&request, Err(FailKind::Timeout), started);
+                settle(request, Err(FailKind::Timeout), started);
                 return (
                     Head::failed(NetKind::Timeout, "no answer in time"),
                     Vec::new(),
+                    None,
                 );
             }
             Some(Err(error)) if replayable && !stalled && dropped_by_pings(&error) => {
-                record(&request, Err(FailKind::Timeout), started);
+                record(request, Err(FailKind::Timeout), started);
                 stalled = true;
             }
             Some(Err(error)) => {
                 let kind = fail::of_wreq(&error);
-                settle(&request, Err(kind), started);
-                return (Head::failed(net_kind(kind), described(&error)), Vec::new());
+                settle(request, Err(kind), started);
+                return (
+                    Head::failed(net_kind(kind), described(&error)),
+                    Vec::new(),
+                    None,
+                );
             }
             Some(Ok(response)) => {
-                if !stalled {
-                    pace::note(asked.elapsed());
-                }
-                break response;
+                let measured = !stalled && !request.long_poll;
+                break (response, measured.then(|| asked.elapsed()));
             }
         }
     };
     let status = response.status();
-    settle(&request, Ok(status.as_u16()), started);
+    settle(request, Ok(status.as_u16()), started);
     let head = Head::Answer {
         status: status.as_u16(),
         status_text: status.canonical_reason().unwrap_or_default().to_string(),
@@ -236,10 +253,14 @@ async fn perform(
         stalled,
     };
     match read_body(response, deadline).await {
-        Ok(body) => (head, body),
+        Ok(body) => (head, body, answered_in),
         Err(message) => {
-            record(&request, Err(FailKind::Body), started);
-            (Head::failed(NetKind::Body, message), Vec::new())
+            record(request, Err(FailKind::Body), started);
+            (
+                Head::failed(NetKind::Body, message),
+                Vec::new(),
+                answered_in,
+            )
         }
     }
 }
@@ -282,6 +303,9 @@ fn settle(request: &FetchRequest, outcome: Result<u16, FailKind>, started: Insta
 }
 
 fn record(request: &FetchRequest, outcome: Result<u16, FailKind>, started: Instant) {
+    if request.long_poll {
+        return;
+    }
     let Some(route) = &request.route else { return };
     let hop = Hop {
         url: request.url.clone(),

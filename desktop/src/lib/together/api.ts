@@ -1,4 +1,5 @@
 import { api } from '../api';
+import type { ApiRequestOptions } from '../api-client';
 import type { OpenRoom, PlaybackUpdate, Profile, RoomView } from './types';
 
 const POLL_TIMEOUT_MS = 35_000;
@@ -12,7 +13,7 @@ export interface Timed {
   receivedAt: number;
 }
 
-async function timed(path: string, init: RequestInit, timeoutMs: number): Promise<Timed> {
+async function timed(path: string, init: ApiRequestOptions, timeoutMs: number): Promise<Timed> {
   const sentAt = Date.now();
   const view = await api<RoomView>(path, { ...init, ...QUIET }, timeoutMs);
   return { view, sentAt, receivedAt: Date.now() };
@@ -29,7 +30,7 @@ export const roomsApi = {
     timed(`/rooms/${code}/members`, json('POST', profile), QUICK_TIMEOUT_MS),
   peek: (code: string) => timed(`/rooms/${code}?follow=true`, {}, QUICK_TIMEOUT_MS),
   poll: (code: string, since: number) =>
-    timed(`/rooms/${code}?since=${since}&follow=true`, {}, POLL_TIMEOUT_MS),
+    timed(`/rooms/${code}?since=${since}&follow=true`, { longPoll: true }, POLL_TIMEOUT_MS),
   playback: (code: string, update: PlaybackUpdate) =>
     timed(`/rooms/${code}/playback`, json('PUT', update), QUICK_TIMEOUT_MS),
   ready: (code: string, trackUrn: string) =>

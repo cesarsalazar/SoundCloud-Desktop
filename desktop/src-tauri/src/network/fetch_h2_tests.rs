@@ -43,6 +43,7 @@ fn get(url: &str) -> FetchRequest {
         body: None,
         timeout_ms: Some(40_000),
         route: None,
+        long_poll: false,
     }
 }
 

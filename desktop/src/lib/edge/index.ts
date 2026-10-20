@@ -1,7 +1,7 @@
 // Единая точка сетевых запросов фронта к нашим доменам: перебирает тиры
 // (прямой → relay → relay pro) и запоминает, что сработало.
 
-import { NetError, type NetRoute, netRequest } from '../net/fetch';
+import { NetError, type NetInit, type NetRoute, netRequest } from '../net/fetch';
 import { type Hop, noteHop, planHops, type Tier } from './config';
 
 export type { Tier } from './config';
@@ -15,7 +15,7 @@ interface Fetched {
 
 function fetchWhole(
   url: string,
-  init: RequestInit,
+  init: NetInit,
   timeoutMs?: number,
   route?: NetRoute,
 ): Promise<Fetched> {
@@ -171,7 +171,7 @@ export function edgeProbe(url: string, hopTimeoutMs: number): Promise<ProbeOutco
   });
 }
 
-async function fetchAlone(url: string, init: RequestInit, timeoutMs?: number): Promise<Response> {
+async function fetchAlone(url: string, init: NetInit, timeoutMs?: number): Promise<Response> {
   try {
     return (await fetchWhole(url, init, timeoutMs)).res;
   } catch (error) {
@@ -182,7 +182,7 @@ async function fetchAlone(url: string, init: RequestInit, timeoutMs?: number): P
 
 export async function edgeFetch(
   url: string,
-  init: RequestInit = {},
+  init: NetInit = {},
   timeoutMs?: number,
 ): Promise<Response> {
   const hops = planHops(url);
