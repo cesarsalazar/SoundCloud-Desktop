@@ -89,10 +89,7 @@ fn get_or_create(app: &AppHandle) -> Option<WebviewWindow> {
         .transparent(true)
         .always_on_top(true)
         .skip_taskbar(true)
-        // CEF применяет set_size только к resizable-окну (can_resize спрашивается раз,
-        // при создании; живой set_resizable не действует). Делаем окно resizable, а от
-        // ручного ресайза запираем равными min==max (live-делегаты minimum/maximum_size).
-        .resizable(cfg!(feature = "cef"))
+        .resizable(false)
         .min_inner_size(W, H)
         .max_inner_size(W, H)
         .shadow(false)
@@ -203,38 +200,9 @@ fn show(app: &AppHandle, cursor: Option<(f64, f64)>, pinned: bool) {
     let _ = win.set_always_on_top(true);
     visibility::set_page_visible(&win, true);
     let point = target(app, &win, cursor);
-
-    #[cfg(not(feature = "cef"))]
-    {
-        place(&win, point);
-        let _ = win.show();
-        let _ = win.set_focus();
-    }
-
-    // CEF не привязывает `display()` к прозрачному frameless-окну до его маппинга,
-    // а size/position гейтятся на `display()` (иначе остаётся дефолт CEF 800×600).
-    // Поэтому: показываем, затем форсим размер+позицию — синхронно и отложенно,
-    // на случай асинхронного маппинга окна.
-    #[cfg(feature = "cef")]
-    {
-        let _ = win.show();
-        let _ = win.set_focus();
-        apply_geometry(&win, point);
-        let app = app.clone();
-        let win = win.clone();
-        tauri::async_runtime::spawn(async move {
-            // display() появляется только после маппинга окна.
-            tokio::time::sleep(std::time::Duration::from_millis(80)).await;
-            let _ = app.run_on_main_thread(move || apply_geometry(&win, point));
-        });
-    }
-}
-
-/// Принудительный логический размер + позиция (CEF игнорит inner_size окна).
-#[cfg(feature = "cef")]
-fn apply_geometry(win: &WebviewWindow, point: Option<Point>) {
-    let _ = win.set_size(tauri::LogicalSize::new(W, H));
-    place(win, point);
+    place(&win, point);
+    let _ = win.show();
+    let _ = win.set_focus();
 }
 
 fn hide_if_visible(app: &AppHandle) -> bool {

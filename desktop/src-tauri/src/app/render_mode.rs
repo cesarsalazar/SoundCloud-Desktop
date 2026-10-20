@@ -8,14 +8,14 @@ use crate::app::{APP_IDENTIFIER, restart};
 use crate::rt::AppHandle;
 
 const FLAG_FILE: &str = "render_mode.json";
-const SUPPORTED: bool = cfg!(all(not(feature = "cef"), any(windows, target_os = "linux")));
+const SUPPORTED: bool = cfg!(any(windows, target_os = "linux"));
 
-#[cfg(all(windows, not(feature = "cef")))]
+#[cfg(windows)]
 const WEBVIEW2_ARGS_ENV: &str = "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS";
-#[cfg(all(windows, not(feature = "cef")))]
+#[cfg(windows)]
 const WEBVIEW2_DEFAULT_ARGS: &str =
     "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection";
-#[cfg(all(windows, not(feature = "cef")))]
+#[cfg(windows)]
 const DISABLE_GPU_ARG: &str = "--disable-gpu";
 
 static LAUNCHED_SOFTWARE: OnceLock<bool> = OnceLock::new();
@@ -70,7 +70,7 @@ pub fn apply_before_launch() {
     }
 }
 
-#[cfg(all(windows, not(feature = "cef")))]
+#[cfg(windows)]
 fn disable_gpu() {
     let current = std::env::var(WEBVIEW2_ARGS_ENV).unwrap_or_default();
     if current.split_whitespace().any(|arg| arg == DISABLE_GPU_ARG) {
@@ -87,7 +87,7 @@ fn disable_gpu() {
     )]));
 }
 
-#[cfg(all(target_os = "linux", not(feature = "cef")))]
+#[cfg(target_os = "linux")]
 fn disable_gpu() {
     remember(override_env(&[
         ("WEBKIT_DISABLE_COMPOSITING_MODE", "1".into()),
@@ -95,10 +95,10 @@ fn disable_gpu() {
     ]));
 }
 
-#[cfg(not(all(any(windows, target_os = "linux"), not(feature = "cef"))))]
+#[cfg(not(any(windows, target_os = "linux")))]
 fn disable_gpu() {}
 
-#[cfg(all(any(windows, target_os = "linux"), not(feature = "cef")))]
+#[cfg(any(windows, target_os = "linux"))]
 fn override_env(vars: &[(&'static str, String)]) -> SavedEnv {
     let saved = vars
         .iter()
@@ -110,7 +110,7 @@ fn override_env(vars: &[(&'static str, String)]) -> SavedEnv {
     saved
 }
 
-#[cfg(all(any(windows, target_os = "linux"), not(feature = "cef")))]
+#[cfg(any(windows, target_os = "linux"))]
 fn remember(saved: SavedEnv) {
     let _ = LAUNCH_ENV.set(saved);
 }
@@ -184,7 +184,7 @@ mod tests {
         assert!(!parsed.software_rendering);
     }
 
-    #[cfg(all(any(windows, target_os = "linux"), not(feature = "cef")))]
+    #[cfg(any(windows, target_os = "linux"))]
     #[test]
     fn restore_env_undoes_only_the_override() {
         const PRESET: &str = "SCD_RENDER_MODE_TEST_PRESET";

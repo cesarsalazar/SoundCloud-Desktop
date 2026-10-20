@@ -25,14 +25,13 @@ const HTTP_CONNECT_TIMEOUT_SECS: u64 = 8;
 const HTTP_READ_TIMEOUT_SECS: u64 = 30;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 pub fn run() {
     app::diagnostics::init_log_file();
     app::diagnostics::install_panic_hook();
     let _ = rustls::crypto::ring::default_provider().install_default();
     app::render_mode::apply_before_launch();
     app::webview_data::wipe_before_launch();
-    #[cfg(all(windows, not(feature = "cef")))]
+    #[cfg(windows)]
     app::webview2::exit_if_runtime_missing();
 
     let builder = tauri::Builder::<rt::Rt>::new();
@@ -66,7 +65,7 @@ pub fn run() {
             });
         })
         .setup(move |app| {
-            #[cfg(all(windows, not(feature = "cef")))]
+            #[cfg(windows)]
             app::webview2::exit_if_main_window_missing(app);
             app::autostart::reveal_main_window(app);
             app::autostart::refresh_entry(app);

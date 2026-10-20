@@ -8,7 +8,7 @@ const LOCK_FILE: &str = "instance.lock";
 const TRASH_MARK: &str = ".trash-";
 
 #[cfg(windows)]
-const CACHE_NAMES: &[&str] = &["EBWebView", "cef"];
+const CACHE_NAMES: &[&str] = &["EBWebView"];
 
 #[cfg(target_os = "macos")]
 const CACHE_NAMES: &[&str] = &[
@@ -17,11 +17,10 @@ const CACHE_NAMES: &[&str] = &[
     "Cache.db-shm",
     "Cache.db-wal",
     "fsCachedData",
-    "cef",
 ];
 
 #[cfg(target_os = "linux")]
-const CACHE_NAMES: &[&str] = &["cef"];
+const CACHE_NAMES: &[&str] = &[];
 
 #[cfg(target_os = "linux")]
 const WEBKITGTK_NAMES: &[&str] = &[
