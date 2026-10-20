@@ -14,8 +14,8 @@ pub mod sync;
 
 pub use async_trait::async_trait;
 pub use chat_wire;
-pub use zeroize::Zeroizing;
 pub use contracts::*;
+pub use zeroize::Zeroizing;
 
 #[cfg(feature = "ffi")]
 uniffi::setup_scaffolding!();

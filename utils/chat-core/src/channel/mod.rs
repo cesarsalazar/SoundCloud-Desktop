@@ -7,6 +7,7 @@ use crate::contracts::{ChatError, ChatResult, Clock, DeviceId, Millis, Tier};
 use crate::crypto::DeviceKeys;
 
 pub const CHANNEL_PATH: &str = "/chat/x";
+const FIRST_OCK: u8 = chat_wire::ock::OCK_PINS[0].0;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InnerCall {
@@ -52,7 +53,7 @@ impl Channel {
         Self {
             clock,
             offset_ms: AtomicI64::new(0),
-            ock_version: AtomicU8::new(chat_wire::ock::OCK_PINS[0].0),
+            ock_version: AtomicU8::new(FIRST_OCK),
         }
     }
 
