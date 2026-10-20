@@ -13,6 +13,8 @@ import type {
   Device,
   DeviceId,
   Embed,
+  EmbedPage,
+  EmbedsQuery,
   HistoryPage,
   HistoryQuery,
   Invite,
@@ -83,6 +85,8 @@ export const chatBridge = {
   draftSave: (conversationId: ConvId, draft: RichText | null) =>
     invoke<void>('chat_draft_save', { conversationId, draft }),
   search: (query: SearchQuery) => invoke<SearchHit[]>('chat_search', { query }),
+  embeds: (conversationId: ConvId, query: EmbedsQuery) =>
+    invoke<EmbedPage>('chat_embeds', { conversationId, query }),
 
   members: (conversationId: ConvId) => invoke<Member[]>('chat_members', { conversationId }),
   memberAdd: (conversationId: ConvId, userIds: UserId[]) =>

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::ids::{Millis, Seq, UserId};
+
 pub const EMBED_BYTES_MAX: usize = 3 * 1024;
 pub const EMBED_ARTWORK_HOST_SUFFIX: &str = ".sndcdn.com";
 
@@ -45,4 +47,28 @@ pub struct Embed {
     pub at_ms: Option<u64>,
     pub tracks: Vec<EmbedTrack>,
     pub room: Option<RoomInvite>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmbedsQuery {
+    pub kinds: Vec<EmbedKind>,
+    pub before: Option<Seq>,
+    pub limit: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmbedHit {
+    pub seq: Seq,
+    pub ts: Millis,
+    pub sender: UserId,
+    pub embed: Embed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmbedPage {
+    pub items: Vec<EmbedHit>,
+    pub more: bool,
 }

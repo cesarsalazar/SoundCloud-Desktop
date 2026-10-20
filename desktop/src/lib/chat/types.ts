@@ -127,6 +127,24 @@ export interface Embed {
   room: RoomInvite | null;
 }
 
+export interface EmbedsQuery {
+  kinds: EmbedKind[];
+  before?: Seq | null;
+  limit: number;
+}
+
+export interface EmbedHit {
+  seq: Seq;
+  ts: Millis;
+  sender: UserId;
+  embed: Embed;
+}
+
+export interface EmbedPage {
+  items: EmbedHit[];
+  more: boolean;
+}
+
 export type SpanKind = 'bold' | 'italic' | 'code' | 'spoiler' | 'link' | 'mention';
 
 export interface Span {

@@ -3,10 +3,11 @@
 use chat_core::{
     ChatConfig, ChatError, ChatRequest, ChatSettings, ChatStatus, ConvId, ConversationPage,
     ConversationPatch, ConversationSummary, CreateConversation, DeleteScope, Device, DeviceId,
-    Embed, HistoryPage, HistoryQuery, Invite, InviteOptions, LinkClaimed, LinkCreated, LinkPoll,
-    ListQuery, LoginBegin, LoginPoll, LoginTarget, Member, MemberRole, Message, MessageTarget,
-    NotifyPrefs, ReportInput, RichText, RoomModeration, RoomPreview, RoomSettingsPatch, SearchHit,
-    SearchQuery, SendInput, Seq, SettingsPatch, ThreadSnapshot, UserCard, UserId,
+    Embed, EmbedPage, EmbedsQuery, HistoryPage, HistoryQuery, Invite, InviteOptions, LinkClaimed,
+    LinkCreated, LinkPoll, ListQuery, LoginBegin, LoginPoll, LoginTarget, Member, MemberRole,
+    Message, MessageTarget, NotifyPrefs, ReportInput, RichText, RoomModeration, RoomPreview,
+    RoomSettingsPatch, SearchHit, SearchQuery, SendInput, Seq, SettingsPatch, ThreadSnapshot,
+    UserCard, UserId,
 };
 use tauri::State;
 
@@ -208,6 +209,15 @@ pub async fn chat_search(
     state: State<'_, ChatState>,
     query: SearchQuery,
 ) -> Result<Vec<SearchHit>, ChatError> {
+    Err(ChatError::Unimplemented)
+}
+
+#[tauri::command]
+pub async fn chat_embeds(
+    state: State<'_, ChatState>,
+    conversation_id: ConvId,
+    query: EmbedsQuery,
+) -> Result<EmbedPage, ChatError> {
     Err(ChatError::Unimplemented)
 }
 

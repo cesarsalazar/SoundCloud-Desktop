@@ -5,10 +5,10 @@ use chat_core::channel::Channel;
 use chat_core::store::Store;
 use chat_core::sync::SyncEngine;
 use chat_core::{
-    ChatError, ChatStatus, Clock, CoreEvent, DeleteScope, Events, GoneEvent, GoneMessage,
-    HIDDEN_SYNC_EVERY_MS, MessageBody, MessageClass, MessageTarget, Mute, RichText, RoomModeration,
-    Tier, Transport, TransportError, TransportRequest, TransportResponse, async_trait,
-    is_disappearing_ttl,
+    ChatError, ChatStatus, Clock, CoreEvent, DeleteScope, EmbedKind, EmbedsQuery, Events,
+    GoneEvent, GoneMessage, HIDDEN_SYNC_EVERY_MS, MessageBody, MessageClass, MessageTarget, Mute,
+    RichText, RoomModeration, Tier, Transport, TransportError, TransportRequest, TransportResponse,
+    async_trait, is_disappearing_ttl,
 };
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -188,4 +188,12 @@ fn only_planned_timers_disappear() {
     assert!(!is_disappearing_ttl(60));
     assert_eq!(Tier::Pro.max_bytes(), 24 * 1024);
     assert_eq!(Tier::Relay.max_bytes(), 256 * 1024);
+}
+
+#[test]
+fn embed_queries_filter_by_kind() {
+    let query: EmbedsQuery =
+        serde_json::from_value(json!({"kinds": ["track", "room_invite"], "limit": 50})).unwrap();
+    assert_eq!(query.kinds, vec![EmbedKind::Track, EmbedKind::RoomInvite]);
+    assert_eq!(query.before, None);
 }

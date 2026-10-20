@@ -425,6 +425,7 @@ pub fn run() {
             chat::commands::chat_room_suggest,
             chat::commands::chat_logout,
             chat::commands::chat_notify_prefs,
+            chat::commands::chat_embeds,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

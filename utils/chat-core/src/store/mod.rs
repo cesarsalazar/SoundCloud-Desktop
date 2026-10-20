@@ -11,8 +11,8 @@ use zeroize::Zeroizing;
 
 use crate::contracts::{
     ChatError, ChatResult, ClientId, ConvId, ConversationPage, ConversationSummary, DeviceId,
-    GoneMessage, HistoryPage, HistoryQuery, ListQuery, Member, MessageClass, Millis, PeerMark,
-    RichText, Seq, SystemEvent, UserId, UserRef,
+    EmbedPage, EmbedsQuery, GoneMessage, HistoryPage, HistoryQuery, ListQuery, Member,
+    MessageClass, Millis, PeerMark, RichText, Seq, SystemEvent, UserId, UserRef,
 };
 use crate::crypto::Ck;
 
@@ -153,6 +153,10 @@ impl Store {
     }
 
     pub fn messages(&self, _id: ConvId, _query: &HistoryQuery) -> ChatResult<HistoryPage> {
+        Err(ChatError::Unimplemented)
+    }
+
+    pub fn embeds(&self, _id: ConvId, _query: &EmbedsQuery) -> ChatResult<EmbedPage> {
         Err(ChatError::Unimplemented)
     }
 
