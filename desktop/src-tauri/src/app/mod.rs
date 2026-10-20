@@ -5,6 +5,7 @@ pub mod diagnostics;
 pub mod hotkeys;
 pub mod launch_flags;
 pub mod log_sink;
+pub mod navigation;
 pub mod popover;
 pub mod popover_position;
 pub mod render_mode;

@@ -23,6 +23,7 @@ import { bootThemes } from './lib/themes/boot';
 import { initUiScale } from './lib/ui-scale';
 import './fonts';
 import './index.css';
+import './lib/scproxy';
 import { useSettingsStore } from './stores/settings';
 
 // Кап 60 fps: троттл requestAnimationFrame (см. lib/fps-cap.ts). На высокогерцовых
@@ -60,7 +61,6 @@ function startDeferredRuntime() {
   scheduleAfterFirstPaint(() => {
     setupUiWatchdog();
     setupCacheMaintenance();
-    void import('./lib/scproxy');
     void import('./lib/tray');
     void import('./lib/tray-menu').then((m) => m.initTrayMenu());
     void import('./lib/audio');
