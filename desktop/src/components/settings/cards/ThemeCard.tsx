@@ -89,7 +89,7 @@ export function ThemeCard() {
                     <span
                         className={`text-[12px] font-medium ${isActive ? 'text-white/90' : 'text-white/50'}`}
                     >
-                      {def.name}
+                      {t(`settings.theme_${id}`)}
                     </span>
                                     </div>
                                 </button>
