@@ -39,6 +39,14 @@ pub fn apply(app: &AppHandle, status: &ChatStatus) {
     crate::app::tray::set_unread(app, badge.count > 0);
 }
 
+pub fn has_unread() -> bool {
+    APPLIED
+        .lock()
+        .ok()
+        .and_then(|applied| *applied)
+        .is_some_and(|badge| badge.count > 0)
+}
+
 fn reshow_on_focus(app: &AppHandle, window: &WebviewWindow) {
     let app = app.clone();
     window.on_window_event(move |event| {

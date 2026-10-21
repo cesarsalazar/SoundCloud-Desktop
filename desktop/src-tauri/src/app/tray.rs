@@ -251,6 +251,8 @@ mod linux {
                 .await;
             match spawned {
                 Ok(tray) => {
+                    let unread = crate::chat::badge::has_unread();
+                    tray.update(|tray| tray.unread = unread).await;
                     handle.manage(Spawned(tray));
                     std::future::pending::<()>().await
                 }
