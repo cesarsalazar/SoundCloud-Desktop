@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use chat_core::channel::{Channel, InnerAnswer, InnerCall};
+use chat_core::channel::{BUSY_RETRY_MAX_MS, BUSY_RETRY_MS, Channel, InnerAnswer, InnerCall};
 use chat_core::crypto::DeviceKeys;
 use chat_core::login::seal_login;
 use chat_core::{
@@ -109,7 +109,9 @@ pub fn outer(response: TransportResponse) -> Result<Vec<u8>, Miss> {
         200 => Ok(response.body),
         413 => Err(Miss::Fatal(ChatError::Invalid)),
         503 => Err(match response.retry_after_ms {
-            Some(retry_ms) => Miss::Fatal(ChatError::Busy { retry_ms }),
+            Some(retry_ms) => Miss::Fatal(ChatError::Busy {
+                retry_ms: retry_ms.clamp(BUSY_RETRY_MS, BUSY_RETRY_MAX_MS),
+            }),
             None => Miss::Tier(ChatError::Offline),
         }),
         400 => Err(Miss::Tier(ChatError::Protocol)),

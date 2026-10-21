@@ -77,7 +77,7 @@ pub fn server_now(answer: &InnerAnswer) -> Option<Millis> {
         return None;
     }
     match rejection(answer) {
-        ChatError::Clock { server_now } => Some(server_now),
+        ChatError::Clock { server_now } if server_now > 0 => Some(server_now),
         _ => None,
     }
 }

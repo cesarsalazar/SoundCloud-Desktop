@@ -153,6 +153,9 @@ fn sealed_chat_errors_keep_their_code() {
     );
     assert_eq!(wire::server_now(&clock), Some(42));
 
+    let timeless = answer(401, json!({ "error": "chat_clock" }));
+    assert_eq!(wire::server_now(&timeless), None);
+
     let busy = answer(503, json!({ "error": "chat_busy", "retry_ms": 700 }));
     assert_eq!(
         wire::decode::<LoginBegin>(&busy),
@@ -221,6 +224,14 @@ fn outer_status_decides_between_next_tier_and_stop() {
     assert_eq!(
         outer(response(503, Some(2_000))),
         Err(Miss::Fatal(ChatError::Busy { retry_ms: 2_000 }))
+    );
+    assert_eq!(
+        outer(response(503, Some(86_400_000))),
+        Err(Miss::Fatal(ChatError::Busy { retry_ms: 60_000 }))
+    );
+    assert_eq!(
+        outer(response(503, Some(0))),
+        Err(Miss::Fatal(ChatError::Busy { retry_ms: 1_000 }))
     );
     assert_eq!(
         outer(response(503, None)),

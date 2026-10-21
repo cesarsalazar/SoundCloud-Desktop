@@ -3,7 +3,8 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use chat_core::channel::{Channel, InnerAnswer};
-use chat_core::{ChatResult, Clock, Millis, Tier, Transport, async_trait};
+use chat_core::crypto::DeviceKeys;
+use chat_core::{ChatError, ChatResult, Clock, KeyStore, Millis, Tier, Transport, async_trait};
 
 use super::exchange::{Call, Signer, attempt, over_tiers};
 
@@ -13,6 +14,7 @@ pub struct Lane {
     channel: Channel,
     last: Mutex<Option<Tier>>,
     held: Mutex<HashMap<String, Held>>,
+    loading: tokio::sync::Mutex<()>,
 }
 
 struct Held {
@@ -22,10 +24,15 @@ struct Held {
 
 impl Lane {
     pub fn new() -> Self {
+        Self::with_channel(Channel::new(Arc::new(WallClock)))
+    }
+
+    pub fn with_channel(channel: Channel) -> Self {
         Self {
-            channel: Channel::new(Arc::new(WallClock)),
+            channel,
             last: Mutex::new(None),
             held: Mutex::new(HashMap::new()),
+            loading: tokio::sync::Mutex::new(()),
         }
     }
 
@@ -42,6 +49,15 @@ impl Lane {
         .await?;
         *lock(&self.last) = Some(tier);
         Ok(answer)
+    }
+
+    pub async fn signer(&self, store: Arc<dyn KeyStore>) -> ChatResult<Arc<Signer>> {
+        let _one_at_a_time = self.loading.lock().await;
+        let (device_id, keys) =
+            tokio::task::spawn_blocking(move || DeviceKeys::load_or_create(store.as_ref()))
+                .await
+                .map_err(|_| ChatError::Keychain)??;
+        Ok(Arc::new(Signer { device_id, keys }))
     }
 
     pub fn hold(&self, request_id: &str, signer: Arc<Signer>) {
