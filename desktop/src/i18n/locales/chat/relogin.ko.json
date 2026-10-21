@@ -1,1 +1,7 @@
-{}
+{
+  "unboundTitle": "채팅을 켜려면 로그인을 확인하세요",
+  "boundOtherTitle": "로그인을 다시 확인해야 합니다",
+  "musicStays": "음악 로그인은 그대로 유지됩니다",
+  "confirm": "로그인 확인",
+  "done": "채팅이 켜졌습니다"
+}

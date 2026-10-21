@@ -1,1 +1,7 @@
-{}
+{
+  "unboundTitle": "Confirm sign-in to turn on chats",
+  "boundOtherTitle": "Confirm your sign-in again",
+  "musicStays": "Music stays signed in",
+  "confirm": "Confirm sign-in",
+  "done": "Chats are on"
+}

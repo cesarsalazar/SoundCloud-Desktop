@@ -1,1 +1,7 @@
-{}
+{
+  "unboundTitle": "Sohbetleri açmak için girişi onaylayın",
+  "boundOtherTitle": "Girişi yeniden onaylamanız gerekiyor",
+  "musicStays": "Müzik oturumu açık kalır",
+  "confirm": "Girişi onayla",
+  "done": "Sohbetler açık"
+}
