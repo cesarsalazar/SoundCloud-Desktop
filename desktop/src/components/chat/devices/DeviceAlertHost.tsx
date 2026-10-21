@@ -61,6 +61,7 @@ export const DeviceAlertHost = memo(function DeviceAlertHost() {
       <DeviceAlertModal
         key={shown.id}
         device={shown}
+        open={device !== null}
         queued={Math.max(queued, 1)}
         onHold={setHeld}
         onClose={finish}

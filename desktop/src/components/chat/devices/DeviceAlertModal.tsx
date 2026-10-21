@@ -19,6 +19,7 @@ const AUTO_CLOSE_MS = 1_600;
 
 interface DeviceAlertModalProps {
   device: Device;
+  open: boolean;
   queued: number;
   onHold: (device: Device | null) => void;
   onClose: () => void;
@@ -30,7 +31,7 @@ function ringOutcome(outcome: AlertOutcome | null) {
   return null;
 }
 
-export function DeviceAlertModal({ device, queued, onHold, onClose }: DeviceAlertModalProps) {
+export function DeviceAlertModal({ device, open, queued, onHold, onClose }: DeviceAlertModalProps) {
   const { t, i18n } = useTranslation();
   const perf = usePerfMode();
   const now = useNow(60_000);
@@ -38,6 +39,10 @@ export function DeviceAlertModal({ device, queued, onHold, onClose }: DeviceAler
   const action = useDeviceAction();
   const [outcome, setOutcome] = useState<AlertOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) setError(null);
+  }, [open]);
 
   useEffect(() => {
     if (outcome !== 'confirmed' && outcome !== 'acknowledged') return;
