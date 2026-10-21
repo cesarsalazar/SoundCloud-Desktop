@@ -5,6 +5,15 @@ import { useRichLinks } from '../../ui/useRichLinks';
 import { useThread } from '../thread/context';
 import { useThreadDialogs } from '../thread/dialogs';
 
+function onSoundCloud(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === 'soundcloud.com' || host.endsWith('.soundcloud.com');
+  } catch {
+    return false;
+  }
+}
+
 export function useChatLinks() {
   const navigate = useNavigate();
   const { openLink } = useRichLinks();
@@ -12,7 +21,7 @@ export function useChatLinks() {
 
   const openUrl = useCallback(
     (url: string) => {
-      if (findSoundCloudLink(url)) {
+      if (onSoundCloud(url) && findSoundCloudLink(url)) {
         void openLink(url);
         return;
       }

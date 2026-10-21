@@ -12,8 +12,9 @@ import { THREAD_KEYFRAMES } from './keyframes';
 import { PinnedBar } from './PinnedBar';
 import { ThreadDialogs } from './ThreadDialogs';
 import { ThreadHeader } from './ThreadHeader';
-import { ThreadEmpty, ThreadFailed, ThreadSkeleton } from './ThreadStates';
+import { ThreadEmpty, ThreadFailed, ThreadGone, ThreadSkeleton } from './ThreadStates';
 import { Timeline, type TimelineHandle } from './Timeline';
+import { useBlocked } from './useBlocked';
 import { usePeople } from './usePeople';
 
 export interface ChatThreadProps {
@@ -38,8 +39,16 @@ export const ChatThread = memo(function ChatThread({
   const me = useChatStore((state) => state.status?.userId ?? null);
   const { t, i18n } = useTranslation();
   const { people, nameOf } = usePeople(conversation, members, me);
+  const shared = conversation?.kind === 'group' || conversation?.kind === 'room';
+  const blocked = useBlocked(shared);
   const timeline = useRef<TimelineHandle>(null);
   const [info, setInfo] = useState(false);
+  const leave = useRef(onLeave);
+  leave.current = onLeave;
+
+  useEffect(() => {
+    if (load === 'gone') leave.current?.();
+  }, [load]);
 
   useEffect(() => {
     const store = useChatThreadStore.getState();
@@ -69,9 +78,9 @@ export const ChatThread = memo(function ChatThread({
   const context = useMemo<ThreadContextValue | null>(
     () =>
       conversation
-        ? { t, language: i18n.language, conversation, me, people, nameOf, jumpTo }
+        ? { t, language: i18n.language, conversation, me, people, blocked, nameOf, jumpTo }
         : null,
-    [t, i18n.language, conversation, me, people, nameOf, jumpTo],
+    [t, i18n.language, conversation, me, people, blocked, nameOf, jumpTo],
   );
 
   if (!context) {
@@ -80,6 +89,7 @@ export const ChatThread = memo(function ChatThread({
         <ThreadFailed onRetry={() => void useChatThreadStore.getState().load(conversationId)} />
       );
     }
+    if (load === 'gone') return <ThreadGone />;
     return <ThreadSkeleton />;
   }
 

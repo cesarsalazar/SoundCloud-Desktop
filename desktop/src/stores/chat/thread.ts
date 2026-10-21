@@ -34,7 +34,7 @@ const PAGE_SIZE = 60;
 const KEEP_THREADS = 8;
 const JUMP_PAGES = 20;
 
-export type ThreadLoad = 'idle' | 'loading' | 'ready' | 'failed';
+export type ThreadLoad = 'idle' | 'loading' | 'ready' | 'failed' | 'gone';
 
 export interface Compose {
   reply: Seq | null;
@@ -334,6 +334,12 @@ export const useChatThreadStore = create<ChatThreadState>()((set, get) => {
     },
 
     applyMessages: (event) => {
+      const known = get().threads[event.conversationId];
+      if (!known || (known.load !== 'ready' && known.load !== 'loading')) {
+        const pending = outgoing(mergeMessages(known?.messages ?? [], event.messages));
+        if (known || pending.length > 0) patch(event.conversationId, () => ({ messages: pending }));
+        return;
+      }
       const live = event.origin !== 'history';
       patch(event.conversationId, (current) => ({
         messages: mergeMessages(current.messages, event.messages),
@@ -358,7 +364,9 @@ export const useChatThreadStore = create<ChatThreadState>()((set, get) => {
     applyGone: (event) => {
       set((state) => {
         const threads = { ...state.threads };
-        for (const id of event.conversations) delete threads[id];
+        for (const id of event.conversations) {
+          if (threads[id]) threads[id] = { ...emptyThread(), load: 'gone' };
+        }
         for (const [id, seqs] of goneByConversation(event.messages)) {
           if (threads[id]) threads[id] = withoutSeqs(threads[id], seqs);
         }

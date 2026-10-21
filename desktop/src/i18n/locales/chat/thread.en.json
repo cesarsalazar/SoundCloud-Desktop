@@ -71,6 +71,7 @@
     "system": "Event",
     "edited": "Edited",
     "forwarded": "Forwarded from {{name}}",
+    "blocked": "Message from a blocked user",
     "spoiler": "Show hidden text",
     "expiresIn": "Disappears in {{time}}"
   },
@@ -136,6 +137,7 @@
       "other": "Something else"
     },
     "comment": "Comment, if you want",
+    "policy": "A broken rule deletes the message. A repeat within 30 days closes chats for 7 days, illegal content closes them for good. Music and your account stay.",
     "privacy": "Messages are encrypted and nobody reads them. A report sends only these messages and a little context to automatic moderation.",
     "send": "Send report",
     "sent": "Report sent"

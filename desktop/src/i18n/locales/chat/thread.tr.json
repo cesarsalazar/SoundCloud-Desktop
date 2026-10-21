@@ -71,6 +71,7 @@
     "system": "Etkinlik",
     "edited": "Düzenlendi",
     "forwarded": "İleten: {{name}}",
+    "blocked": "Engellediğin kullanıcıdan mesaj",
     "spoiler": "Gizli metni göster",
     "expiresIn": "Kaybolmasına {{time}} kaldı"
   },
@@ -136,6 +137,7 @@
       "other": "Başka bir şey"
     },
     "comment": "İsterseniz yorum ekleyin",
+    "policy": "Kural ihlalinde mesaj silinir. 30 gün içinde tekrarlanırsa sohbetler 7 gün kapanır, yasa dışı içerikte kalıcı olarak kapanır. Müzik ve hesabın yerinde kalır.",
     "privacy": "Mesajlar şifrelidir ve kimse okumaz. Şikayette yalnızca bu mesajlar ve biraz bağlam otomatik moderasyona gider.",
     "send": "Şikayeti gönder",
     "sent": "Şikayet gönderildi"

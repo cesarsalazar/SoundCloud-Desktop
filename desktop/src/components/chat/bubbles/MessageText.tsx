@@ -2,6 +2,7 @@ import { Fragment, memo, type ReactNode, useMemo, useState } from 'react';
 import { type Segment, safeUrl, segments } from '../../../lib/chat/spans';
 import type { RichText } from '../../../lib/chat/types';
 import { useThread } from '../thread/context';
+import { isRequest } from '../thread/permissions';
 import { useChatLinks } from './useChatLinks';
 
 const URL_PATTERN = /https?:\/\/[^\s<>"'`]+/gi;
@@ -103,8 +104,9 @@ function autoLinks(text: string): ReactNode {
   return parts;
 }
 
-function SegmentView({ segment }: { segment: Segment }) {
-  let node: ReactNode = segment.code || segment.link ? segment.text : autoLinks(segment.text);
+function SegmentView({ segment, links }: { segment: Segment; links: boolean }) {
+  const plain = segment.code || segment.link || !links;
+  let node: ReactNode = plain ? segment.text : autoLinks(segment.text);
   if (segment.code) {
     node = (
       <code className="rounded-[5px] bg-black/30 px-1 py-px font-mono text-[0.9em] text-white/90">
@@ -114,7 +116,7 @@ function SegmentView({ segment }: { segment: Segment }) {
   }
   if (segment.bold) node = <strong className="font-semibold text-white">{node}</strong>;
   if (segment.italic) node = <em>{node}</em>;
-  if (segment.link) node = <LinkText url={segment.link}>{node}</LinkText>;
+  if (segment.link && links) node = <LinkText url={segment.link}>{node}</LinkText>;
   else if (segment.mention) node = <MentionText userId={segment.mention}>{node}</MentionText>;
   return node;
 }
@@ -130,9 +132,13 @@ function runs(parts: Segment[]): { spoiler: boolean; parts: Segment[] }[] {
 }
 
 export const MessageText = memo(function MessageText({ rich }: { rich: RichText }) {
+  const { conversation } = useThread();
+  const links = !isRequest(conversation);
   const grouped = useMemo(() => runs(segments(rich)), [rich]);
   return grouped.map((run, index) => {
-    const nodes = run.parts.map((part, at) => <SegmentView key={at} segment={part} />);
+    const nodes = run.parts.map((part, at) => (
+      <SegmentView key={at} segment={part} links={links} />
+    ));
     if (!run.spoiler) return <Fragment key={index}>{nodes}</Fragment>;
     return (
       <Spoiler key={index} text={run.parts.map((part) => part.text).join('')}>

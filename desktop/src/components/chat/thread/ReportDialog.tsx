@@ -84,7 +84,10 @@ export const ReportDialog = memo(function ReportDialog({
         rows={2}
         className="resize-none rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-[13px] text-white/85 outline-none placeholder:text-white/30 focus:border-white/[0.14]"
       />
-      <p className="text-[11.5px] leading-snug text-white/40">{t('chat.thread.report.privacy')}</p>
+      <div className="flex flex-col gap-1.5 text-[11.5px] leading-snug text-white/40">
+        <p>{t('chat.thread.report.policy')}</p>
+        <p>{t('chat.thread.report.privacy')}</p>
+      </div>
       <div className="flex gap-2">
         <button
           type="button"

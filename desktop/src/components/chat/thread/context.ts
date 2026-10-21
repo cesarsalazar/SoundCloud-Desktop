@@ -9,6 +9,7 @@ export interface ThreadContextValue {
   conversation: ConversationSummary;
   me: UserId | null;
   people: Map<UserId, UserRef>;
+  blocked: ReadonlySet<UserId>;
   nameOf: NameOf;
   jumpTo: (seq: Seq) => void;
 }

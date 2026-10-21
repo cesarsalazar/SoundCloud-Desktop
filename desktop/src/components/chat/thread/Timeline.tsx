@@ -16,6 +16,7 @@ import type { ConvId, Message, PeerMark, Seq } from '../../../lib/chat/types';
 import { useChatThreadStore } from '../../../stores/chat/thread';
 import { MessageRow } from '../bubbles/MessageRow';
 import { useThread } from './context';
+import { isRequest } from './permissions';
 import { buildRows, estimateRow, type Row, rowIndexOfSeq, unseenBelow } from './rows';
 import { DaySeparator, SystemRow, UnreadDivider } from './Separators';
 import { FloatingDay, JumpButton, TopSpinner } from './TimelineOverlays';
@@ -104,7 +105,7 @@ export const Timeline = memo(function Timeline({
   const items = virtualizer.getVirtualItems();
   const startIndex = virtualizer.range?.startIndex ?? -1;
   const endIndex = virtualizer.range?.endIndex ?? -1;
-  useReadMarker(conversationId, rows, endIndex, ready);
+  useReadMarker(conversationId, rows, endIndex, ready && !isRequest(conversation));
 
   const firstIndex = items[0]?.index ?? -1;
   useEffect(() => {

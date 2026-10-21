@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MessageCircle } from '../../../lib/chat/icons';
-import { Bookmark, RotateCcw } from '../../../lib/icons';
+import { Ban, Bookmark, RotateCcw } from '../../../lib/icons';
 import { Skeleton } from '../../ui/Skeleton';
 
 const SHAPES = [
@@ -61,6 +61,16 @@ export const ThreadEmpty = memo(function ThreadEmpty({ saved }: { saved: boolean
       <span className="max-w-[260px] text-[13px] leading-snug text-white/50">
         {t(saved ? 'chat.thread.empty.saved' : 'chat.thread.empty.chat')}
       </span>
+    </div>
+  );
+});
+
+export const ThreadGone = memo(function ThreadGone() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-white/45">
+      <Ban size={22} />
+      <span className="text-[13px]">{t('chat.thread.notMember')}</span>
     </div>
   );
 });
