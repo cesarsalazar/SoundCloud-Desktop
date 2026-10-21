@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use chat_core::channel::Channel;
-use chat_core::{
+use sc_chat::channel::Channel;
+use sc_chat::{
     Clock, ConversationKind, ConversationSummary, DeliveryState, Device, DeviceActions,
     DeviceStatus, MemberRole, MemberState, Message, MessageBody, Millis, NotifyLevel, RichText,
     Seq, Span, SpanKind, SystemEvent, SystemKind, Tier, UserRef,
@@ -137,7 +137,7 @@ pub fn device(name: &str, platform: &str) -> Device {
 
 struct BehindClock;
 
-#[chat_core::async_trait]
+#[sc_chat::async_trait]
 impl Clock for BehindClock {
     fn now_ms(&self) -> Millis {
         1_000

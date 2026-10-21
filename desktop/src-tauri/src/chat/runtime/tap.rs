@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use chat_core::{ConvId, CoreEvent, Events, UserId};
+use sc_chat::{ConvId, CoreEvent, Events, UserId};
 
 use super::status::StatusCell;
 

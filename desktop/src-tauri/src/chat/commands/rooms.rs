@@ -1,4 +1,4 @@
-use chat_core::{
+use sc_chat::{
     ChatResult, ConversationSummary, Embed, RoomModeration, RoomPreview, RoomSettingsPatch,
 };
 

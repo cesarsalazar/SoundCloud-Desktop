@@ -1,5 +1,5 @@
-use chat_core::Tier;
-use chat_core::channel::CHANNEL_PATH;
+use sc_chat::Tier;
+use sc_chat::channel::CHANNEL_PATH;
 
 use crate::network::edge;
 

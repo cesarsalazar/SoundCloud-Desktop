@@ -1,4 +1,4 @@
-use chat_core::{
+use sc_chat::{
     ConversationKind, ConversationSummary, Device, Embed, EmbedKind, Message, MessageBody,
     PreviewMode, RichText, SpanKind, SystemKind,
 };

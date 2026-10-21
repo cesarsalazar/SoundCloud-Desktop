@@ -1,7 +1,5 @@
-use chat_core::api::wire::{FileReport, SettingsChange, SettingsView};
-use chat_core::{
-    ChatError, ChatResult, ChatSettings, ReportInput, SettingsPatch, UserCard, UserId,
-};
+use sc_chat::api::wire::{FileReport, SettingsChange, SettingsView};
+use sc_chat::{ChatError, ChatResult, ChatSettings, ReportInput, SettingsPatch, UserCard, UserId};
 
 use super::reads::blocking;
 use crate::chat::state::ChatState;

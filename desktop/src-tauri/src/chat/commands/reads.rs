@@ -1,4 +1,4 @@
-use chat_core::{
+use sc_chat::{
     ChatError, ChatResult, ConvId, ConversationPage, EmbedPage, EmbedsQuery, HistoryPage,
     HistoryQuery, ListQuery, RichText, SearchHit, SearchQuery, ThreadSnapshot, UserId,
 };

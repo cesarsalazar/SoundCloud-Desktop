@@ -770,41 +770,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "chat-core"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "chacha20poly1305",
- "chat-wire",
- "hmac",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.18",
- "uuid 1.22.0",
- "zeroize",
-]
-
-[[package]]
-name = "chat-wire"
-version = "0.1.0"
-source = "git+https://github.com/zxcloli666/SoundCloud-Backend?tag=chat-wire-v0.1.0#7d3e58482b5b9da5a3576ec47d7412594469f37e"
-dependencies = [
- "chacha20poly1305",
- "ed25519-dalek",
- "getrandom 0.3.4",
- "hex",
- "hpke",
- "prost",
- "prost-build",
- "protox",
- "sha2",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "chrono"
 version = "0.4.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5066,6 +5031,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "sc-chat"
+version = "0.1.0"
+source = "git+https://github.com/zxcloli666/SoundCloud-Core?tag=sc-chat-v0.1.0#cac73b4fcbafb03b8549338395d3f532f24980f6"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chacha20poly1305",
+ "hmac",
+ "rusqlite",
+ "sc-chat-wire",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
+ "uuid 1.22.0",
+ "zeroize",
+]
+
+[[package]]
+name = "sc-chat-wire"
+version = "0.1.1"
+source = "git+https://github.com/zxcloli666/SoundCloud-Core?tag=sc-chat-v0.1.0#cac73b4fcbafb03b8549338395d3f532f24980f6"
+dependencies = [
+ "chacha20poly1305",
+ "ed25519-dalek",
+ "getrandom 0.3.4",
+ "hex",
+ "hpke",
+ "prost",
+ "prost-build",
+ "protox",
+ "sha2",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "sc-fingerprint"
 version = "0.1.0"
 source = "git+https://github.com/zxcloli666/SoundCloud-Backend?tag=v9.1.0#0153accfa994d8f4631ec453e2f3cd7cf5908d01"
@@ -5553,7 +5554,6 @@ dependencies = [
  "biquad",
  "bytes",
  "call-client",
- "chat-core",
  "chrono",
  "cpal",
  "decrypt-client",
@@ -5578,6 +5578,7 @@ dependencies = [
  "rodio",
  "rustfft",
  "rustls",
+ "sc-chat",
  "sc-fingerprint",
  "serde",
  "serde_json",

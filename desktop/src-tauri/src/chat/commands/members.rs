@@ -1,5 +1,5 @@
-use chat_core::api::wire::{MemberChange, MemberView, NewInvite};
-use chat_core::{
+use sc_chat::api::wire::{MemberChange, MemberView, NewInvite};
+use sc_chat::{
     ChatError, ChatRequest, ChatResult, ConvId, ConversationSummary, Invite, InviteOptions, Member,
     MemberRole, UserId,
 };

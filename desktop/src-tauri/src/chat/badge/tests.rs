@@ -1,4 +1,4 @@
-use chat_core::{ChatPhase, ChatStatus};
+use sc_chat::{ChatPhase, ChatStatus};
 
 use super::Badge;
 use super::desktop_entry::app_uri;

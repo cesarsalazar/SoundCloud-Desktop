@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use chat_core::{ChatError, ChatResult, KeyName, KeyStorage, KeyStore, Zeroizing};
+use sc_chat::{ChatError, ChatResult, KeyName, KeyStorage, KeyStore, Zeroizing};
 
 use super::{FileVault, Keychain, Vault, should_fall_back};
 

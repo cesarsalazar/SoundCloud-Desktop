@@ -4,8 +4,8 @@ mod wire;
 
 use std::sync::{Arc, OnceLock};
 
-use chat_core::channel::{InnerAnswer, InnerCall};
-use chat_core::{
+use sc_chat::channel::{InnerAnswer, InnerCall};
+use sc_chat::{
     ChatError, ChatResult, LinkClaimed, LinkCreated, LinkMode, LinkPoll, LinkState, LoginBegin,
     LoginPoll, LoginState, LoginTarget,
 };

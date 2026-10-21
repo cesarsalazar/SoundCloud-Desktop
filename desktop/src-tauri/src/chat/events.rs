@@ -1,4 +1,4 @@
-use chat_core::{ConvId, CoreEvent, Events};
+use sc_chat::{ConvId, CoreEvent, Events};
 use serde::Serialize;
 use tauri::Emitter;
 

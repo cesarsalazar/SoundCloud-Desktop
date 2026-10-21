@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use chat_core::api::Api;
-use chat_core::channel::Channel;
-use chat_core::{ChatResult, ChatStatus, Clock, Events, KeyStore, Transport};
+use sc_chat::api::Api;
+use sc_chat::channel::Channel;
+use sc_chat::{ChatResult, ChatStatus, Clock, Events, KeyStore, Transport};
 
 use super::events::TauriEvents;
 use super::keychain::Keychain;

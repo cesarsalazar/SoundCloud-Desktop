@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use chat_core::ConvId;
+use sc_chat::ConvId;
 
 use super::Runtime;
 

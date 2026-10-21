@@ -3,9 +3,7 @@ mod hops;
 
 use std::time::Duration;
 
-use chat_core::{
-    Tier, Transport, TransportError, TransportRequest, TransportResponse, async_trait,
-};
+use sc_chat::{Tier, Transport, TransportError, TransportRequest, TransportResponse, async_trait};
 
 pub use hops::Route;
 

@@ -1,4 +1,4 @@
-use chat_core::{ChatConfig, ChatResult, Device, DeviceId};
+use sc_chat::{ChatConfig, ChatResult, Device, DeviceId};
 
 use crate::chat::runtime::config_of;
 use crate::chat::state::ChatState;

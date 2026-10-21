@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use chat_core::api::Api;
-use chat_core::crypto::DeviceKeys;
-use chat_core::outbox::Outbox;
-use chat_core::search::Search;
-use chat_core::store::Store;
-use chat_core::sync::SyncEngine;
-use chat_core::{ChatError, ChatResult, DeviceId, Events, KeyStore};
+use sc_chat::api::Api;
+use sc_chat::crypto::DeviceKeys;
+use sc_chat::outbox::Outbox;
+use sc_chat::search::Search;
+use sc_chat::store::Store;
+use sc_chat::sync::SyncEngine;
+use sc_chat::{ChatError, ChatResult, DeviceId, Events, KeyStore};
 
 const DATABASE: &str = "chat.db";
 

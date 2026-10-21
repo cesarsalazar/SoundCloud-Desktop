@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use chat_core::{ChatStatus, CoreEvent, Events};
+use sc_chat::{ChatStatus, CoreEvent, Events};
 
 pub struct StatusCell {
     status: Mutex<ChatStatus>,

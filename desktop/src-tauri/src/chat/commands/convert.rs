@@ -1,6 +1,6 @@
-use chat_core::api::wire::{MemberView, RequestView};
-use chat_core::store::Store;
-use chat_core::{
+use sc_chat::api::wire::{MemberView, RequestView};
+use sc_chat::store::Store;
+use sc_chat::{
     ChatRequest, ConversationSummary, Member, MemberRole, MemberState, NotifyLevel, UserId, UserRef,
 };
 

@@ -1,9 +1,9 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use chat_core::channel::InnerAnswer;
-use chat_core::crypto::DeviceKeys;
-use chat_core::{
+use sc_chat::channel::InnerAnswer;
+use sc_chat::crypto::DeviceKeys;
+use sc_chat::{
     ChatError, LinkCreated, LinkMode, LinkState, LoginBegin, LoginState, LoginStep, Tier,
     TransportResponse,
 };

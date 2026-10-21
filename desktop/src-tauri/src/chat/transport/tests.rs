@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use chat_core::{Tier, Transport, TransportError, TransportRequest};
+use sc_chat::{Tier, Transport, TransportError, TransportRequest};
 use warp::Filter;
 use warp::http::{Response, StatusCode};
 

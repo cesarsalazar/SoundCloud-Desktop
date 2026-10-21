@@ -1,6 +1,4 @@
-use chat_core::{
-    ConversationKind, Embed, EmbedKind, MessageBody, PreviewMode, RichText, SystemKind,
-};
+use sc_chat::{ConversationKind, Embed, EmbedKind, MessageBody, PreviewMode, RichText, SystemKind};
 
 use super::super::alert::{Alert, chat as alert, device};
 use super::super::rules::Reason;

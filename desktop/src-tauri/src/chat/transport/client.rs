@@ -1,8 +1,8 @@
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use chat_core::{TransportError, TransportResponse};
 use futures_util::{Stream, StreamExt};
+use sc_chat::{TransportError, TransportResponse};
 use wreq::header::{CONTENT_TYPE, HeaderMap, RETRY_AFTER};
 use wreq::redirect::Policy;
 

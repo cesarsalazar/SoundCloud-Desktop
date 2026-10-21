@@ -1,9 +1,9 @@
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use chat_core::Events;
-use chat_core::store::ExpiryTimer;
-use chat_core::store::expiry::NAP_MAX_MS;
+use sc_chat::Events;
+use sc_chat::store::ExpiryTimer;
+use sc_chat::store::expiry::NAP_MAX_MS;
 
 use super::Runtime;
 use super::local::Core;

@@ -10,7 +10,7 @@ mod tests;
 
 use std::sync::{Mutex, Once};
 
-use chat_core::ChatStatus;
+use sc_chat::ChatStatus;
 use tauri::{Manager, WindowEvent};
 
 pub use self::count::Badge;

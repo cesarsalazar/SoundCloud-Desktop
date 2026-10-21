@@ -18,8 +18,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
-use chat_core::api::Api;
-use chat_core::{ChatConfig, ChatError, ChatResult, ChatStatus, Clock, ConvId, DeviceId, UserId};
+use sc_chat::api::Api;
+use sc_chat::{ChatConfig, ChatError, ChatResult, ChatStatus, Clock, ConvId, DeviceId, UserId};
 use tauri::Listener;
 
 use super::keychain::Keychain;

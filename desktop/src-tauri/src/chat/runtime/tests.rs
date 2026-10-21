@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use chat_core::api::wire::{ConfigView, LimitsView};
-use chat_core::{Access, ChatPhase, ChatStatus, CoreEvent, Events, HistoryGate, Tier, TypingEvent};
+use sc_chat::api::wire::{ConfigView, LimitsView};
+use sc_chat::{Access, ChatPhase, ChatStatus, CoreEvent, Events, HistoryGate, Tier, TypingEvent};
 use uuid::Uuid;
 
 use super::bringup::{backoff, busy_retry, clock_retry, config_of};

@@ -1,5 +1,5 @@
-use chat_core::api::wire::{MemberView, RequestList};
-use chat_core::{
+use sc_chat::api::wire::{MemberView, RequestList};
+use sc_chat::{
     ChatError, HistoryPage, HistoryQuery, MemberRole, MemberState, ReportInput, ReportReason,
     RichText, Span, SpanKind, TEXT_MAX,
 };

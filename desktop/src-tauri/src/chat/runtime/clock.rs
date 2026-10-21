@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use chat_core::{Clock, Millis, async_trait};
+use sc_chat::{Clock, Millis, async_trait};
 
 pub struct SystemClock;
 
@@ -26,7 +26,7 @@ pub fn jitter(max_ms: u64) -> u64 {
     if max_ms == 0 {
         return 0;
     }
-    let roll = chat_core::chat_wire::random_bytes::<8>()
+    let roll = sc_chat::sc_chat_wire::random_bytes::<8>()
         .map(u64::from_le_bytes)
         .unwrap_or(0);
     roll % (max_ms + 1)

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use chat_core::Millis;
+use sc_chat::Millis;
 use tokio::time::MissedTickBehavior;
 
 use super::Runtime;

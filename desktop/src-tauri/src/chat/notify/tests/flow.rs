@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 
-use chat_core::{ConversationKind, SystemKind};
+use sc_chat::{ConversationKind, SystemKind};
 use uuid::Uuid;
 
 use super::super::history::{History, ONE_PER_CHAT_MS, OPEN_WITHIN_MS};
@@ -13,7 +13,7 @@ fn since(notifier: &Notifier) -> i64 {
     notifier.since.load(Ordering::Acquire)
 }
 
-fn live(notifier: &Notifier, seq: i64, body: &str) -> chat_core::Message {
+fn live(notifier: &Notifier, seq: i64, body: &str) -> sc_chat::Message {
     let mut message = text(seq, body);
     message.ts = since(notifier) + 1_000;
     message
@@ -177,7 +177,7 @@ fn seen_moves_only_forward() {
 #[test]
 fn a_new_sign_in_moves_the_cutoff_but_a_reattach_keeps_it() {
     let notifier = Notifier::default();
-    let store = chat_core::store::Store::open_in_memory(&[7; 32]).expect("in-memory store");
+    let store = sc_chat::store::Store::open_in_memory(&[7; 32]).expect("in-memory store");
     let store = std::sync::Arc::new(store);
     let channel = channel_at(NOW);
     notifier.since.store(1, Ordering::Release);
@@ -215,7 +215,7 @@ fn a_blocked_member_never_notifies_but_news_about_me_still_does() {
 #[test]
 fn the_start_cutoff_follows_the_server_clock_not_a_skewed_local_one() {
     let notifier = Notifier::default();
-    let store = chat_core::store::Store::open_in_memory(&[7; 32]).expect("in-memory store");
+    let store = sc_chat::store::Store::open_in_memory(&[7; 32]).expect("in-memory store");
     notifier.attach(std::sync::Arc::new(store), ME.to_owned(), channel_at(NOW));
     assert_eq!(since(&notifier), NOW);
     let mut before = text(1, "sent before the start");

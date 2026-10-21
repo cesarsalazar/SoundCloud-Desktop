@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use chat_core::{ConvId, DeviceId, Message, Millis, Seq};
+use sc_chat::{ConvId, DeviceId, Message, Millis, Seq};
 
 pub const OPEN_WITHIN_MS: Millis = 10_000;
 pub const ONE_PER_CHAT_MS: Millis = 5_000;

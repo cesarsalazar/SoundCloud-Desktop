@@ -2,7 +2,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 
-use chat_core::{ChatError, ChatResult, KeyName, Zeroizing};
+use sc_chat::{ChatError, ChatResult, KeyName, Zeroizing};
 
 use super::Vault;
 

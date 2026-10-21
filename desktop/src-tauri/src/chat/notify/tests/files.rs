@@ -1,4 +1,4 @@
-use chat_core::{NotifyPrefs, PreviewMode};
+use sc_chat::{NotifyPrefs, PreviewMode};
 use uuid::Uuid;
 
 use super::super::markup::escape;

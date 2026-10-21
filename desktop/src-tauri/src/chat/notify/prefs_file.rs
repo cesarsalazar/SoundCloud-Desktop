@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use chat_core::NotifyPrefs;
+use sc_chat::NotifyPrefs;
 
 use crate::app::APP_IDENTIFIER;
 use crate::chat::DIR;

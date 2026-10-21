@@ -7,7 +7,7 @@ mod reads;
 mod rooms;
 mod safety;
 
-use chat_core::{
+use sc_chat::{
     ChatConfig, ChatError, ChatRequest, ChatSettings, ChatStatus, ConvId, ConversationPage,
     ConversationPatch, ConversationSummary, CreateConversation, DeleteScope, Device, DeviceId,
     Embed, EmbedPage, EmbedsQuery, HistoryPage, HistoryQuery, Invite, InviteOptions, LinkClaimed,

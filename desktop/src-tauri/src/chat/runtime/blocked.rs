@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use chat_core::UserId;
+use sc_chat::UserId;
 
 use super::Runtime;
 

@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use chat_core::channel::{Channel, InnerAnswer};
-use chat_core::crypto::DeviceKeys;
-use chat_core::{ChatError, ChatResult, Clock, KeyStore, Millis, Tier, Transport, async_trait};
+use sc_chat::channel::{Channel, InnerAnswer};
+use sc_chat::crypto::DeviceKeys;
+use sc_chat::{ChatError, ChatResult, Clock, KeyStore, Millis, Tier, Transport, async_trait};
 
 use super::exchange::{Call, Signer, attempt, over_tiers};
 

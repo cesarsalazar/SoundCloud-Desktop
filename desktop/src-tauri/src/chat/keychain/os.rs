@@ -1,5 +1,5 @@
-use chat_core::{ChatError, ChatResult, KeyName, Zeroizing};
 use keyring::{Entry, Error};
+use sc_chat::{ChatError, ChatResult, KeyName, Zeroizing};
 
 use super::Vault;
 use crate::app::diagnostics;

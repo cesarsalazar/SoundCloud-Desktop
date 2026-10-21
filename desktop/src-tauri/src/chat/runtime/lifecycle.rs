@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use chat_core::api::Api;
-use chat_core::{ChatError, ChatPhase, ChatResult, HistoryGate};
+use sc_chat::api::Api;
+use sc_chat::{ChatError, ChatPhase, ChatResult, HistoryGate};
 
 use super::bringup::Halt;
 use super::local::Core;

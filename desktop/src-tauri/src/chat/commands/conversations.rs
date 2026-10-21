@@ -1,6 +1,6 @@
-use chat_core::api::wire::{MyChange, NewConversation};
-use chat_core::envelope::Content;
-use chat_core::{
+use sc_chat::api::wire::{MyChange, NewConversation};
+use sc_chat::envelope::Content;
+use sc_chat::{
     ChatError, ChatResult, ConvId, ConversationKind, ConversationMeta, ConversationPatch,
     ConversationSummary, CoreEvent, CreateConversation, DeleteScope, GoneEvent,
     is_disappearing_ttl,

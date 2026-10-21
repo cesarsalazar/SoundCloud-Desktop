@@ -1,5 +1,5 @@
-use chat_core::channel::InnerAnswer;
-use chat_core::{
+use sc_chat::channel::InnerAnswer;
+use sc_chat::{
     ChatError, ChatResult, LinkMode, LinkPoll, LinkState, LoginPoll, LoginState, LoginStep, Millis,
 };
 use serde::Deserialize;

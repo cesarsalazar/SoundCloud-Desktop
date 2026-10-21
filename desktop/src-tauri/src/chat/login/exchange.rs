@@ -1,9 +1,9 @@
 use std::future::Future;
 
-use chat_core::channel::{BUSY_RETRY_MAX_MS, BUSY_RETRY_MS, Channel, InnerAnswer, InnerCall};
-use chat_core::crypto::DeviceKeys;
-use chat_core::login::seal_login;
-use chat_core::{
+use sc_chat::channel::{BUSY_RETRY_MAX_MS, BUSY_RETRY_MS, Channel, InnerAnswer, InnerCall};
+use sc_chat::crypto::DeviceKeys;
+use sc_chat::login::seal_login;
+use sc_chat::{
     ChatError, DeviceId, Tier, Transport, TransportError, TransportRequest, TransportResponse,
 };
 

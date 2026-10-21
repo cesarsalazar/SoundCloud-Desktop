@@ -2,15 +2,15 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use chat_core::channel::Channel;
-use chat_core::chat_wire::bind::verify_bind;
-use chat_core::chat_wire::ock::OckSecret;
-use chat_core::chat_wire::prost::Message;
-use chat_core::chat_wire::proto::{Header, Inner, InnerResponse};
-use chat_core::chat_wire::seal::{ENC_LEN, open_request};
-use chat_core::chat_wire::sign::verify_request;
-use chat_core::crypto::DeviceKeys;
-use chat_core::{
+use sc_chat::channel::Channel;
+use sc_chat::crypto::DeviceKeys;
+use sc_chat::sc_chat_wire::bind::verify_bind;
+use sc_chat::sc_chat_wire::ock::OckSecret;
+use sc_chat::sc_chat_wire::prost::Message;
+use sc_chat::sc_chat_wire::proto::{Header, Inner, InnerResponse};
+use sc_chat::sc_chat_wire::seal::{ENC_LEN, open_request};
+use sc_chat::sc_chat_wire::sign::verify_request;
+use sc_chat::{
     ChatError, ChatResult, Clock, KeyName, KeyStorage, KeyStore, LoginBegin, Millis, Tier,
     Transport, TransportError, TransportRequest, TransportResponse, Zeroizing, async_trait,
 };
@@ -57,7 +57,7 @@ struct Origin {
 
 impl Origin {
     fn new(tiers: Vec<Tier>, script: Vec<Reply>) -> Self {
-        let seed = chat_core::chat_wire::random_bytes::<32>().unwrap();
+        let seed = sc_chat::sc_chat_wire::random_bytes::<32>().unwrap();
         Self {
             secret: OckSecret::from_bytes(&seed).unwrap(),
             tiers,
@@ -107,7 +107,7 @@ impl Transport for Origin {
             }],
             body: body.into_bytes(),
         };
-        let nonce = chat_core::chat_wire::random_bytes().unwrap();
+        let nonce = sc_chat::sc_chat_wire::random_bytes().unwrap();
         let body = opened
             .response_key
             .seal(&opened.enc, nonce, &answer.encode_to_vec())
@@ -318,8 +318,8 @@ async fn a_pull_claim_from_the_source_is_sealed_with_its_session() {
         )
         .await
         .unwrap();
-    let claimed: chat_core::LinkClaimed = wire::decode(&answer).unwrap();
-    assert_eq!(claimed.mode, chat_core::LinkMode::Pull);
+    let claimed: sc_chat::LinkClaimed = wire::decode(&answer).unwrap();
+    assert_eq!(claimed.mode, sc_chat::LinkMode::Pull);
 
     origin.seen(|seen| {
         let inner = &seen[0].inner;

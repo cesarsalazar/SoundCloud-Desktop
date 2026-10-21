@@ -15,9 +15,9 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, Once, RwLock};
 
-use chat_core::channel::Channel;
-use chat_core::store::Store;
-use chat_core::{
+use sc_chat::channel::Channel;
+use sc_chat::store::Store;
+use sc_chat::{
     ConversationKind, ConversationSummary, Device, DeviceAddedEvent, DeviceStatus, Message,
     MessagesEvent, MessagesOrigin, Millis, NotifyPrefs, UserId,
 };

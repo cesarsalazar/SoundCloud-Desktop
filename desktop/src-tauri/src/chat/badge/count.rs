@@ -1,4 +1,4 @@
-use chat_core::{ChatPhase, ChatStatus};
+use sc_chat::{ChatPhase, ChatStatus};
 
 const LABEL_MAX: u32 = 99;
 #[cfg(any(windows, test))]

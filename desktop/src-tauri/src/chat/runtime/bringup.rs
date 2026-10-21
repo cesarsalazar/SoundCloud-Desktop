@@ -1,11 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use chat_core::api::Identity;
-use chat_core::api::wire::{ConfigView, RegisterDevice};
-use chat_core::{
-    Access, ChatConfig, ChatError, ChatLimits, ChatPhase, ChatResult, KeyStore, UserId,
-};
+use sc_chat::api::Identity;
+use sc_chat::api::wire::{ConfigView, RegisterDevice};
+use sc_chat::{Access, ChatConfig, ChatError, ChatLimits, ChatPhase, ChatResult, KeyStore, UserId};
 
 use super::Runtime;
 use super::local::{self, Core};

@@ -4,8 +4,8 @@ mod os;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use chat_core::crypto::DeviceKeys;
-use chat_core::{ChatError, ChatResult, KeyName, KeyStorage, KeyStore, Zeroizing};
+use sc_chat::crypto::DeviceKeys;
+use sc_chat::{ChatError, ChatResult, KeyName, KeyStorage, KeyStore, Zeroizing};
 
 use super::runtime::database_path;
 use crate::app::diagnostics;

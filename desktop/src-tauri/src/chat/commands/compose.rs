@@ -1,7 +1,7 @@
-use chat_core::chat_wire::prost::Message as _;
-use chat_core::envelope::{self, Content, Post};
-use chat_core::outbox::OutboxItem;
-use chat_core::{
+use sc_chat::envelope::{self, Content, Post};
+use sc_chat::outbox::OutboxItem;
+use sc_chat::sc_chat_wire::prost::Message as _;
+use sc_chat::{
     ChatError, ChatResult, ClientId, ConvId, ConversationKind, CoreEvent, DeleteScope, EMBEDS_MAX,
     Forwarded, GoneEvent, GoneMessage, HistoryQuery, Message, MessageBody, MessageRef,
     MessageTarget, RichText, SendInput, Seq, SpanKind, TEXT_MAX, UserId, embeds,

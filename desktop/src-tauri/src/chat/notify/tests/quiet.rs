@@ -1,4 +1,4 @@
-use chat_core::{
+use sc_chat::{
     ConversationKind, MemberState, MessageBody, NotifyLevel, NotifyPrefs, PreviewMode, SystemKind,
 };
 
