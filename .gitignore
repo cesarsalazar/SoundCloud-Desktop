@@ -31,3 +31,6 @@ worker/venv/
 
 # FireBase
 .firebase
+
+# CI cache stamp.
+/.ci
