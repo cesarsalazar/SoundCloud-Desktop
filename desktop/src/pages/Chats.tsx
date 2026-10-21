@@ -2,10 +2,10 @@ import { memo, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ConversationList } from '../components/chat/list/ConversationList';
 import { ChatGate } from '../components/chat/shell/ChatGate';
+import { ChatsGlow } from '../components/chat/shell/ChatsGlow';
 import { EmptyThread } from '../components/chat/shell/EmptyThread';
 import { ThreadSlot } from '../components/chat/shell/ThreadSlot';
 import { chatPath } from '../components/chat/shell/useOpenChat';
-import { Atmosphere } from '../components/search/Atmosphere';
 import { usePerfMode } from '../lib/perf';
 import { useChatRoomStore } from '../stores/chat/room';
 
@@ -13,16 +13,11 @@ const PANEL =
   'relative flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-white/[0.08]';
 
 function Panel({ className, children }: { className: string; children: ReactNode }) {
-  const perf = usePerfMode();
-  const blur = perf.blur(40);
+  const blur = usePerfMode().blur(40);
   return (
     <section
       className={`${PANEL} ${className}`}
-      style={{
-        boxShadow: perf.bloom
-          ? '0 24px 70px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06)'
-          : 'inset 0 1px 0 rgba(255,255,255,0.06)',
-      }}
+      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07)' }}
     >
       <div
         aria-hidden
@@ -54,7 +49,7 @@ export const Chats = memo(function Chats() {
 
   return (
     <div className="relative h-full w-full">
-      <Atmosphere energy={0.22} />
+      <ChatsGlow />
       <div className="@container relative z-10 mx-auto flex h-full max-w-[1480px] px-4 pt-4 md:px-5 md:pt-5">
         <ChatGate>
           <div className="flex h-full min-h-0 w-full gap-4">

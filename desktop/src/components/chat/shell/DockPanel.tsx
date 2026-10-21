@@ -36,7 +36,6 @@ export const DockPanel = memo(function DockPanel({ mode }: { mode: 'docked' | 'o
         className={overlay ? 'absolute inset-y-0 right-0 z-50' : 'relative h-full shrink-0'}
         style={{
           width: overlay ? `min(${width}px, calc(100% - ${OVERLAY_GAP}px))` : width,
-          boxShadow: overlay && perf.bloom ? '-30px 0 80px rgba(0,0,0,0.45)' : undefined,
           animation:
             overlay && perf.mode !== 'light'
               ? 'chat-slide-in 320ms var(--ease-apple) both'
