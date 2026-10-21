@@ -1,0 +1,136 @@
+import { type CSSProperties, memo } from 'react';
+import { Lock, Reply } from '../../../lib/chat/icons';
+import { senderColor, type Tick } from '../../../lib/chat/render';
+import type { Message } from '../../../lib/chat/types';
+import { Ban, Sparkles } from '../../../lib/icons';
+import { EmbedCard } from '../embeds/EmbedCard';
+import { useThread } from '../thread/context';
+import { BubbleMeta } from './BubbleMeta';
+import { MessageText } from './MessageText';
+import { ReplyQuote } from './ReplyQuote';
+
+const BIG = 18;
+const SMALL = 6;
+const TAIL = 4;
+
+function corners(mine: boolean, first: boolean, last: boolean): string {
+  const top = first ? BIG : SMALL;
+  const bottom = last ? TAIL : SMALL;
+  return mine ? `${BIG}px ${top}px ${bottom}px ${BIG}px` : `${top}px ${BIG}px ${BIG}px ${bottom}px`;
+}
+
+const THEIRS: CSSProperties = {
+  background: 'rgba(255,255,255,0.065)',
+  border: '1px solid rgba(255,255,255,0.045)',
+};
+
+const MINE: CSSProperties = {
+  background: 'var(--color-accent-glow)',
+  border: '1px solid var(--color-accent-glow)',
+};
+
+const FAILED: CSSProperties = {
+  background: 'rgba(244,63,94,0.08)',
+  border: '1px solid rgba(251,113,133,0.35)',
+};
+
+const TOMBSTONE_ICONS = { deleted: Ban, locked: Lock, unknown: Sparkles } as const;
+
+function Tombstone({ message, radius }: { message: Message; radius: string }) {
+  const { t } = useThread();
+  const kind = message.body.type as keyof typeof TOMBSTONE_ICONS;
+  const Icon = TOMBSTONE_ICONS[kind];
+  return (
+    <div
+      className="flex items-center gap-1.5 border border-dashed border-white/[0.09] px-3 py-[7px] text-[12.5px] italic text-white/40"
+      style={{ borderRadius: radius }}
+    >
+      <Icon size={12} className="shrink-0 not-italic" />
+      <span>{t(`chat.thread.bubble.${kind}`)}</span>
+      <BubbleMeta message={message} tick={null} floating={false} />
+    </div>
+  );
+}
+
+function Forwarded({ forwarded }: { forwarded: NonNullable<Message['forwardedFrom']> }) {
+  const { t } = useThread();
+  return (
+    <div
+      className="mb-0.5 flex min-w-0 items-center gap-1 text-[11px] font-medium"
+      style={{ color: senderColor(forwarded.userId) }}
+    >
+      <Reply size={11} className="shrink-0 -scale-x-100" />
+      <span className="truncate">
+        {t('chat.thread.bubble.forwarded', { name: forwarded.name })}
+      </span>
+    </div>
+  );
+}
+
+export interface BubbleProps {
+  message: Message;
+  replied: Message | null;
+  tick: Tick | null;
+  first: boolean;
+  last: boolean;
+  flash: boolean;
+}
+
+export const Bubble = memo(function Bubble({
+  message,
+  replied,
+  tick,
+  first,
+  last,
+  flash,
+}: BubbleProps) {
+  const { nameOf, conversation } = useThread();
+  const radius = corners(message.mine, first, last);
+  const { body } = message;
+  if (body.type !== 'text') return <Tombstone message={message} radius={radius} />;
+
+  const hasText = body.text.length > 0;
+  const metaInText = hasText && message.embeds.length === 0;
+  const tone = tick === 'failed' ? FAILED : message.mine ? MINE : THEIRS;
+  const showName = first && !message.mine && conversation.kind !== 'direct';
+
+  return (
+    <div
+      className="chat-thread-motion relative min-w-0 max-w-full px-3 py-[7px] text-[13.5px] leading-[1.45] text-white/90"
+      style={{
+        ...tone,
+        borderRadius: radius,
+        animation: flash ? 'chat-thread-flash 1.4s ease-out' : undefined,
+      }}
+    >
+      {showName && (
+        <div
+          className="mb-0.5 truncate text-[12px] font-semibold"
+          style={{ color: senderColor(message.sender) }}
+        >
+          {nameOf(message.sender)}
+        </div>
+      )}
+      {message.forwardedFrom && <Forwarded forwarded={message.forwardedFrom} />}
+      {message.replyTo !== null && <ReplyQuote seq={message.replyTo} message={replied} />}
+      {hasText && (
+        <div className="selectable flow-root whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+          <MessageText rich={body} />
+          {metaInText && <BubbleMeta message={message} tick={tick} floating />}
+        </div>
+      )}
+      {message.embeds.length > 0 && (
+        <div className={`flex flex-col gap-1.5 ${hasText ? 'mt-1.5' : ''}`}>
+          {message.embeds.map((embed, index) => (
+            <EmbedCard key={`${embed.urn}:${index}`} embed={embed} mine={message.mine} />
+          ))}
+        </div>
+      )}
+      {!metaInText && (
+        <div className="mt-1 flex justify-end">
+          <BubbleMeta message={message} tick={tick} floating={false} />
+        </div>
+      )}
+    </div>
+  );
+});

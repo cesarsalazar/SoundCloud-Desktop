@@ -1,0 +1,134 @@
+import type { TFunction } from 'i18next';
+import { type MouseEvent, memo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { chatBridge } from '../../../lib/chat/bridge';
+import { senderColor } from '../../../lib/chat/render';
+import type { ConversationSummary, Member } from '../../../lib/chat/types';
+import { Crown, Ellipsis, Shield, ShieldAlert, X } from '../../../lib/icons';
+import { useChatThreadStore } from '../../../stores/chat/thread';
+import { type ContextMenuEntry, openContextMenu } from '../../../stores/context-menu';
+import { Avatar } from '../../ui/Avatar';
+import { useThread } from '../thread/context';
+import { toastError } from '../thread/errors';
+import { canManageMembers } from '../thread/permissions';
+
+const NO_MEMBERS: Member[] = [];
+const ROLE_ORDER = { owner: 0, admin: 1, member: 2 } as const;
+
+function memberMenu(
+  member: Member,
+  conversation: ConversationSummary,
+  t: TFunction,
+  language: string,
+): ContextMenuEntry[] {
+  const reload = () => useChatThreadStore.getState().loadMembers(conversation.id);
+  const fail = (error: unknown) => toastError(error, t, language);
+  const entries: ContextMenuEntry[] = [];
+  if (conversation.role === 'owner') {
+    const admin = member.role === 'admin';
+    entries.push({
+      id: 'role',
+      label: t(admin ? 'chat.thread.info.removeAdmin' : 'chat.thread.info.makeAdmin'),
+      icon: admin ? <ShieldAlert size={14} /> : <Shield size={14} />,
+      onSelect: () =>
+        void chatBridge
+          .memberRole(conversation.id, member.user.id, admin ? 'member' : 'admin')
+          .then(reload)
+          .catch(fail),
+    });
+  }
+  entries.push({
+    id: 'remove',
+    label: t('chat.thread.info.removeMember'),
+    icon: <X size={14} />,
+    onSelect: () =>
+      void chatBridge.memberRemove(conversation.id, member.user.id).then(reload).catch(fail),
+  });
+  return entries;
+}
+
+function canTouch(member: Member, conversation: ConversationSummary, me: string | null): boolean {
+  if (!canManageMembers(conversation) || member.user.id === me || member.role === 'owner') {
+    return false;
+  }
+  return conversation.role === 'owner' || member.role === 'member';
+}
+
+const MemberRow = memo(function MemberRow({ member }: { member: Member }) {
+  const { t, i18n } = useTranslation();
+  const { conversation, me } = useThread();
+  const manage = canTouch(member, conversation, me);
+  const open = (event: MouseEvent) =>
+    openContextMenu(event, memberMenu(member, conversation, t, i18n.language));
+
+  return (
+    <div
+      onContextMenu={manage ? open : undefined}
+      className={`group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors duration-150 hover:bg-white/[0.04] ${
+        member.state === 'invited' ? 'opacity-55' : ''
+      }`}
+    >
+      <Avatar src={member.user.avatarUrl} size={34} />
+      <span className="min-w-0 flex-1">
+        <span
+          className="block truncate text-[13px] font-semibold"
+          style={{ color: senderColor(member.user.id) }}
+        >
+          {member.user.name}
+        </span>
+        {member.user.id === me && (
+          <span className="block text-[11px] text-white/35">{t('chat.thread.info.you')}</span>
+        )}
+      </span>
+      {member.role === 'owner' && (
+        <Crown
+          size={14}
+          aria-label={t('chat.thread.info.owner')}
+          className="shrink-0 text-amber-300/85"
+        />
+      )}
+      {member.role === 'admin' && (
+        <Shield
+          size={14}
+          aria-label={t('chat.thread.info.admin')}
+          className="shrink-0 text-sky-300/85"
+        />
+      )}
+      {manage && (
+        <button
+          type="button"
+          aria-label={t('chat.thread.actions.more')}
+          onClick={open}
+          className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-white/40 opacity-0 transition-opacity duration-150 hover:bg-white/[0.08] hover:text-white group-hover:opacity-100 focus-visible:opacity-100"
+        >
+          <Ellipsis size={14} />
+        </button>
+      )}
+    </div>
+  );
+});
+
+export const MembersTab = memo(function MembersTab() {
+  const { conversation } = useThread();
+  const members = useChatThreadStore(
+    (state) => state.threads[conversation.id]?.members ?? NO_MEMBERS,
+  );
+
+  useEffect(() => {
+    void useChatThreadStore.getState().loadMembers(conversation.id);
+  }, [conversation.id]);
+
+  const sorted = [...members]
+    .filter((member) => member.state === 'active' || member.state === 'invited')
+    .sort(
+      (a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role] || a.user.name.localeCompare(b.user.name),
+    );
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {sorted.map((member) => (
+        <MemberRow key={member.user.id} member={member} />
+      ))}
+    </div>
+  );
+});

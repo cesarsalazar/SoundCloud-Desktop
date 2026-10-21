@@ -1,0 +1,58 @@
+import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { art } from '../../../lib/formatters';
+import { Disc3 } from '../../../lib/icons';
+import { usePerfMode } from '../../../lib/perf';
+import { usePlayerStore } from '../../../stores/player';
+
+export const NowPlayingButton = memo(function NowPlayingButton({
+  onAttach,
+}: {
+  onAttach: () => void;
+}) {
+  const { t } = useTranslation();
+  const track = usePlayerStore((state) => state.currentTrack);
+  const playing = usePlayerStore((state) => state.isPlaying);
+  const spin = usePerfMode().idleAnim && playing;
+  const cover = art(track?.artwork_url ?? track?.user.avatar_url, 't67x67');
+  const label = track
+    ? t('chat.thread.composer.nowPlaying', { title: track.title })
+    : t('chat.thread.composer.nothingPlaying');
+
+  return (
+    <button
+      type="button"
+      disabled={!track}
+      aria-label={label}
+      title={label}
+      onClick={onAttach}
+      className="group/disc relative flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform duration-200 hover:scale-105 disabled:cursor-default disabled:hover:scale-100"
+    >
+      {track && cover ? (
+        <span
+          className="chat-thread-motion relative size-[30px] overflow-hidden rounded-full border border-white/15"
+          style={{ animation: spin ? 'chat-thread-spin 6s linear infinite' : undefined }}
+        >
+          <img src={cover} alt="" className="size-full object-cover" />
+          <span
+            aria-hidden
+            className="absolute inset-0 rounded-full"
+            style={{
+              background:
+                'radial-gradient(circle, rgb(16,16,20) 0 3px, rgba(255,255,255,0.35) 3.5px 4px, transparent 4.5px), repeating-radial-gradient(circle, transparent 0 2px, rgba(0,0,0,0.12) 2px 3px)',
+            }}
+          />
+        </span>
+      ) : (
+        <Disc3 size={19} className={track ? 'text-white/70' : 'text-white/25'} />
+      )}
+      {playing && (
+        <span
+          aria-hidden
+          className="absolute right-0.5 bottom-0.5 size-2 rounded-full border border-black/60"
+          style={{ background: 'var(--color-accent)' }}
+        />
+      )}
+    </button>
+  );
+});
