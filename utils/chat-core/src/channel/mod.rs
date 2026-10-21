@@ -1,26 +1,26 @@
+mod answer;
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, AtomicU8, Ordering};
 
-use chat_wire::seal::{ENC_LEN, ResponseKey};
+use chat_wire::prost::Message;
+use chat_wire::proto::Inner;
+use chat_wire::seal::{ENC_LEN, RequestSealer, ResponseKey};
 
 use crate::contracts::{ChatError, ChatResult, Clock, DeviceId, Millis, Tier};
 use crate::crypto::DeviceKeys;
 
+pub use answer::{BUSY_RETRY_MAX_MS, BUSY_RETRY_MS, InnerAnswer};
+
 pub const CHANNEL_PATH: &str = "/chat/x";
-const FIRST_OCK: u8 = chat_wire::ock::OCK_PINS[0].0;
+
+pub type OckPin = (u8, [u8; 32]);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InnerCall {
     pub method: String,
     pub path: String,
     pub query: String,
-    pub body: Vec<u8>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InnerAnswer {
-    pub status: u16,
-    pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
 }
 
@@ -36,29 +36,34 @@ pub struct Sealed {
     pub response_key: ResponseKey,
 }
 
-impl Sealed {
-    pub fn open(&self, _body: &[u8]) -> ChatResult<InnerAnswer> {
-        Err(ChatError::Unimplemented)
-    }
-}
-
 pub struct Channel {
     clock: Arc<dyn Clock>,
     offset_ms: AtomicI64,
     ock_version: AtomicU8,
+    pins: Vec<OckPin>,
 }
 
 impl Channel {
     pub fn new(clock: Arc<dyn Clock>) -> Self {
+        Self::with_pins(clock, chat_wire::ock::OCK_PINS.to_vec())
+    }
+
+    pub fn with_pins(clock: Arc<dyn Clock>, pins: Vec<OckPin>) -> Self {
+        let first = pins.first().map_or(0, |(version, _)| *version);
         Self {
             clock,
             offset_ms: AtomicI64::new(0),
-            ock_version: AtomicU8::new(FIRST_OCK),
+            ock_version: AtomicU8::new(first),
+            pins,
         }
     }
 
     pub fn now_ms(&self) -> Millis {
         self.clock.now_ms() + self.offset_ms.load(Ordering::Relaxed)
+    }
+
+    pub fn offset_ms(&self) -> Millis {
+        self.offset_ms.load(Ordering::Relaxed)
     }
 
     pub fn note_server_now(&self, server_now: Millis) {
@@ -71,14 +76,74 @@ impl Channel {
     }
 
     pub fn use_ock(&self, version: u8) -> bool {
-        let pinned = chat_wire::ock::pinned(version).is_some();
+        let pinned = self.pin(version).is_some();
         if pinned {
             self.ock_version.store(version, Ordering::Relaxed);
         }
         pinned
     }
 
-    pub fn seal(&self, _call: &InnerCall, _caller: &Caller<'_>, _tier: Tier) -> ChatResult<Sealed> {
-        Err(ChatError::Unimplemented)
+    pub fn seal(&self, call: &InnerCall, caller: &Caller<'_>, tier: Tier) -> ChatResult<Sealed> {
+        self.seal_call(call, caller, tier, chat_wire::random_bytes()?)
+    }
+
+    pub(crate) fn seal_call(
+        &self,
+        call: &InnerCall,
+        caller: &Caller<'_>,
+        tier: Tier,
+        ikm_e: [u8; 32],
+    ) -> ChatResult<Sealed> {
+        let inner = Inner {
+            session_id: Some(caller.session_id.to_owned()),
+            device_id: Some(caller.device_id.to_string()),
+            ..self.inner(call, tier, tier.max_bytes())
+        };
+        self.seal_signed(inner, caller.keys, ikm_e)
+    }
+
+    pub(crate) fn inner(&self, call: &InnerCall, tier: Tier, max_bytes: u32) -> Inner {
+        Inner {
+            ts_ms: self.wire_now(),
+            session_id: None,
+            device_id: None,
+            method: call.method.clone(),
+            path: call.path.clone(),
+            query: call.query.clone(),
+            body: call.body.clone(),
+            tier: tier.wire().into(),
+            max_bytes,
+            bind: None,
+            sig: Vec::new(),
+        }
+    }
+
+    pub(crate) fn seal_signed(
+        &self,
+        mut inner: Inner,
+        keys: &DeviceKeys,
+        ikm_e: [u8; 32],
+    ) -> ChatResult<Sealed> {
+        let version = self.ock_version();
+        let ock = self.pin(version).ok_or(ChatError::Crypto)?;
+        let sealer = RequestSealer::new(version, ock, ikm_e)?;
+        keys.sign(&mut inner, sealer.enc())?;
+        let sealed = sealer.seal(&inner.encode_to_vec())?;
+        Ok(Sealed {
+            envelope: sealed.envelope,
+            enc: sealed.enc,
+            response_key: sealed.response_key,
+        })
+    }
+
+    pub(crate) fn wire_now(&self) -> u64 {
+        u64::try_from(self.now_ms()).unwrap_or_default()
+    }
+
+    fn pin(&self, version: u8) -> Option<&[u8; 32]> {
+        self.pins
+            .iter()
+            .find(|(pinned, _)| *pinned == version)
+            .map(|(_, key)| key)
     }
 }
