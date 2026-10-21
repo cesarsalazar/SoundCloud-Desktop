@@ -11,6 +11,7 @@ pub mod local;
 mod marks;
 mod outbox;
 mod reconcile;
+mod rooms;
 mod rows;
 mod run;
 mod signal;

@@ -2,12 +2,15 @@ use chat_core::{
     ChatResult, ConversationSummary, Embed, RoomModeration, RoomPreview, RoomSettingsPatch,
 };
 
-use super::conversations::refreshed;
 use crate::chat::state::ChatState;
 
 pub async fn chat(state: &ChatState, code: String) -> ChatResult<ConversationSummary> {
     let opened = state.api.room_chat(&code).await?;
-    refreshed(state, opened.conversation_id).await
+    state
+        .core()?
+        .sync
+        .adopt_room(opened.conversation_id, &code, opened.from_seq)
+        .await
 }
 
 pub async fn preview(state: &ChatState, code: String) -> ChatResult<RoomPreview> {

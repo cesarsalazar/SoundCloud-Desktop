@@ -31,11 +31,12 @@ impl<L: Local> SyncEngine<L> {
         let local = self.store.known(LOCAL_MAX)?;
         if listed.complete {
             let ids: HashSet<ConvId> = listed.views.iter().map(|view| view.id).collect();
-            let gone: Vec<ConvId> = local
-                .iter()
-                .map(|(id, _)| *id)
-                .filter(|id| !ids.contains(id))
-                .collect();
+            let mut gone = Vec::new();
+            for (id, _) in &local {
+                if !ids.contains(id) && !self.is_room(*id)? {
+                    gone.push(*id);
+                }
+            }
             self.purge(&gone, &[])?;
         }
         if pending.restored {
@@ -70,6 +71,7 @@ impl<L: Local> SyncEngine<L> {
             }
             conversations.push(summary);
         }
+        conversations.extend(self.catch_up_rooms(&local).await?);
         let requests = self.with(|state| state.status.requests);
         self.events.emit(CoreEvent::Sync(SyncEvent {
             reset: true,
