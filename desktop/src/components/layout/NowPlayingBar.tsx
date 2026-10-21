@@ -1015,8 +1015,10 @@ const ReactClusterBody = React.memo(({ urn }: { urn: string }) => {
   return (
     <div className="npb-react">
       <LikeButton trackUrn={urn} trackData={trackData} />
-      <NowBarDislikeButton trackUrn={urn} trackData={trackData} disliked={disliked} />
-      <NowBarAddToPlaylistButton trackUrn={urn} />
+      <span className="npb-extra">
+        <NowBarDislikeButton trackUrn={urn} trackData={trackData} disliked={disliked} />
+        <NowBarAddToPlaylistButton trackUrn={urn} />
+      </span>
       <span className="npb-slot">
         {trackData && (
           <AlbumLinkButton
@@ -1090,7 +1092,8 @@ const BackgroundGlow = React.memo(() => {
 const COMPACT_DOCK_AREA = 1160;
 const TIGHT_DOCK_AREA = 1000;
 const MINI_DOCK_AREA = 900;
-const MIN_DOCK_AREA = 800;
+const MICRO_DOCK_AREA = 760;
+const NANO_DOCK_AREA = 600;
 
 function subscribeResize(onChange: () => void) {
   window.addEventListener('resize', onChange);
@@ -1111,8 +1114,7 @@ export const NowPlayingBar = React.memo(
     const perf = usePerfMode();
     const windowWidth = useSyncExternalStore(subscribeResize, readWindowWidth);
     const right = useChatDockWidth();
-    const sidebar = sidebarWidth(sidebarCollapsed);
-    const left = windowWidth - right - sidebar < MIN_DOCK_AREA ? 0 : sidebar;
+    const left = sidebarWidth(sidebarCollapsed);
     const area = windowWidth - left - right;
 
     return (
@@ -1122,6 +1124,8 @@ export const NowPlayingBar = React.memo(
         data-compact={area < COMPACT_DOCK_AREA ? '' : undefined}
         data-tight={area < TIGHT_DOCK_AREA ? '' : undefined}
         data-mini={area < MINI_DOCK_AREA ? '' : undefined}
+        data-micro={area < MICRO_DOCK_AREA ? '' : undefined}
+        data-nano={area < NANO_DOCK_AREA ? '' : undefined}
         style={{
           left,
           right,
@@ -1150,11 +1154,15 @@ export const NowPlayingBar = React.memo(
               <div className="npb-sep" />
 
               <div className="flex items-center gap-0.5">
-                <ShuffleBtn />
+                <span className="npb-spare">
+                  <ShuffleBtn />
+                </span>
                 <PrevBtn />
                 <PlayPauseBtn />
                 <NextBtn />
-                <RepeatBtn />
+                <span className="npb-spare">
+                  <RepeatBtn />
+                </span>
                 <AbLoopBtn />
               </div>
 
@@ -1162,9 +1170,13 @@ export const NowPlayingBar = React.memo(
 
               <div className="flex items-center gap-0.5">
                 <TogetherButton />
-                <TuningBtn />
-                <EqBtn />
-                <LyricsBtn />
+                <span className="npb-extra">
+                  <TuningBtn />
+                  <EqBtn />
+                </span>
+                <span className="npb-spare">
+                  <LyricsBtn />
+                </span>
                 <QueueBtn onClick={onQueueToggle} active={queueOpen} />
                 <VolumeFlyout />
                 <div className="npb-vol-slider flex items-center gap-2 pl-1">

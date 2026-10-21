@@ -1586,6 +1586,21 @@ select,
     display: none;
 }
 
+.npb-extra,
+.npb-spare {
+    display: contents;
+}
+
+.npb[data-micro] .npb-extra,
+.npb[data-micro] .npb-sep,
+.npb[data-nano] .npb-spare {
+    display: none;
+}
+
+.npb[data-micro] .npb-content {
+    padding-inline: 14px;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .npb-namecard,
     .npb,
