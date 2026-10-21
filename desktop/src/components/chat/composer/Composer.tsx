@@ -4,25 +4,28 @@ import {
   memo,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { nowPlayingEmbed } from '../../../lib/chat/embed-snapshot';
+import { findChatLinks } from '../../../lib/chat/soundcloud-link';
 import { composeRich, sameRich } from '../../../lib/chat/spans';
 import type { ConvId, Embed, Member, Message, UserRef } from '../../../lib/chat/types';
 import { useChatStore } from '../../../stores/chat';
 import { type Compose, useChatThreadStore } from '../../../stores/chat/thread';
 import { findBySeq } from '../../../stores/chat/thread-messages';
 import { startEdit } from '../bubbles/message-menu';
+import { ComposerEmbeds } from '../embeds/ComposerEmbeds';
+import { type PendingEmbed, useLinkEmbeds } from '../embeds/useLinkEmbeds';
 import { useThread } from '../thread/context';
 import { toastError } from '../thread/errors';
 import { GlassLayer } from '../thread/GlassLayer';
 import { canEdit } from '../thread/permissions';
-import { AttachedEmbeds } from './AttachedEmbeds';
 import { ComposerContext } from './ComposerContext';
 import { EmojiButton } from './EmojiButton';
-import { nowPlayingEmbed } from './embed-source';
-import { useLinkPreview, useTypingPing } from './hooks';
+import { useTypingPing } from './hooks';
 import { MentionPopup } from './MentionPopup';
 import { NowPlayingButton } from './NowPlayingButton';
 import { SendButton } from './SendButton';
@@ -34,6 +37,8 @@ const NO_COMPOSE: Compose = { reply: null, edit: null };
 const NO_MEMBERS: Member[] = [];
 const INPUT_MAX_PX = 168;
 const COUNTER_FROM = 200;
+const LINKS_SCAN = 16;
+const ATTACHED = 'attached:';
 
 function lastEditable(conversationId: ConvId): Message | null {
   const messages = useChatThreadStore.getState().threads[conversationId]?.messages ?? [];
@@ -82,7 +87,11 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
   const [caret, setCaret] = useState(0);
   const groupLike = conversation.kind === 'group' || conversation.kind === 'room';
   const mentions = useMentions(text, caret, members, me, groupLike);
-  const preview = useLinkPreview(text);
+  const links = useLinkEmbeds(text, embedsMax);
+  const present = useMemo(
+    () => new Set(findChatLinks(text, LINKS_SCAN).map((link) => link.key)),
+    [text],
+  );
   const ping = useTypingPing(conversationId);
 
   useEffect(() => {
@@ -95,7 +104,12 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
     useChatThreadStore.getState().setCompose(conversationId, change);
   const fail = (error: unknown) => toastError(error, t, i18n.language);
 
-  const outgoing = [...embeds, ...(preview.embed ? [preview.embed] : [])].slice(0, embedsMax);
+  const linked = links.items.filter((item) => present.has(item.key));
+  const outgoing = [...embeds, ...linked.flatMap((item) => item.embed ?? [])].slice(0, embedsMax);
+  const pending: PendingEmbed[] = [
+    ...embeds.map((embed) => ({ key: `${ATTACHED}${embed.urn}`, embed, loading: false })),
+    ...linked,
+  ];
   const rich = composeRich(text, picks);
   const tooLong = rich.text.length > textMax;
   const empty = rich.text.length === 0 && (editing !== null || outgoing.length === 0);
@@ -115,7 +129,6 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
     const before = { text, picks, embeds };
     draft.clear();
     setEmbeds([]);
-    preview.dismiss();
     try {
       await store.send(conversationId, rich, outgoing);
     } catch (error) {
@@ -146,6 +159,14 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
       [...list.filter((item) => item.urn !== embed.urn), embed].slice(-embedsMax),
     );
     inputRef.current?.focus();
+  };
+
+  const dismissEmbed = (key: string) => {
+    if (key.startsWith(ATTACHED)) {
+      setEmbeds((list) => list.filter((embed) => `${ATTACHED}${embed.urn}` !== key));
+    } else {
+      links.dismiss(key);
+    }
   };
 
   const mentionKey = (event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
@@ -212,15 +233,10 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
             onCancel={() => setComposeState(editing ? { edit: null } : { reply: null })}
           />
         )}
-        {!editing && (
-          <AttachedEmbeds
-            embeds={outgoing}
-            loading={preview.loading}
-            onRemove={(index) => {
-              if (index < embeds.length) setEmbeds((list) => list.filter((_, at) => at !== index));
-              else preview.dismiss();
-            }}
-          />
+        {!editing && pending.length > 0 && (
+          <div className="mx-1 mb-1.5">
+            <ComposerEmbeds items={pending} onDismiss={dismissEmbed} />
+          </div>
         )}
         <div className="relative rounded-[22px] border border-white/[0.07] transition-colors duration-150 focus-within:border-white/[0.16]">
           <GlassLayer
