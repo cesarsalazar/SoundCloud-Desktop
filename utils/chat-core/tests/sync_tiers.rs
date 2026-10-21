@@ -137,7 +137,7 @@ async fn a_revoked_device_stops_syncing() {
 }
 
 #[tokio::test]
-async fn busy_answers_wait_the_given_time_or_up_to_ten_seconds() {
+async fn busy_answers_wait_at_least_the_given_time_or_up_to_ten_seconds() {
     let rig = rig();
     synced(&rig);
     rig.server.on(
@@ -152,7 +152,7 @@ async fn busy_answers_wait_the_given_time_or_up_to_ten_seconds() {
     );
     assert!(retry(step(&rig).await.2) <= 10_000);
     let spread = retry(step(&rig).await.2);
-    assert!((1_250..=2_500).contains(&spread), "{spread}");
+    assert!((2_500..=3_750).contains(&spread), "{spread}");
 }
 
 #[tokio::test]
@@ -171,7 +171,7 @@ async fn busy_retries_spread_so_clients_do_not_come_back_together() {
         waits.insert(retry(step(&rig).await.2));
     }
     assert!(waits.len() > 10, "{waits:?}");
-    assert!(waits.iter().all(|wait| (500..=1_000).contains(wait)));
+    assert!(waits.iter().all(|wait| (1_000..=1_500).contains(wait)));
 }
 
 #[tokio::test]

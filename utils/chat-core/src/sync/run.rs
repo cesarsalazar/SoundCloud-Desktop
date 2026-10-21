@@ -199,7 +199,8 @@ impl<L: Local> SyncEngine<L> {
         }
         Ok(match error {
             ChatError::Busy { retry_ms } if retry_ms > 0 => {
-                jitter::around(retry_ms.min(BUSY_RETRY_MAX_MS))
+                let asked = retry_ms.min(BUSY_RETRY_MAX_MS);
+                asked + jitter::upto(asked / 2)
             }
             ChatError::Busy { .. } | ChatError::Offline => jitter::upto(RECONNECT_JITTER_MS),
             ChatError::ReadLimited | ChatError::RequestLimit | ChatError::SendLimited => {
