@@ -1,5 +1,5 @@
 use chat_wire::msg::MessageAad;
-use chat_wire::proto::Envelope;
+use chat_wire::proto::{Envelope, envelope::Body};
 use chat_wire::seal::NONCE_LEN;
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -91,7 +91,7 @@ pub(super) fn seal_at(
     nonce: [u8; NONCE_LEN],
     envelope: &Envelope,
 ) -> ChatResult<Vec<u8>> {
-    if at.class == MessageClass::System {
+    if at.class == MessageClass::System || !carries(at.class, envelope) {
         return Err(ChatError::Invalid);
     }
     let body = chat_wire::msg::seal(ck.as_bytes(), &at.aad(), nonce, envelope)?;
@@ -105,7 +105,28 @@ pub(super) fn open_at(ck: &Ck, at: &MessageAt, body: &[u8]) -> ChatResult<Envelo
     if at.class == MessageClass::System {
         return Err(ChatError::Invalid);
     }
-    Ok(chat_wire::msg::open(ck.as_bytes(), &at.aad(), body)?)
+    let envelope = chat_wire::msg::open(ck.as_bytes(), &at.aad(), body)?;
+    match carries(at.class, &envelope) {
+        true => Ok(envelope),
+        false => Err(ChatError::Protocol),
+    }
+}
+
+fn carries(class: MessageClass, envelope: &Envelope) -> bool {
+    envelope
+        .body
+        .as_ref()
+        .is_none_or(|body| class_of(body) == class)
+}
+
+fn class_of(body: &Body) -> MessageClass {
+    match body {
+        Body::Text(_) | Body::Suggest(_) => MessageClass::Post,
+        Body::Edit(_) | Body::Delete(_) => MessageClass::Edit,
+        Body::Reaction(_) => MessageClass::React,
+        Body::Pin(_) => MessageClass::Pin,
+        Body::Meta(_) => MessageClass::Meta,
+    }
 }
 
 fn cap(class: MessageClass) -> usize {

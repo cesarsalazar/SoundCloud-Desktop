@@ -78,10 +78,9 @@ pub fn seal(ck: &Ck, at: &MessageAt, content: &Content) -> ChatResult<Vec<u8>> {
 
 pub fn open(ck: &Ck, at: &MessageAt, target: Option<Seq>, body: &[u8]) -> ChatResult<Content> {
     let content = decode(&open_message(ck, at, body)?)?;
-    let fits = content.class() == at.class && content.target() == target;
     match content {
         Content::Unknown => Ok(content),
-        _ if fits => Ok(content),
+        _ if content.target() == target => Ok(content),
         _ => Err(ChatError::Protocol),
     }
 }

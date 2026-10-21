@@ -1,3 +1,4 @@
+use chat_wire::msg::MessageAad;
 use chat_wire::prost::Message;
 use chat_wire::proto::{self, Envelope, envelope::Body};
 use uuid::Uuid;
@@ -367,6 +368,17 @@ fn content_seals_only_under_its_own_class() {
     );
 }
 
+fn forged(ck: &Ck, at: &MessageAt, envelope: &Envelope) -> Vec<u8> {
+    let aad = MessageAad {
+        conv: *at.conversation_id.as_bytes(),
+        epoch: at.epoch,
+        sender_device: *at.sender_device.as_bytes(),
+        client_id: *at.client_id.as_bytes(),
+        class: at.class.wire(),
+    };
+    chat_wire::msg::seal(ck.as_bytes(), &aad, [7; 24], envelope).unwrap()
+}
+
 #[test]
 fn a_body_moved_to_another_class_by_its_sender_is_refused() {
     let ck = Ck::from_bytes([9; 32]);
@@ -376,7 +388,11 @@ fn a_body_moved_to_another_class_by_its_sender_is_refused() {
         text: plain("sneaky"),
     })
     .unwrap();
-    let body = seal_message(&ck, &post_at, &edit).unwrap();
+    assert_eq!(
+        seal_message(&ck, &post_at, &edit).err(),
+        Some(ChatError::Invalid)
+    );
+    let body = forged(&ck, &post_at, &edit);
     assert_eq!(
         open(&ck, &post_at, None, &body).err(),
         Some(ChatError::Protocol)

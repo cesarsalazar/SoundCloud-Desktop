@@ -1,5 +1,5 @@
-use chat_core::chat_wire::msg::PAD_BLOCK;
-use chat_core::chat_wire::proto::{Envelope, Meta, Text, envelope::Body};
+use chat_core::chat_wire::msg::{MessageAad, PAD_BLOCK};
+use chat_core::chat_wire::proto::{Envelope, Meta, Pin, Reaction, Text, envelope::Body};
 use chat_core::chat_wire::seal::NONCE_LEN;
 use chat_core::crypto::{
     BODY_MAX, Ck, META_MAX, MessageAt, open_message, open_meta, seal_message, seal_meta,
@@ -171,4 +171,64 @@ fn a_garbled_body_does_not_open() {
         open_message(&ck, &at, &body[..10]).err(),
         Some(ChatError::Crypto)
     );
+}
+
+fn forged(ck: &Ck, at: &MessageAt, envelope: &Envelope) -> Vec<u8> {
+    let aad = MessageAad {
+        conv: *at.conversation_id.as_bytes(),
+        epoch: at.epoch,
+        sender_device: *at.sender_device.as_bytes(),
+        client_id: *at.client_id.as_bytes(),
+        class: at.class.wire(),
+    };
+    let nonce = [7; NONCE_LEN];
+    chat_core::chat_wire::msg::seal(ck.as_bytes(), &aad, nonce, envelope).unwrap()
+}
+
+fn carrying(body: Body) -> Envelope {
+    Envelope {
+        v: 1,
+        body: Some(body),
+        ..Envelope::default()
+    }
+}
+
+#[test]
+fn a_body_never_opens_under_a_class_it_does_not_belong_to() {
+    let ck = Ck::from_bytes([4; 32]);
+    let pin = carrying(Body::Pin(Pin {
+        target: 9,
+        on: true,
+    }));
+    let reaction = carrying(Body::Reaction(Reaction {
+        target: 9,
+        emoji: "🔥".into(),
+        on: true,
+    }));
+    let cases = [
+        (MessageClass::React, pin.clone()),
+        (MessageClass::Post, pin),
+        (MessageClass::Pin, reaction),
+        (MessageClass::Edit, text("hi")),
+    ];
+    for (class, envelope) in cases {
+        let at = MessageAt { class, ..at() };
+        assert_eq!(
+            seal_message(&ck, &at, &envelope).err(),
+            Some(ChatError::Invalid),
+            "{class:?}"
+        );
+        let body = forged(&ck, &at, &envelope);
+        assert_eq!(
+            open_message(&ck, &at, &body).err(),
+            Some(ChatError::Protocol),
+            "{class:?}"
+        );
+    }
+    let future = MessageAt {
+        class: MessageClass::React,
+        ..at()
+    };
+    let body = forged(&ck, &future, &Envelope::default());
+    assert_eq!(open_message(&ck, &future, &body).unwrap().body, None);
 }
