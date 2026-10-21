@@ -1,4 +1,5 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
+import { receivedEmbed } from '../../../lib/chat/embed-snapshot';
 import type { Embed } from '../../../lib/chat/types';
 import { PlaylistEmbed } from './PlaylistEmbed';
 import { RoomInviteEmbed } from './RoomInviteEmbed';
@@ -16,15 +17,17 @@ export const EmbedCard = memo(function EmbedCard({
   mine = false,
   compact = false,
 }: EmbedCardProps) {
-  switch (embed.kind) {
+  const safe = useMemo(() => receivedEmbed(embed), [embed]);
+  if (!safe) return null;
+  switch (safe.kind) {
     case 'track':
-      return <TrackEmbed embed={embed} mine={mine} compact={compact} />;
+      return <TrackEmbed embed={safe} mine={mine} compact={compact} />;
     case 'playlist':
-      return <PlaylistEmbed embed={embed} mine={mine} compact={compact} />;
+      return <PlaylistEmbed embed={safe} mine={mine} compact={compact} />;
     case 'user':
-      return <UserEmbed embed={embed} mine={mine} compact={compact} />;
+      return <UserEmbed embed={safe} mine={mine} compact={compact} />;
     case 'room_invite':
-      return <RoomInviteEmbed embed={embed} mine={mine} compact={compact} />;
+      return <RoomInviteEmbed embed={safe} mine={mine} compact={compact} />;
     default:
       return null;
   }

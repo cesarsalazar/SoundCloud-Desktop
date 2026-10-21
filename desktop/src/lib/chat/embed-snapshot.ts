@@ -5,8 +5,8 @@ import { type EntityKind, kindOf } from '../ids';
 import { cleanPermalink } from '../permalink';
 import { CODE_LENGTH, cleanCode } from '../together/errors';
 import { getTrackDisplay } from '../track-display';
-import { secretTokenOf } from './soundcloud-link';
-import type { Embed, EmbedTrack } from './types';
+import { isSecretToken, secretTokenOf } from './soundcloud-link';
+import type { Embed, EmbedTrack, RoomInvite } from './types';
 
 const EMBED_BYTES_MAX = 3 * 1024;
 const EMBED_TEXT_MAX = 120;
@@ -28,6 +28,12 @@ const BIDI = new Set([
 const PRINTABLE_URL = /^[!-~]+$/;
 const UNSAFE_URL = /[\\"<>`]/;
 const HOST = /^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/;
+const CODE_SEPARATORS = /[\s-]/g;
+const ENTITY_OF: Record<Exclude<Embed['kind'], 'room_invite'>, EntityKind> = {
+  track: 'tracks',
+  playlist: 'playlists',
+  user: 'users',
+};
 const encoder = new TextEncoder();
 
 export interface EmbedUser {
@@ -109,8 +115,8 @@ export function userEmbed(user: EmbedUser): Embed | null {
 }
 
 export function roomInviteEmbed(code: string, title: string | null, host: string): Embed | null {
-  const clean = cleanCode(code);
-  if (clean.length !== CODE_LENGTH) return null;
+  const clean = roomCode(code);
+  if (!clean) return null;
   const roomTitle = optionalText(title, EMBED_ROOM_TITLE_MAX);
   return fit({
     kind: 'room_invite',
@@ -135,6 +141,52 @@ export function nowPlayingEmbed(): Embed | null {
   return trackEmbed(track, seconds > 0 ? seconds * 1000 : null);
 }
 
+export function receivedEmbed(embed: Embed): Embed | null {
+  if (embed.kind === 'room_invite') return receivedInvite(embed.room);
+  const urn = entityUrn(embed.urn, ENTITY_OF[embed.kind]);
+  if (!urn) return null;
+  const durationMs = duration(embed.durationMs);
+  return fit({
+    kind: embed.kind,
+    urn,
+    permalink: permalink(embed.permalink),
+    secretToken: embed.secretToken && isSecretToken(embed.secretToken) ? embed.secretToken : null,
+    title: cleanText(embed.title),
+    artist: optionalText(embed.artist),
+    artworkUrl: artwork(embed.artworkUrl),
+    durationMs,
+    access: embed.access && ACCESS.has(embed.access) ? embed.access : null,
+    atMs: embed.kind === 'track' ? startAt(embed.atMs, durationMs) : null,
+    tracks:
+      embed.kind === 'playlist'
+        ? embed.tracks.flatMap((track) => receivedTrack(track) ?? []).slice(0, EMBED_TRACKS_MAX)
+        : [],
+    room: null,
+  });
+}
+
+function receivedInvite(room: RoomInvite | null): Embed | null {
+  return room ? roomInviteEmbed(room.code, room.title, room.host) : null;
+}
+
+function receivedTrack(track: EmbedTrack): EmbedTrack | null {
+  const urn = entityUrn(track.urn, 'tracks');
+  const title = cleanText(track.title);
+  if (!urn || !title) return null;
+  return {
+    urn,
+    title,
+    artist: cleanText(track.artist),
+    durationMs: duration(track.durationMs) ?? 0,
+    artworkUrl: artwork(track.artworkUrl),
+  };
+}
+
+function roomCode(raw: string): string | null {
+  const code = raw.replace(CODE_SEPARATORS, '').toUpperCase();
+  return code.length === CODE_LENGTH && cleanCode(code) === code ? code : null;
+}
+
 function embedTrackOf(track: Track): EmbedTrack | null {
   const urn = entityUrn(track.urn, 'tracks');
   if (!urn || !track.title) return null;
@@ -154,8 +206,8 @@ function secretOf(url: string | undefined): string | null {
   return url ? secretTokenOf(url) : null;
 }
 
-function entityUrn(urn: string | undefined, kind: EntityKind): string | null {
-  return urn && kindOf(urn) === kind ? urn : null;
+function entityUrn(urn: string | null | undefined, kind: EntityKind | undefined): string | null {
+  return urn && kind && kindOf(urn) === kind ? urn : null;
 }
 
 function cleanText(raw: string | null | undefined, max = EMBED_TEXT_MAX): string {

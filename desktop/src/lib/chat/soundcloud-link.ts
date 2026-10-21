@@ -65,7 +65,11 @@ export function secretTokenOf(url: string): string | null {
     return null;
   }
   const query = parsed.searchParams.get('secret_token');
-  if (query && SECRET.test(query)) return query;
+  if (query && isSecretToken(query)) return query;
   const last = parsed.pathname.split('/').filter(Boolean).pop() ?? '';
   return SECRET_PATH.test(last) ? last : null;
+}
+
+export function isSecretToken(value: string): boolean {
+  return SECRET.test(value);
 }

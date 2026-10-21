@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { receivedEmbed } from '../../../lib/chat/embed-snapshot';
 import type { Embed, RoomInvite } from '../../../lib/chat/types';
 import { art } from '../../../lib/formatters';
 import { ArrowRight, Headphones, Loader2, Lock } from '../../../lib/icons';
@@ -108,7 +109,7 @@ export const RoomInviteEmbed = memo(function RoomInviteEmbed({
   const live = !closed && (preview?.alive ?? true);
   const title = roomTitle(room, preview?.title, t('chat.embeds.room.untitled'));
   const host = preview?.host.name || room.host;
-  const track = preview?.track ?? null;
+  const track = preview?.track ? receivedEmbed(preview.track) : null;
   const cover = art(track?.artworkUrl, 't200x200');
 
   return (
