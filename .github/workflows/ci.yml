@@ -48,6 +48,9 @@ jobs:
       - name: Lint
         run: pnpm exec biome lint src/
 
+      - name: Room tests
+        run: node --experimental-strip-types --test src/lib/together/*.test.mjs
+
       - name: Types and bundle
         run: pnpm build
 
