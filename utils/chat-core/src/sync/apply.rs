@@ -95,8 +95,7 @@ impl<L: Local> SyncEngine<L> {
         messages.sort_by_key(|message| message.seq);
         summary::absorb(&mut summary, &messages);
         let marks = self.take_marks(entry, &mut summary)?;
-        self.store
-            .put_conversations(std::slice::from_ref(&summary))?;
+        self.save(std::slice::from_ref(&summary))?;
         self.note_delivered(entry);
         if self.focus() == Some(entry.id) {
             self.events.emit(CoreEvent::Typing(TypingEvent {
@@ -171,6 +170,7 @@ impl<L: Local> SyncEngine<L> {
             .collect();
         self.store.purge_conversations(gone)?;
         self.store.purge_messages(&messages)?;
+        self.untally(gone);
         self.with(|state| {
             for id in gone {
                 state.marks.forget(*id);

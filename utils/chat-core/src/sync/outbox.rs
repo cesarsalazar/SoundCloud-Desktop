@@ -77,8 +77,7 @@ impl<L: Local> SyncEngine<L> {
         let mut messages = self.message_at(conversation_id, seq)?;
         if let Some(mut summary) = self.store.conversation(conversation_id)? {
             summary::absorb(&mut summary, &messages);
-            self.store
-                .put_conversations(std::slice::from_ref(&summary))?;
+            self.save(std::slice::from_ref(&summary))?;
             self.emit_summaries(vec![summary]);
         }
         if let Some(target) = item.target_seq {
@@ -91,7 +90,7 @@ impl<L: Local> SyncEngine<L> {
     fn message_at(&self, conversation_id: ConvId, seq: Seq) -> ChatResult<Vec<Message>> {
         let query = HistoryQuery {
             before: None,
-            after: Some(seq - 1),
+            after: Some(seq.saturating_sub(1)),
             limit: 1,
         };
         Ok(self
@@ -104,7 +103,7 @@ impl<L: Local> SyncEngine<L> {
     }
 
     fn send_failed(&self, item: &OutboxItem, error: &ChatError) -> ChatResult<()> {
-        let attempt = item.attempts + 1;
+        let attempt = item.attempts.saturating_add(1);
         let wait = match error {
             ChatError::Offline | ChatError::Internal | ChatError::Protocol
                 if attempt < SEND_ATTEMPTS_MAX =>
@@ -118,12 +117,15 @@ impl<L: Local> SyncEngine<L> {
             ChatError::Busy { retry_ms } | ChatError::SlowMode { retry_ms }
                 if attempt < SEND_ATTEMPTS_MAX =>
             {
-                Some((*retry_ms).max(SEND_RETRY_START_MS))
+                Some((*retry_ms).clamp(SEND_RETRY_START_MS, SEND_RETRY_MAX_MS))
             }
             ChatError::SendPaused => Some(SEND_PAUSED_RETRY_MS),
             _ => None,
         };
-        let retry_at = wait.map(|ms| self.now() + i64::try_from(ms).unwrap_or(i64::MAX));
+        let retry_at = wait.map(|ms| {
+            self.now()
+                .saturating_add(i64::try_from(ms).unwrap_or(i64::MAX))
+        });
         self.store.outbox_failed(item.client_id, retry_at)?;
         if retry_at.is_none() {
             self.emit_failed(item.conversation_id, item.client_id)?;

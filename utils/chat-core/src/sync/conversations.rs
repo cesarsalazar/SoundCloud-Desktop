@@ -8,10 +8,9 @@ use crate::contracts::{
     ChatError, ChatResult, ConvId, ConversationSummary, CoreEvent, HistoryQuery, Seq, SyncEvent,
     UserId, UserRef,
 };
+use crate::embeds::clean;
 
 pub const RENDER_MAX: u32 = 200;
-
-const TITLE_MAX: usize = 120;
 
 impl<L: Local> SyncEngine<L> {
     pub async fn refresh_conversation(&self, id: ConvId) -> ChatResult<ConversationSummary> {
@@ -23,8 +22,7 @@ impl<L: Local> SyncEngine<L> {
         self.note_view(view);
         let existing = self.store.conversation(view.id)?;
         let summary = self.summary_of(view, existing.as_ref()).await?;
-        self.store
-            .put_conversations(std::slice::from_ref(&summary))?;
+        self.save(std::slice::from_ref(&summary))?;
         self.emit_summaries(vec![summary.clone()]);
         Ok(summary)
     }
@@ -98,7 +96,7 @@ impl<L: Local> SyncEngine<L> {
             return Ok(None);
         };
         Ok(match envelope.body {
-            Some(Body::Meta(meta)) => clean_title(&meta.title),
+            Some(Body::Meta(meta)) => clean::optional_text(Some(&meta.title), clean::TEXT_MAX),
             _ => None,
         })
     }
@@ -131,12 +129,7 @@ impl<L: Local> SyncEngine<L> {
             return;
         }
         summary.last_read_seq = seq;
-        if self.recount(&mut summary).is_ok()
-            && self
-                .store
-                .put_conversations(std::slice::from_ref(&summary))
-                .is_ok()
-        {
+        if self.recount(&mut summary).is_ok() && self.save(std::slice::from_ref(&summary)).is_ok() {
             self.emit_summaries(vec![summary]);
         }
     }
@@ -171,8 +164,7 @@ impl<L: Local> SyncEngine<L> {
             .last()
             .and_then(|message| Some(summary::preview(message, message.seq?)));
         self.recount(&mut summary)?;
-        self.store
-            .put_conversations(std::slice::from_ref(&summary))?;
+        self.save(std::slice::from_ref(&summary))?;
         self.emit_summaries(vec![summary]);
         Ok(())
     }
@@ -195,14 +187,4 @@ fn user_of(card: CardView) -> UserRef {
         avatar_url: card.avatar_url,
         permalink: card.permalink_url,
     }
-}
-
-fn clean_title(raw: &str) -> Option<String> {
-    let title: String = raw
-        .trim()
-        .chars()
-        .filter(|c| !c.is_control())
-        .take(TITLE_MAX)
-        .collect();
-    (!title.is_empty()).then_some(title)
 }

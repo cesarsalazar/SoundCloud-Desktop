@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::api::path::segment;
 use crate::contracts::{
     ChatSettings, ConversationKind, DmPolicy, Invite, SettingsPatch, UserCard, UserRef,
 };
@@ -120,7 +121,7 @@ impl From<&InviteView> for Invite {
     fn from(view: &InviteView) -> Self {
         Invite {
             token: view.token.clone(),
-            url: format!("{INVITE_LINK}{}", view.token),
+            url: format!("{INVITE_LINK}{}", segment(&view.token)),
             expires_at: view.expires_at,
             uses_left: view.uses_left,
         }

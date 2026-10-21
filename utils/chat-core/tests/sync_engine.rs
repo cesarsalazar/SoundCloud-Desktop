@@ -4,7 +4,8 @@ use chat_core::chat_wire::prost::Message as _;
 use chat_core::store::{StoredContent, StoredMessage, SyncState};
 use chat_core::sync::{Local, SyncOutcome};
 use chat_core::{
-    GoneMessage, MessageBody, MessageClass, MessagesOrigin, PreviewKind, SystemKind, Tier,
+    ConversationKind, GoneMessage, MessageBody, MessageClass, MessagesOrigin, PreviewKind,
+    SystemKind, Tier,
 };
 use serde_json::json;
 use sync_support::fixtures::{answer, card, entry, keys, post, summary, system, text, view};
@@ -14,6 +15,7 @@ use uuid::Uuid;
 const INC: Uuid = Uuid::from_u128(0x1c);
 const A: Uuid = Uuid::from_u128(0xa);
 const B: Uuid = Uuid::from_u128(0xb);
+const C: Uuid = Uuid::from_u128(0xc);
 
 fn synced(rig: &sync_support::Rig) {
     rig.local
@@ -383,4 +385,43 @@ async fn a_cut_answer_polls_again_without_holding() {
     let next = rig.engine.plan(Tier::Direct);
     assert_eq!((next.hold_ms, next.delay_ms), (0, 0));
     assert_eq!(rig.local.summary(A).unwrap().last_seq, 2);
+}
+
+#[tokio::test]
+async fn the_badge_counts_loud_unread_chats_and_every_mention() {
+    let rig = rig();
+    synced(&rig);
+    let mut loud = summary(A, 1);
+    loud.unread = 1;
+    let mut muted = summary(B, 3);
+    muted.unread = 3;
+    muted.mentions = 1;
+    muted.muted_until = Some(START_MS + 3_600_000);
+    let mut room = summary(C, 2);
+    room.kind = ConversationKind::Room;
+    room.unread = 2;
+    rig.local.put_conversations(&[loud, muted, room]).unwrap();
+    rig.local.add_key(A, 1, sync_support::ck_bytes(A, 1));
+
+    rig.engine.load_tally().unwrap();
+    let status = rig.engine.status();
+    assert_eq!((status.unread, status.mentions), (1, 1));
+
+    rig.engine.queue_read(A, 1);
+    assert_eq!(rig.engine.status().unread, 0);
+
+    rig.server.json(
+        "POST",
+        "/chat/sync",
+        answer(2, INC, vec![entry(A, 2, vec![post(A, 2, 1, "again")])]),
+    );
+    rig.engine.step(plan(&rig)).await.unwrap();
+    assert_eq!(rig.engine.status().unread, 1);
+
+    let mut gone = answer(3, INC, vec![]);
+    gone["gone"] = json!([A, B]);
+    rig.server.json("POST", "/chat/sync", gone);
+    rig.engine.step(plan(&rig)).await.unwrap();
+    let status = rig.engine.status();
+    assert_eq!((status.unread, status.mentions), (0, 0));
 }

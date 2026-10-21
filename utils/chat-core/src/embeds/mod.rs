@@ -1,4 +1,4 @@
-mod clean;
+pub(crate) mod clean;
 mod link;
 pub mod wire;
 

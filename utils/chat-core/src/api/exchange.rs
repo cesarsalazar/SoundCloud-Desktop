@@ -9,7 +9,6 @@ use crate::crypto::DeviceKeys;
 use crate::login::seal_login;
 
 const OK: u16 = 200;
-const BAD_ENVELOPE: u16 = 400;
 const BUSY: u16 = 503;
 
 #[derive(Clone)]
@@ -85,13 +84,14 @@ impl Exchange for SealedExchange {
             long_poll: options.long_poll,
         };
         let response = self.transport.exchange(request).await?;
-        match response.status {
-            OK => sealed.open(&response.body),
-            BUSY => Err(ChatError::Busy {
-                retry_ms: response.retry_after_ms.unwrap_or_default(),
-            }),
-            BAD_ENVELOPE => Err(ChatError::Protocol),
-            _ => Err(ChatError::Offline),
+        if response.status == BUSY && response.retry_after_ms.is_none() {
+            return Err(ChatError::Offline);
+        }
+        match self.channel.receive(&sealed, &response) {
+            Err(ChatError::Crypto | ChatError::Protocol) if response.status == OK => {
+                Err(ChatError::Offline)
+            }
+            received => received,
         }
     }
 }

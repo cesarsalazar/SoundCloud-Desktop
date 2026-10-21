@@ -66,8 +66,7 @@ impl<L: Local> SyncEngine<L> {
                 }
             }
             self.recount(&mut summary)?;
-            self.store
-                .put_conversations(std::slice::from_ref(&summary))?;
+            self.save(std::slice::from_ref(&summary))?;
             conversations.push(summary);
         }
         let requests = self.with(|state| state.status.requests);

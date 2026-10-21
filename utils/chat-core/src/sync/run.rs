@@ -7,6 +7,7 @@ use super::tiers::{BACKOFF_MAX_MS, BACKOFF_START_MS, MID_HOLD_MIN_MS};
 use super::{PollPlan, SyncEngine, SyncOutcome, fatal, jitter};
 use crate::api::SyncReply;
 use crate::api::wire::{KNOWN_MAX, SyncRequest};
+use crate::channel::BUSY_RETRY_MAX_MS;
 use crate::contracts::{ChatError, ChatResult, Clock, ConvId, Millis, Seq};
 
 pub const RESET_JITTER_MS: u64 = 10_000;
@@ -22,6 +23,9 @@ struct Polled {
 
 impl<L: Local> SyncEngine<L> {
     pub async fn run(&self, clock: &dyn Clock) -> ChatResult<()> {
+        if let Err(error) = self.load_tally() {
+            self.failed(error)?;
+        }
         if let Err(error) = self.devices().await {
             self.failed(error)?;
         }
@@ -141,7 +145,9 @@ impl<L: Local> SyncEngine<L> {
                 });
                 Ok(SyncOutcome::Idle)
             }
-            SyncReply::Later { retry_ms } => Ok(SyncOutcome::Retry { after_ms: retry_ms }),
+            SyncReply::Later { retry_ms } => Ok(SyncOutcome::Retry {
+                after_ms: retry_ms.min(BUSY_RETRY_MAX_MS),
+            }),
             SyncReply::Answer(answer) => match self.apply(*answer, &polled.known).await {
                 Ok(outcome) => Ok(outcome),
                 Err(error) => Ok(SyncOutcome::Retry {
@@ -183,7 +189,7 @@ impl<L: Local> SyncEngine<L> {
             return Err(error);
         }
         Ok(match error {
-            ChatError::Busy { retry_ms } if retry_ms > 0 => retry_ms,
+            ChatError::Busy { retry_ms } if retry_ms > 0 => retry_ms.min(BUSY_RETRY_MAX_MS),
             ChatError::Busy { .. } | ChatError::Offline => jitter::upto(RECONNECT_JITTER_MS),
             ChatError::ReadLimited | ChatError::RequestLimit | ChatError::SendLimited => {
                 LIMITED_RETRY_MS

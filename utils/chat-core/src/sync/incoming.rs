@@ -51,7 +51,7 @@ impl<L: Local> SyncEngine<L> {
         };
         let fresh = HistoryQuery {
             before: None,
-            after: Some(lowest - 1),
+            after: Some(lowest.saturating_sub(1)),
             limit: RENDER_MAX,
         };
         let mut messages = self.store.messages(conversation_id, &fresh)?.messages;
@@ -63,7 +63,7 @@ impl<L: Local> SyncEngine<L> {
         for target in targets {
             let one = HistoryQuery {
                 before: None,
-                after: Some(target - 1),
+                after: Some(target.saturating_sub(1)),
                 limit: 1,
             };
             let found = self.store.messages(conversation_id, &one)?.messages;

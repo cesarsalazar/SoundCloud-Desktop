@@ -18,6 +18,7 @@ mod state;
 mod status;
 pub mod summary;
 mod system;
+mod tally;
 mod tiers;
 
 use std::sync::atomic::{AtomicBool, Ordering};

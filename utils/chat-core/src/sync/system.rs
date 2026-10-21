@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 use crate::contracts::{Embed, EmbedKind, SystemEvent, SystemKind};
-use crate::embeds::validate;
+use crate::embeds::{clean, validate};
 
 pub fn parse(body: &[u8]) -> SystemEvent {
     let Ok(row) = serde_json::from_slice::<Value>(body) else {
@@ -58,8 +58,8 @@ fn room_event(row: &Value, kind: &str) -> SystemEvent {
         _ => {}
     }
     parsed.name = match kind {
-        "title" => text(row, "title"),
-        _ => text(row, "name"),
+        "title" => shown(row, "title"),
+        _ => shown(row, "name"),
     };
     parsed.until = row["until_ms"].as_i64();
     parsed.track = match kind {
@@ -99,6 +99,10 @@ fn first_target(row: &Value) -> Option<String> {
 
 fn text(row: &Value, field: &str) -> Option<String> {
     row[field].as_str().map(str::to_owned)
+}
+
+fn shown(row: &Value, field: &str) -> Option<String> {
+    clean::optional_text(row[field].as_str(), clean::TEXT_MAX)
 }
 
 fn event(kind: SystemKind) -> SystemEvent {

@@ -147,7 +147,7 @@ impl Api {
     ) -> ChatResult<InnerAnswer> {
         let answer = self.exchange.exchange(call, signer, tier, options).await?;
         match error_of(&answer) {
-            Some(ChatError::Clock { server_now }) => {
+            Some(ChatError::Clock { server_now }) if server_now > 0 => {
                 self.channel.note_server_now(server_now);
                 self.exchange.exchange(call, signer, tier, options).await
             }

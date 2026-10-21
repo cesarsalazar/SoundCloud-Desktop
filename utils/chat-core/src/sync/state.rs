@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use super::marks::Marks;
+use super::tally::Tally;
 use super::tiers::Tiers;
 use crate::contracts::{ChatStatus, ConvId, DeviceId, Millis, UserId, VISIBLE_HOLD_MAX_MS};
 
@@ -27,6 +28,7 @@ pub struct State {
     pub alerted: HashSet<DeviceId>,
     pub device_created_at: Option<Millis>,
     pub reset: Option<PendingReset>,
+    pub tally: Tally,
     pub status: ChatStatus,
 }
 
@@ -45,6 +47,7 @@ impl Default for State {
             alerted: HashSet::new(),
             device_created_at: None,
             reset: None,
+            tally: Tally::default(),
             status: ChatStatus::off(),
         }
     }

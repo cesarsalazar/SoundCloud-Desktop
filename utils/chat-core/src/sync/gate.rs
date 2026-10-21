@@ -74,7 +74,7 @@ impl<L: Local> SyncEngine<L> {
             }
         }
         if !unlocked.is_empty() {
-            self.store.put_conversations(&unlocked)?;
+            self.save(&unlocked)?;
             self.emit_summaries(unlocked);
         }
         for (id, _) in local.iter().take(UNLOCK_EAGER) {
