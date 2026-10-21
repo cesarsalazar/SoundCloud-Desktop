@@ -53,3 +53,12 @@ export function canSetTimer(conversation: ConversationSummary): boolean {
 export function canManageMembers(conversation: ConversationSummary): boolean {
   return conversation.kind === 'group' && isAdmin(conversation) && isActiveMember(conversation);
 }
+
+export function canForward(message: Message, conversation: ConversationSummary): boolean {
+  return (
+    message.seq !== null &&
+    message.body.type === 'text' &&
+    conversation.kind !== 'room' &&
+    !isRequest(conversation)
+  );
+}

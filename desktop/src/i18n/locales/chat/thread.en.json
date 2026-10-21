@@ -84,6 +84,7 @@
   },
   "actions": {
     "reply": "Reply",
+    "forward": "Forward",
     "copy": "Copy",
     "edit": "Edit",
     "pin": "Pin",

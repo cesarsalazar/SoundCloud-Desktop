@@ -6,7 +6,7 @@ import { useChatThreadStore } from '../../../stores/chat/thread';
 import type { ContextMenuEntry } from '../../../stores/context-menu';
 import { useThreadDialogs } from '../thread/dialogs';
 import { toastError } from '../thread/errors';
-import { canEdit, canPin, canReport, isActiveMember } from '../thread/permissions';
+import { canEdit, canForward, canPin, canReport, isActiveMember } from '../thread/permissions';
 
 function copyText(message: Message) {
   if (message.body.type !== 'text') return;
@@ -56,6 +56,15 @@ export function messageMenu(
       label: t('chat.thread.actions.reply'),
       icon: <Reply size={14} />,
       onSelect: () => startReply(message),
+    });
+  }
+  if (canForward(message, conversation)) {
+    top.push({
+      id: 'forward',
+      label: t('chat.thread.actions.forward'),
+      icon: <Reply size={14} className="-scale-x-100" />,
+      onSelect: () =>
+        dialogs.open({ kind: 'forward', conversationId: message.conversationId, message }),
     });
   }
   if (message.body.type === 'text' && message.body.text) {

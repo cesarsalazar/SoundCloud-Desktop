@@ -81,6 +81,7 @@
   },
   "actions": {
     "reply": "답장",
+    "forward": "전달",
     "copy": "복사",
     "edit": "수정",
     "pin": "고정",

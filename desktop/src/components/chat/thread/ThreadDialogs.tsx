@@ -7,6 +7,7 @@ import { Modal, ModalContent, ModalTitle } from '../../ui/Modal';
 import { ReactionPicker } from '../bubbles/ReactionPicker';
 import { DeleteDialog } from './DeleteDialog';
 import { useThreadDialogs } from './dialogs';
+import { ForwardDialog } from './ForwardDialog';
 import { ReportDialog } from './ReportDialog';
 
 function hostOf(url: string): string {
@@ -74,6 +75,7 @@ export const ThreadDialogs = memo(function ThreadDialogs({
           {view?.kind === 'delete' && <DeleteDialog message={view.message} onClose={close} />}
           {view?.kind === 'report' && <ReportDialog message={view.message} onClose={close} />}
           {view?.kind === 'link' && <LinkDialog url={view.url} onClose={close} />}
+          {view?.kind === 'forward' && <ForwardDialog message={view.message} onClose={close} />}
         </ModalContent>
       </Modal>
     </>

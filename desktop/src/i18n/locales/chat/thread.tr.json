@@ -84,6 +84,7 @@
   },
   "actions": {
     "reply": "Yanıtla",
+    "forward": "İlet",
     "copy": "Kopyala",
     "edit": "Düzenle",
     "pin": "Sabitle",

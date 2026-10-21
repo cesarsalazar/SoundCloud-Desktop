@@ -4,6 +4,7 @@ import type { ConvId, Message } from '../../../lib/chat/types';
 export type ThreadDialog =
   | { kind: 'delete'; conversationId: ConvId; message: Message }
   | { kind: 'report'; conversationId: ConvId; message: Message }
+  | { kind: 'forward'; conversationId: ConvId; message: Message }
   | { kind: 'link'; conversationId: ConvId; url: string };
 
 export interface ReactionTarget {
