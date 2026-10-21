@@ -87,7 +87,7 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
   const [caret, setCaret] = useState(0);
   const groupLike = conversation.kind === 'group' || conversation.kind === 'room';
   const mentions = useMentions(text, caret, members, me, groupLike);
-  const links = useLinkEmbeds(text, embedsMax);
+  const links = useLinkEmbeds(text, Math.max(0, embedsMax - embeds.length));
   const present = useMemo(
     () => new Set(findChatLinks(text, LINKS_SCAN).map((link) => link.key)),
     [text],
