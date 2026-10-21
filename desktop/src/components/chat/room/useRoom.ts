@@ -8,12 +8,11 @@ import {
   linksOff,
   linksOpenAt,
   mutedUntil,
+  type RoomLinkBlock,
 } from '../../../lib/together/room-rules';
 import type { RoomView } from '../../../lib/together/types';
 import { useChatRoomStore } from '../../../stores/chat/room';
 import { useTogetherStore } from '../../../stores/together';
-
-export type RoomLinkBlock = 'off' | 'new' | null;
 
 export interface RoomSelf {
   id: string | null;

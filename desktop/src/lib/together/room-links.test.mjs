@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { hasLink, linksOff, linksOpenAt, NEW_MEMBER_MS } from './room-rules.ts';
+import { hasLink, linkBlock, linksOff, linksOpenAt, NEW_MEMBER_MS } from './room-rules.ts';
 
 function room(change = {}) {
   return {
@@ -48,4 +48,12 @@ test('new members of a public room wait a minute before posting links', () => {
   assert.equal(linksOpenAt(open, 'mod'), 0);
   assert.equal(linksOpenAt(open, 'stranger'), 0);
   assert.equal(linksOpenAt(room(), 'guest'), 0);
+});
+
+test('the link block names why a member cannot post a link right now', () => {
+  const open = room({ public: true });
+  assert.equal(linkBlock(open, 'guest', 5_000 + NEW_MEMBER_MS - 1), 'new');
+  assert.equal(linkBlock(open, 'guest', 5_000 + NEW_MEMBER_MS), null);
+  assert.equal(linkBlock(room({ public: true, links: false }), 'guest', 0), 'off');
+  assert.equal(linkBlock(room({ links: false }), 'mod', 0), null);
 });

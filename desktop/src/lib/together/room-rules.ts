@@ -11,6 +11,8 @@ const LINK = /https?:\/\/\S|scd:\/\/\S|(^|[^\w.@])www\.\S/i;
 
 export type RoomExit = 'ended' | 'kicked' | 'evicted';
 
+export type RoomLinkBlock = 'off' | 'new' | null;
+
 export interface MemberActions {
   kick: boolean;
   mute: boolean;
@@ -125,6 +127,15 @@ export function linksOpenAt(view: RoomView, userId: string | null): number {
   if (!view.public || canModerate(view, userId)) return 0;
   const member = view.members.find((entry) => entry.userId === userId);
   return member ? member.joinedAt + NEW_MEMBER_MS : 0;
+}
+
+export function linkBlock(view: RoomView, userId: string | null, now: number): RoomLinkBlock {
+  if (linksOff(view, userId)) return 'off';
+  return now < linksOpenAt(view, userId) ? 'new' : null;
+}
+
+export function linkBlockKey(block: Exclude<RoomLinkBlock, null>): string {
+  return block === 'off' ? 'chat.room.links.off' : 'chat.room.links.new';
 }
 
 export function memberName(view: RoomView, userId: string | null): string | null {

@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { sendEmbed } from '../../../lib/chat/share';
 import type { ConversationSummary, ConvId, Embed } from '../../../lib/chat/types';
 import { Loader2, Search, Send } from '../../../lib/icons';
+import { roomLinkBlock } from '../../../lib/together/room-chat';
+import { linkBlockKey } from '../../../lib/together/room-rules';
 import { useChatStore } from '../../../stores/chat';
 import { Modal, ModalContent, ModalTitle } from '../../ui/Modal';
 import { EmbedCard } from '../embeds/EmbedCard';
@@ -50,6 +52,11 @@ function PickerBody({ embed, onClose, onSent }: PickerBodyProps) {
 
   const send = async () => {
     if (selected.length === 0 || sending) return;
+    const block = selected.map((id) => roomLinkBlock(id, comment)).find(Boolean);
+    if (block) {
+      toast.error(t(linkBlockKey(block)));
+      return;
+    }
     setSending(true);
     const result = await sendEmbed(selected, embed, comment);
     setSending(false);

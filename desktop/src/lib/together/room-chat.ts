@@ -6,6 +6,8 @@ import { useTogetherStore } from '../../stores/together';
 import { chatBridge } from '../chat/bridge';
 import { chatError } from '../chat/errors';
 import { onChatEvent } from '../chat/events';
+import type { ConvId } from '../chat/types';
+import { serverTime } from './link';
 import {
   gone,
   moved,
@@ -18,6 +20,7 @@ import {
   retry,
   retryDelay,
 } from './room-chat-state';
+import { hasLink, linkBlock, type RoomLinkBlock } from './room-rules';
 
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let failures = 0;
@@ -70,6 +73,13 @@ function sync(): void {
 
 export function openRoomDock(): void {
   useChatPrefsStore.getState().show(DOCK_ROOM);
+}
+
+export function roomLinkBlock(conversationId: ConvId, text: string): RoomLinkBlock {
+  const { room, selfId } = useTogetherStore.getState();
+  const ours = useChatRoomStore.getState().conversationId === conversationId;
+  if (!room || !ours || !hasLink(text)) return null;
+  return linkBlock(room, selfId, serverTime());
 }
 
 export function retryRoomChat(): void {
