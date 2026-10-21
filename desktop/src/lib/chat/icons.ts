@@ -4,7 +4,9 @@ import {
   CheckCheck as _CheckCheck,
   Flag as _Flag,
   Hourglass as _Hourglass,
+  IdCard as _IdCard,
   Lock as _Lock,
+  Megaphone as _Megaphone,
   MessageCircle as _MessageCircle,
   MessagesSquare as _MessagesSquare,
   MonitorSmartphone as _MonitorSmartphone,
@@ -23,7 +25,9 @@ export const BellOff = memo(_BellOff);
 export const CheckCheck = memo(_CheckCheck);
 export const Flag = memo(_Flag);
 export const Hourglass = memo(_Hourglass);
+export const IdCard = memo(_IdCard);
 export const Lock = memo(_Lock);
+export const Megaphone = memo(_Megaphone);
 export const MessageCircle = memo(_MessageCircle);
 export const MessagesSquare = memo(_MessagesSquare);
 export const MonitorSmartphone = memo(_MonitorSmartphone);
