@@ -9,6 +9,7 @@ interface Watch {
   viewers: number;
   timer: ReturnType<typeof setInterval>;
   lastAt: number;
+  busy: boolean;
 }
 
 const watches = new Map<string, Watch>();
@@ -22,12 +23,16 @@ function isGone(error: unknown): boolean {
 async function refresh(code: string): Promise<void> {
   const watch = watches.get(code);
   const store = useChatEmbedsStore.getState();
-  if (!watch || store.closedRooms[code] || document.visibilityState === 'hidden') return;
+  if (!watch || watch.busy || store.closedRooms[code]) return;
+  if (document.visibilityState === 'hidden') return;
   watch.lastAt = Date.now();
+  watch.busy = true;
   try {
     store.setRoomPreview(code, await chatBridge.roomPreview(code));
   } catch (error) {
     if (isGone(error)) store.closeRoom(code);
+  } finally {
+    watch.busy = false;
   }
   if (useChatEmbedsStore.getState().closedRooms[code]) stopWatch(code);
 }
@@ -60,6 +65,7 @@ function watchRoom(code: string): () => void {
       viewers: 1,
       timer: setInterval(() => void refresh(code), POLL_MS),
       lastAt: 0,
+      busy: false,
     });
     void refresh(code);
   }

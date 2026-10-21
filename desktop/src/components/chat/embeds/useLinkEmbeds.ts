@@ -1,6 +1,6 @@
 import { useQueries } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { findChatLinks } from '../../../lib/chat/soundcloud-link';
+import { CHAT_EMBEDS_MAX, findChatLinks } from '../../../lib/chat/soundcloud-link';
 import type { Embed } from '../../../lib/chat/types';
 import { snapshotFromLink } from './link-snapshot';
 
@@ -27,11 +27,17 @@ function useSettled(text: string): string {
   return settled;
 }
 
-export function useLinkEmbeds(text: string, max?: number): LinkEmbeds {
+export function useLinkEmbeds(text: string, max = CHAT_EMBEDS_MAX): LinkEmbeds {
   const settled = useSettled(text);
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set());
+  useEffect(() => {
+    if (!settled.trim()) setDismissed((previous) => (previous.size > 0 ? new Set() : previous));
+  }, [settled]);
   const links = useMemo(
-    () => findChatLinks(settled, max).filter((link) => !dismissed.has(link.key)),
+    () =>
+      findChatLinks(settled, max + dismissed.size)
+        .filter((link) => !dismissed.has(link.key))
+        .slice(0, max),
     [settled, max, dismissed],
   );
   const results = useQueries({
