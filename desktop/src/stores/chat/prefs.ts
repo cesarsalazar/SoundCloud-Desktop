@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { ConvId, UserId } from '../../lib/chat/types';
 import { tauriStorage } from '../../lib/tauri-storage';
+import { useChatRoomStore } from './room';
 
 export const CHAT_HOTKEY_DEFAULT = 'Alt+KeyC';
 export const CHAT_DOCK_DEFAULT = 360;
@@ -56,7 +57,11 @@ export const useChatPrefsStore = create<ChatPrefsState>()(
       setTabs: (tabs) => set({ tabs: tabs.slice(0, CHAT_TABS_MAX) }),
       toggleDock: () => set((state) => ({ dockOpen: !state.dockOpen })),
       openInDock: (id) =>
-        set((state) => ({ tabs: withTab(state.tabs, id), active: id, dockOpen: true })),
+        set((state) =>
+          id === useChatRoomStore.getState().conversationId
+            ? { active: DOCK_ROOM, dockOpen: true }
+            : { tabs: withTab(state.tabs, id), active: id, dockOpen: true },
+        ),
       closeTab: (id) =>
         set((state) => ({
           tabs: state.tabs.filter((tab) => tab !== id),
