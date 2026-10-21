@@ -117,7 +117,8 @@ jobs:
         run: brew install autoconf automake libtool
 
       - name: Toolchain
-        run: rustup toolchain install
+        working-directory: .
+        run: bash scripts/ci-toolchain.sh
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -165,7 +166,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev protobuf-compiler cmake clang libclang-dev pkg-config
 
       - name: Toolchain
-        run: rustup toolchain install
+        working-directory: .
+        run: bash scripts/ci-toolchain.sh
 
       - uses: swatinem/rust-cache@v2
         with:

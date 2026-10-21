@@ -205,7 +205,7 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
         run: |
-          rustup toolchain install
+          bash scripts/ci-toolchain.sh
           if [ -n "$TARGET" ]; then rustup target add "$TARGET"; fi
 
       - name: Rust cache

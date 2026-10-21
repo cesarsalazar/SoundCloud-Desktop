@@ -17,8 +17,8 @@ case ${1:-} in
       echo "cannot fetch $sha, every file stays new"
       exit 0
     fi
-    git ls-files -z | xargs -0 touch -t "$old"
-    git diff --name-only --diff-filter=d -z "$sha" HEAD | xargs -0 -r touch
+    git ls-files -z | xargs -0 touch -h -t "$old"
+    git diff --name-only --diff-filter=d -z "$sha" HEAD | xargs -0 -r touch -h
     echo "cache built at ${sha:0:12}, $(git diff --name-only "$sha" HEAD | wc -l | tr -d ' ') files changed since"
     ;;
   stamp)
