@@ -5,6 +5,8 @@ import { Timer } from '../../../lib/chat/icons';
 import { systemText } from '../../../lib/chat/render';
 import { dayLabel } from '../../../lib/chat/time';
 import type { Message } from '../../../lib/chat/types';
+import { roomRowKind } from '../../../lib/together/room-rows';
+import { RoomSystemRow } from '../room/RoomSystemRow';
 import { useThread } from './context';
 
 export function dayText(ts: number, t: TFunction, language: string): string {
@@ -40,8 +42,11 @@ export const UnreadDivider = memo(function UnreadDivider({ count }: { count: num
 
 export const SystemRow = memo(function SystemRow({ message }: { message: Message }) {
   const { t, i18n } = useTranslation();
-  const { nameOf } = useThread();
+  const { nameOf, conversation } = useThread();
   if (message.body.type !== 'system') return null;
+  if (conversation.kind === 'room' && roomRowKind(message.body)) {
+    return <RoomSystemRow event={message.body} nameOf={nameOf} />;
+  }
   const timer = message.body.kind === 'ttl';
   return (
     <div className="flex justify-center px-6 pt-2.5 pb-0.5">

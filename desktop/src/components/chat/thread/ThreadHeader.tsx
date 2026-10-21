@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BellOff, Timer } from '../../../lib/chat/icons';
 import { conversationAvatar, conversationTitle, ttlShort } from '../../../lib/chat/render';
@@ -68,9 +68,11 @@ function SavedMark() {
 export const ThreadHeader = memo(function ThreadHeader({
   onBack,
   onInfo,
+  actions,
 }: {
   onBack?: () => void;
   onInfo: () => void;
+  actions?: ReactNode;
 }) {
   const { t, i18n } = useTranslation();
   const { conversation } = useThread();
@@ -150,6 +152,7 @@ export const ThreadHeader = memo(function ThreadHeader({
         >
           <Ellipsis size={17} />
         </button>
+        {actions}
       </div>
     </header>
   );

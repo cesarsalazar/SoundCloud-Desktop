@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ConvId, Seq } from '../../../lib/chat/types';
 import { useChatStore } from '../../../stores/chat';
@@ -21,12 +21,16 @@ export interface ChatThreadProps {
   conversationId: ConvId;
   onBack?: () => void;
   onLeave?: () => void;
+  actions?: ReactNode;
+  bare?: boolean;
 }
 
 export const ChatThread = memo(function ChatThread({
   conversationId,
   onBack,
   onLeave,
+  actions,
+  bare = false,
 }: ChatThreadProps) {
   const conversation = useChatThreadStore(
     (state) => state.threads[conversationId]?.conversation ?? null,
@@ -100,7 +104,7 @@ export const ChatThread = memo(function ChatThread({
         key={conversationId}
         className="relative flex h-full min-h-0 flex-col overflow-hidden"
       >
-        <ThreadHeader onBack={onBack} onInfo={openInfo} />
+        {!bare && <ThreadHeader onBack={onBack} onInfo={openInfo} actions={actions} />}
         <PinnedBar />
         <HistorySlot />
         {empty && load === 'ready' ? (

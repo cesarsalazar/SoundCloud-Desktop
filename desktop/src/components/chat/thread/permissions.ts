@@ -1,4 +1,5 @@
 import type { ConversationSummary, Message } from '../../../lib/chat/types';
+import { canForwardFrom } from '../../../lib/together/room-rows';
 
 const EDIT_WINDOW_MS = 48 * 3_600_000;
 
@@ -58,7 +59,7 @@ export function canForward(message: Message, conversation: ConversationSummary):
   return (
     message.seq !== null &&
     message.body.type === 'text' &&
-    conversation.kind !== 'room' &&
+    canForwardFrom(conversation.kind) &&
     !isRequest(conversation)
   );
 }
