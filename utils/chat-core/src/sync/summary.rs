@@ -1,7 +1,7 @@
 use crate::api::wire::ConversationView;
 use crate::contracts::{
     ConversationSummary, MemberRole, MemberState, Message, MessageBody, MessagePreview,
-    NotifyLevel, PreviewKind, UserRef,
+    NotifyLevel, PreviewKind, SystemKind, UserRef,
 };
 
 pub const PREVIEW_CHARS: usize = 120;
@@ -105,6 +105,9 @@ pub fn preview(message: &Message, seq: i64) -> MessagePreview {
             (PreviewKind::Embed, message.embeds[0].title.clone())
         }
         MessageBody::Text(rich) => (PreviewKind::Text, rich.text.clone()),
+        MessageBody::System(event) if event.kind == SystemKind::Deleted => {
+            (PreviewKind::Deleted, String::new())
+        }
         MessageBody::System(_) => (PreviewKind::System, String::new()),
         MessageBody::Deleted => (PreviewKind::Deleted, String::new()),
         MessageBody::Locked => (PreviewKind::Locked, String::new()),

@@ -1,4 +1,4 @@
-use chat_core::api::wire::{FileReport, SettingsChange};
+use chat_core::api::wire::{FileReport, SettingsChange, SettingsView};
 use chat_core::{
     ChatError, ChatResult, ChatSettings, ReportInput, SettingsPatch, UserCard, UserId,
 };
@@ -9,11 +9,15 @@ use crate::chat::state::ChatState;
 const COMMENT_MAX: usize = 500;
 
 pub async fn block(state: &ChatState, user_id: UserId) -> ChatResult<()> {
-    state.api.block(&user_id).await
+    state.api.block(&user_id).await?;
+    state.runtime.set_blocked(&user_id, true);
+    Ok(())
 }
 
 pub async fn unblock(state: &ChatState, user_id: UserId) -> ChatResult<()> {
-    state.api.unblock(&user_id).await
+    state.api.unblock(&user_id).await?;
+    state.runtime.set_blocked(&user_id, false);
+    Ok(())
 }
 
 pub async fn report(state: &ChatState, report: ReportInput) -> ChatResult<()> {
@@ -26,7 +30,8 @@ pub async fn report(state: &ChatState, report: ReportInput) -> ChatResult<()> {
 }
 
 pub async fn settings(state: &ChatState) -> ChatResult<ChatSettings> {
-    Ok(ChatSettings::from(&state.api.settings().await?))
+    let view = state.api.settings().await?;
+    Ok(remember_blocked(state, &view))
 }
 
 pub async fn put_settings(state: &ChatState, patch: SettingsPatch) -> ChatResult<ChatSettings> {
@@ -34,7 +39,15 @@ pub async fn put_settings(state: &ChatState, patch: SettingsPatch) -> ChatResult
         .api
         .put_settings(&SettingsChange::from(&patch))
         .await?;
-    Ok(ChatSettings::from(&view))
+    Ok(remember_blocked(state, &view))
+}
+
+fn remember_blocked(state: &ChatState, view: &SettingsView) -> ChatSettings {
+    let settings = ChatSettings::from(view);
+    state
+        .runtime
+        .note_blocked(settings.blocked.iter().map(|user| user.id.clone()));
+    settings
 }
 
 pub async fn card(state: &ChatState, user_id: UserId) -> ChatResult<UserCard> {

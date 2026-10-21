@@ -61,6 +61,7 @@
     "wait": "Wait {{value}} s"
   },
   "moderatorRow": "Moderator rights: {{name}}",
+  "moderatorOffRow": "Moderator rights removed: {{name}}",
   "toast": {
     "youLead": "You control the music now",
     "ended": "Session ended, chat deleted",

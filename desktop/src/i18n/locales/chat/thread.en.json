@@ -62,6 +62,9 @@
     "renamed": "New name: {{name}}",
     "handoff": "{{name}} is hosting now",
     "track": "Now playing: {{name}}",
+    "roleOwner": "{{name}} is the owner now",
+    "roleAdmin": "{{name}} is an admin now",
+    "roleMember": "{{name}} is no longer an admin",
     "other": "Chat updated"
   },
   "bubble": {

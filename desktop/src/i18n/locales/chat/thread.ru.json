@@ -65,6 +65,9 @@
     "renamed": "Новое название: {{name}}",
     "handoff": "Ведёт {{name}}",
     "track": "Сейчас играет: {{name}}",
+    "roleOwner": "{{name}} теперь владелец",
+    "roleAdmin": "{{name}} теперь админ",
+    "roleMember": "{{name}} больше не админ",
     "other": "Изменения в чате"
   },
   "bubble": {

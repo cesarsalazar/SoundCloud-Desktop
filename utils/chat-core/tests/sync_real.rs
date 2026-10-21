@@ -211,3 +211,69 @@ async fn a_lost_send_is_replayed_and_its_echo_stays_one_message() {
     let summary = rig.engine.store().conversation(A).unwrap().unwrap();
     assert_eq!((summary.last_seq, summary.unread), (1, 0));
 }
+
+fn deleted_marker(seq: i64, target: i64) -> Value {
+    json!({
+        "seq": seq,
+        "client_id": Uuid::from_u128(0x900 + seq as u128),
+        "sender": PEER,
+        "sender_device": null,
+        "class": "system",
+        "epoch": 1,
+        "target_seq": target,
+        "body": b64::encode(&serde_json::to_vec(&json!({"kind": "deleted", "actor": PEER})).unwrap()),
+        "ts": START_MS + seq * 1000,
+        "expires_at": null,
+    })
+}
+
+#[tokio::test]
+async fn a_delete_for_everyone_from_another_device_scrubs_the_target() {
+    let rig = real();
+    rig.server.json(
+        "GET",
+        &format!("/chat/conversations/{A}/keys"),
+        rig.sealed_key(),
+    );
+    rig.server.json(
+        "POST",
+        "/chat/sync",
+        answer(2, INC, vec![entry(A, 1, vec![peer_post(1, "secret plan")])]),
+    );
+    rig.server.json(
+        "POST",
+        "/chat/sync",
+        answer(3, INC, vec![entry(A, 2, vec![deleted_marker(2, 1)])]),
+    );
+
+    assert_eq!(rig.engine.step(plan()).await, Ok(SyncOutcome::Changed));
+    assert_eq!(rig.engine.step(plan()).await, Ok(SyncOutcome::Changed));
+
+    let texts = rig.texts();
+    assert_eq!(texts[0], (Some(1), false, "Deleted".to_owned()));
+    assert!(
+        rig.server
+            .calls_to("GET", &format!("/chat/conversations/{A}"))
+            .is_empty()
+    );
+    let hits = chat_core::search::Search::new(rig.engine.store().clone())
+        .query(&chat_core::SearchQuery {
+            text: "secret".into(),
+            conversation_id: None,
+            limit: 10,
+        })
+        .unwrap();
+    assert!(hits.is_empty());
+    let shown = rig.events.messages().pop().unwrap();
+    assert!(
+        shown
+            .messages
+            .iter()
+            .any(|message| message.seq == Some(1) && message.body == MessageBody::Deleted)
+    );
+    let summary = rig.engine.store().conversation(A).unwrap().unwrap();
+    assert_eq!(
+        summary.preview.map(|preview| preview.kind),
+        Some(chat_core::PreviewKind::Deleted)
+    );
+}

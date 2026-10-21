@@ -1,8 +1,8 @@
 use rusqlite::Connection;
 
-use super::{VERSION, migrate, prepare, version};
+use super::{V1, VERSION, migrate, prepare, version};
 
-const TABLES: [&str; 11] = [
+const TABLES: [&str; 12] = [
     "meta",
     "users",
     "conversations",
@@ -14,6 +14,7 @@ const TABLES: [&str; 11] = [
     "conversation_keys",
     "drafts",
     "outbox",
+    "hidden_messages",
 ];
 
 fn fresh() -> Connection {
@@ -24,7 +25,7 @@ fn fresh() -> Connection {
 }
 
 #[test]
-fn v1_creates_every_table() {
+fn every_table_exists_after_migrating() {
     let conn = fresh();
     for table in TABLES {
         let found: i64 = conn
@@ -83,4 +84,27 @@ fn a_message_seq_is_unique_per_conversation() {
     let insert = "INSERT INTO messages (conversation_id, seq, client_id, sender, class, epoch, ts, content) VALUES (x'01', 1, x'02', 'u', 'post', 0, 0, 'open')";
     conn.execute(insert, []).unwrap();
     assert!(conn.execute(insert, []).is_err());
+}
+
+#[test]
+fn a_v1_store_moves_to_v2_and_keeps_its_rows() {
+    let conn = Connection::open_in_memory().unwrap();
+    prepare(&conn).unwrap();
+    conn.execute_batch(V1).unwrap();
+    conn.pragma_update(None, "user_version", 1).unwrap();
+    conn.execute("INSERT INTO meta (key, value) VALUES ('me', x'31')", [])
+        .unwrap();
+    migrate(&conn).unwrap();
+    assert_eq!(version(&conn).unwrap(), VERSION);
+    let kept: i64 = conn
+        .query_row("SELECT count(*) FROM meta WHERE key = 'me'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(kept, 1);
+    conn.execute(
+        "INSERT INTO hidden_messages (conversation_id, seq) VALUES (x'01', 4)",
+        [],
+    )
+    .unwrap();
 }

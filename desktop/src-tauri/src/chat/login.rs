@@ -78,10 +78,36 @@ async fn create_link(
 }
 
 pub async fn link_claim_push(state: &ChatState, claim_token: &str) -> ChatResult<LinkClaimed> {
+    claim_link(state, claim_token, None).await
+}
+
+#[tauri::command]
+pub async fn chat_link_claim_pull(
+    state: tauri::State<'_, ChatState>,
+    claim_token: String,
+) -> ChatResult<LinkClaimed> {
+    link_claim_pull(&state, &claim_token).await
+}
+
+pub async fn link_claim_pull(state: &ChatState, claim_token: &str) -> ChatResult<LinkClaimed> {
+    let session = crate::auth::session_token(Some(&state.app))
+        .await
+        .ok_or(ChatError::NotReady)?;
+    claim_link(state, claim_token, Some(session)).await
+}
+
+async fn claim_link(
+    state: &ChatState,
+    claim_token: &str,
+    session: Option<String>,
+) -> ChatResult<LinkClaimed> {
     let signer = load_signer(state).await?;
+    wire::decode(&send(state, &signer, &claim_call(claim_token, session)).await?)
+}
+
+fn claim_call(claim_token: &str, session: Option<String>) -> Call {
     let body = json!({ "claimToken": claim_token });
-    let call = Call::new(post(LINK_CLAIM, &body), None, START_TIMEOUT_MS);
-    wire::decode(&send(state, &signer, &call).await?)
+    Call::new(post(LINK_CLAIM, &body), session, START_TIMEOUT_MS)
 }
 
 pub async fn link_poll(state: &ChatState, link_request_id: &str) -> ChatResult<LinkPoll> {

@@ -4,6 +4,7 @@ mod os;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+use chat_core::crypto::DeviceKeys;
 use chat_core::{ChatError, ChatResult, KeyName, KeyStorage, KeyStore, Zeroizing};
 
 use super::runtime::database_path;
@@ -57,6 +58,7 @@ impl Keychain {
     }
 
     pub fn wipe(&self) -> ChatResult<()> {
+        let _one_at_a_time = DeviceKeys::exclusive();
         let vault = self.vault(self.storage());
         for name in KeyName::ALL {
             vault.delete(name)?;

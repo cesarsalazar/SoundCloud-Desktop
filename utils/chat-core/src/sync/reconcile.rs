@@ -31,11 +31,12 @@ impl<L: Local> SyncEngine<L> {
         let local = self.store.known(LOCAL_MAX)?;
         if listed.complete {
             let ids: HashSet<ConvId> = listed.views.iter().map(|view| view.id).collect();
-            let gone: Vec<ConvId> = local
-                .iter()
-                .map(|(id, _)| *id)
-                .filter(|id| !ids.contains(id))
-                .collect();
+            let mut gone = Vec::new();
+            for (id, _) in &local {
+                if !ids.contains(id) && !self.is_room(*id)? {
+                    gone.push(*id);
+                }
+            }
             self.purge(&gone, &[])?;
         }
         if pending.restored {
@@ -53,22 +54,24 @@ impl<L: Local> SyncEngine<L> {
             self.note_view(view);
             let existing = self.store.conversation(view.id)?;
             let mut summary = self.summary_of(view, existing.as_ref()).await?;
+            let mut messages = Vec::new();
             if summary.last_seq < view.last_seq && budget > 0 {
                 budget -= 1;
-                let messages = self.catch_up(view.id, summary.last_seq).await?;
+                messages = self.catch_up(view.id, summary.last_seq).await?;
                 summary::absorb(&mut summary, &messages);
-                if !messages.is_empty() {
-                    self.events.emit(CoreEvent::Messages(MessagesEvent {
-                        conversation_id: view.id,
-                        origin: MessagesOrigin::Sync,
-                        messages,
-                    }));
-                }
             }
             self.recount(&mut summary)?;
             self.save(std::slice::from_ref(&summary))?;
+            if !messages.is_empty() {
+                self.events.emit(CoreEvent::Messages(MessagesEvent {
+                    conversation_id: view.id,
+                    origin: MessagesOrigin::Sync,
+                    messages,
+                }));
+            }
             conversations.push(summary);
         }
+        conversations.extend(self.catch_up_rooms(&local).await?);
         let requests = self.with(|state| state.status.requests);
         self.events.emit(CoreEvent::Sync(SyncEvent {
             reset: true,

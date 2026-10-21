@@ -1,4 +1,5 @@
 mod activity;
+mod blocked;
 mod bringup;
 mod clock;
 mod drive;
@@ -12,7 +13,7 @@ mod tap;
 mod visibility;
 mod wake;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
@@ -22,6 +23,7 @@ use chat_core::{ChatConfig, ChatError, ChatResult, ChatStatus, Clock, ConvId, De
 use tauri::Listener;
 
 use super::keychain::Keychain;
+use super::notify::Notifier;
 use super::state::ChatState;
 use crate::rt::AppHandle;
 use session::Session;
@@ -46,6 +48,8 @@ pub struct Runtime {
     events: Arc<Tap>,
     signals: Signals,
     status: Arc<StatusCell>,
+    notifier: Arc<Notifier>,
+    blocked: RwLock<HashSet<UserId>>,
     lifecycle: tokio::sync::Mutex<()>,
     core: RwLock<Option<Arc<Core>>>,
     config: RwLock<Option<ChatConfig>>,
@@ -62,6 +66,7 @@ pub struct Parts {
     pub clock: Arc<dyn Clock>,
     pub events: Arc<Tap>,
     pub status: Arc<StatusCell>,
+    pub notifier: Arc<Notifier>,
 }
 
 pub fn start(state: &ChatState) {
@@ -93,6 +98,8 @@ impl Runtime {
             clock: parts.clock,
             events: parts.events,
             status: parts.status,
+            notifier: parts.notifier,
+            blocked: RwLock::new(HashSet::new()),
             signals: Signals::new(),
             lifecycle: tokio::sync::Mutex::new(()),
             core: RwLock::new(None),
@@ -112,10 +119,6 @@ impl Runtime {
 
     pub fn ready(&self) -> ChatResult<Arc<Core>> {
         self.core().ok_or(ChatError::NotReady)
-    }
-
-    pub fn api(&self) -> &Arc<Api> {
-        &self.api
     }
 
     pub fn config(&self) -> Option<ChatConfig> {

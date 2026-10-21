@@ -1,6 +1,7 @@
 use chat_core::{ChatPhase, ChatStatus};
 
 const LABEL_MAX: u32 = 99;
+#[cfg(any(windows, test))]
 const GLYPH_MAX: u32 = 9;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -43,6 +44,7 @@ impl Badge {
         }
     }
 
+    #[cfg(any(windows, test))]
     pub fn glyph(self) -> Option<String> {
         match self.count {
             0 => None,

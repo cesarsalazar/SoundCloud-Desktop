@@ -59,11 +59,15 @@ async fn calls_fall_through_tiers_and_start_with_the_one_that_answered() {
     let api = rig.engine.api();
     rig.server
         .on("GET", "/chat/config", Step::Fail(ChatError::Offline));
-    rig.server.json("GET", "/chat/config", config());
+    let mut with_user = config();
+    with_user["user_id"] = json!("100");
+    rig.server.json("GET", "/chat/config", with_user);
     rig.server.json("GET", "/chat/config", config());
 
-    assert!(api.config().await.unwrap().enabled);
-    api.config().await.unwrap();
+    let first = api.config().await.unwrap();
+    assert!(first.enabled);
+    assert_eq!(first.user_id.as_deref(), Some("100"));
+    assert_eq!(api.config().await.unwrap().user_id, None);
 
     let tiers: Vec<Tier> = rig
         .server

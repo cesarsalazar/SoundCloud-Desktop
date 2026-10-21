@@ -269,6 +269,8 @@ fn system_rows_and_server_deletes_render_as_such() {
         ttl_s: Some(86_400),
         until: None,
         track: None,
+        role: None,
+        on: None,
     };
     store
         .put_messages(&[
@@ -375,4 +377,53 @@ fn sync_state_round_trips() {
         store.sync_state().unwrap(),
         SyncState { pos: 43, inc: None }
     );
+}
+
+fn deleted_marker(id: Uuid, seq: i64, target: i64) -> chat_core::store::StoredMessage {
+    let event = SystemEvent {
+        kind: SystemKind::Deleted,
+        actor: Some(PEER.into()),
+        target: None,
+        name: None,
+        ttl_s: None,
+        until: None,
+        track: None,
+        role: None,
+        on: None,
+    };
+    row(
+        id,
+        seq,
+        PEER,
+        MessageClass::System,
+        Some(target),
+        StoredContent::System(event),
+    )
+}
+
+#[test]
+fn a_deleted_marker_scrubs_its_target_and_the_target_edits() {
+    let store = store();
+    let id = conv();
+    store
+        .put_messages(&[
+            post(id, 1, PEER, "секретный план"),
+            edit(id, 2, PEER, 1, "секретный план изменён"),
+            post(id, 3, PEER, "остаётся"),
+        ])
+        .unwrap();
+    store.put_messages(&[deleted_marker(id, 4, 1)]).unwrap();
+    let (messages, _) = page(&store, id, None, None, 10);
+    assert_eq!(messages[0].body, MessageBody::Deleted);
+    assert_eq!(messages[0].edited_at, None);
+    assert_eq!(body(&messages[1]), "остаётся");
+    let search = chat_core::search::Search::new(std::sync::Arc::new(store));
+    let hits = search
+        .query(&chat_core::SearchQuery {
+            text: "план".into(),
+            conversation_id: None,
+            limit: 10,
+        })
+        .unwrap();
+    assert!(hits.is_empty());
 }

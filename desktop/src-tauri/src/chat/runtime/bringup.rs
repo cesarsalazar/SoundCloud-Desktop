@@ -3,7 +3,9 @@ use std::time::Duration;
 
 use chat_core::api::Identity;
 use chat_core::api::wire::{ConfigView, RegisterDevice};
-use chat_core::{Access, ChatConfig, ChatError, ChatLimits, ChatPhase, ChatResult, KeyStore};
+use chat_core::{
+    Access, ChatConfig, ChatError, ChatLimits, ChatPhase, ChatResult, KeyStore, UserId,
+};
 
 use super::Runtime;
 use super::local::{self, Core};
@@ -43,6 +45,7 @@ impl Runtime {
             .config()
             .await
             .map_err(|error| self.fail(&error, failures))?;
+        let user_id = config.user_id.clone();
         let config = self.adopt_config(config);
         if !config.enabled {
             return Err(Halt::Phase(ChatPhase::Off));
@@ -53,11 +56,51 @@ impl Runtime {
             .await
             .map_err(|error| self.fail(&error, failures))?;
         self.adopt_device(device.id);
+        if let Some(user_id) = user_id {
+            self.adopt_user(&core, user_id, failures).await?;
+        }
         self.status.update(|status| {
             status.phase = ChatPhase::Ready;
             status.key_storage = self.keychain.storage();
         });
+        let runtime = self.clone();
+        self.rt
+            .spawn(async move { runtime.refresh_blocked().await });
         Ok(core)
+    }
+
+    async fn adopt_user(
+        &self,
+        core: &Arc<Core>,
+        user_id: UserId,
+        failures: &mut u32,
+    ) -> Result<(), Halt> {
+        let store = core.store.clone();
+        let me = user_id.clone();
+        let other_account = self
+            .rt
+            .spawn_blocking(move || {
+                let other = store.me()?.is_some_and(|known| known != me);
+                if !other {
+                    store.set_me(&me)?;
+                }
+                Ok(other)
+            })
+            .await
+            .unwrap_or(Err(ChatError::Internal))
+            .map_err(|error| self.fail(&error, failures))?;
+        if other_account {
+            let _ = self.wipe(false).await;
+            return Err(Halt::Restart);
+        }
+        core.sync.set_user(Some(user_id.clone()));
+        self.notifier.attach(
+            core.store.clone(),
+            user_id.clone(),
+            self.api.channel().clone(),
+        );
+        self.status.update(|status| status.user_id = Some(user_id));
+        Ok(())
     }
 
     pub async fn local_core(self: &Arc<Self>) -> ChatResult<Arc<Core>> {
@@ -129,9 +172,7 @@ impl Runtime {
             ChatError::DeviceRevoked => Halt::Phase(ChatPhase::Revoked),
             ChatError::Disabled => Halt::Phase(ChatPhase::Off),
             ChatError::Unimplemented => Halt::Retry(STUB_RETRY),
-            ChatError::Busy { retry_ms } => {
-                Halt::Retry(Duration::from_millis(*retry_ms).max(RETRY_MIN))
-            }
+            ChatError::Busy { retry_ms } => Halt::Retry(busy_retry(*retry_ms)),
             ChatError::Clock { server_now } => {
                 self.api.channel().note_server_now(*server_now);
                 Halt::Retry(clock_retry(failures))
@@ -139,6 +180,15 @@ impl Runtime {
             _ => Halt::Retry(backoff(failures)),
         }
     }
+}
+
+pub fn busy_retry(retry_ms: u64) -> Duration {
+    let floor = u64::try_from(RETRY_MIN.as_millis()).unwrap_or(u64::MAX);
+    let base = retry_ms.max(floor);
+    Duration::from_millis(super::clock::spread(
+        base,
+        super::clock::jitter(base * 2 / 5),
+    ))
 }
 
 pub fn clock_retry(failures: u32) -> Duration {

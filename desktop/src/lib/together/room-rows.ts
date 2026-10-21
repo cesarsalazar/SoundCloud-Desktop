@@ -4,9 +4,9 @@ export type RoomRowKind = 'track' | 'suggest' | 'moderator';
 
 export function roomRowKind(event: SystemEvent): RoomRowKind | null {
   if (event.kind === 'track' && event.track) return 'track';
-  if (event.kind !== 'other' || !event.actor) return null;
-  if (event.track) return 'suggest';
-  return event.target ? 'moderator' : null;
+  if (event.kind === 'suggest' && event.track) return 'suggest';
+  if (event.kind === 'moderator' && event.target) return 'moderator';
+  return null;
 }
 
 export function canForwardFrom(kind: ConversationKind): boolean {

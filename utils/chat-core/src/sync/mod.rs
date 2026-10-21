@@ -11,6 +11,7 @@ pub mod local;
 mod marks;
 mod outbox;
 mod reconcile;
+mod rooms;
 mod rows;
 mod run;
 mod signal;
@@ -28,6 +29,8 @@ pub use cipher::{Cipher, DeviceCipher};
 pub use local::{Local, LocalStore};
 pub use marks::MarkBatch;
 pub use tiers::{BACKOFF_MAX_MS, MID_HOLD_MIN_MS};
+
+pub const SHORT_POLL_GAP_MS: u64 = 3_000;
 
 use crate::api::Api;
 use crate::contracts::{
@@ -60,6 +63,7 @@ pub struct SyncEngine<L: Local = LocalStore> {
     visible: AtomicBool,
     stopped: AtomicBool,
     wake: Signal,
+    halt: Signal,
     state: Mutex<State>,
 }
 
@@ -89,6 +93,7 @@ impl<L: Local> SyncEngine<L> {
             visible: AtomicBool::new(false),
             stopped: AtomicBool::new(false),
             wake: Signal::default(),
+            halt: Signal::default(),
             state: Mutex::new(State::default()),
         }
     }
@@ -149,6 +154,7 @@ impl<L: Local> SyncEngine<L> {
     pub fn stop(&self) {
         self.stopped.store(true, Ordering::Relaxed);
         self.wake.raise();
+        self.halt.raise();
     }
 
     pub fn stopped(&self) -> bool {
@@ -168,11 +174,14 @@ impl<L: Local> SyncEngine<L> {
                 hold_ms: 0,
                 delay_ms: 0,
             },
-            (false, true) => PollPlan {
-                tier,
-                hold_ms: state.tiers.hold(tier).min(state.hold_cap),
-                delay_ms: 0,
-            },
+            (false, true) => {
+                let hold_ms = state.tiers.hold(tier).min(state.hold_cap);
+                PollPlan {
+                    tier,
+                    hold_ms,
+                    delay_ms: if hold_ms == 0 { SHORT_POLL_GAP_MS } else { 0 },
+                }
+            }
             (false, false) => PollPlan {
                 tier,
                 hold_ms: 0,

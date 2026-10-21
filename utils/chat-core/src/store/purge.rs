@@ -11,7 +11,7 @@ pub const COMPACTION_GAP_MS: Millis = 60_000;
 
 const SEARCH_OWED: &str = "search_owed";
 
-const CONVERSATION_TABLES: [&str; 7] = [
+const CONVERSATION_TABLES: [&str; 8] = [
     "message_embeds",
     "messages",
     "members",
@@ -19,9 +19,10 @@ const CONVERSATION_TABLES: [&str; 7] = [
     "conversation_keys",
     "drafts",
     "outbox",
+    "hidden_messages",
 ];
 
-const WIPED_TABLES: [&str; 9] = [
+const WIPED_TABLES: [&str; 10] = [
     "message_embeds",
     "messages",
     "members",
@@ -29,6 +30,7 @@ const WIPED_TABLES: [&str; 9] = [
     "conversation_keys",
     "drafts",
     "outbox",
+    "hidden_messages",
     "conversations",
     "users",
 ];
@@ -58,6 +60,20 @@ impl Store {
     pub fn purge_messages(&self, gone: &[GoneMessage]) -> ChatResult<()> {
         let mut conn = self.conn()?;
         if drop_messages(&mut conn, &self.keys, gone)? {
+            finish(&conn)?;
+        }
+        Ok(())
+    }
+
+    pub fn hide_messages(&self, hidden: &[GoneMessage]) -> ChatResult<()> {
+        let mut conn = self.conn()?;
+        for message in hidden {
+            conn.prepare_cached(
+                "INSERT INTO hidden_messages (conversation_id, seq) VALUES (?1, ?2) ON CONFLICT DO NOTHING",
+            )?
+            .execute(params![message.conversation_id.as_bytes(), message.seq])?;
+        }
+        if drop_messages(&mut conn, &self.keys, hidden)? {
             finish(&conn)?;
         }
         Ok(())

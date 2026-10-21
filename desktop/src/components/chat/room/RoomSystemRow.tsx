@@ -11,13 +11,15 @@ export interface RoomSystemRowProps {
   nameOf: (userId: UserId | null) => string;
 }
 
-function ModeratorRow({ name }: { name: string }) {
+function ModeratorRow({ name, on }: { name: string; on: boolean }) {
   const { t } = useTranslation();
   return (
     <div className="flex justify-center px-6 pt-2.5 pb-0.5">
       <span className="inline-flex max-w-full items-center gap-1.5 px-3 py-1 text-[11.5px] text-white/45">
         <Shield size={12} className="shrink-0 text-sky-300/80" />
-        <span className="min-w-0 truncate">{t('chat.room.moderatorRow', { name })}</span>
+        <span className="min-w-0 truncate">
+          {t(on ? 'chat.room.moderatorRow' : 'chat.room.moderatorOffRow', { name })}
+        </span>
       </span>
     </div>
   );
@@ -29,6 +31,8 @@ export const RoomSystemRow = memo(function RoomSystemRow({ event, nameOf }: Room
   if (kind === 'suggest' && event.track) {
     return <SuggestCard track={event.track} by={event.name ?? nameOf(event.actor)} />;
   }
-  if (kind === 'moderator') return <ModeratorRow name={event.name ?? nameOf(event.target)} />;
+  if (kind === 'moderator') {
+    return <ModeratorRow name={event.name ?? nameOf(event.target)} on={event.on !== false} />;
+  }
   return null;
 });

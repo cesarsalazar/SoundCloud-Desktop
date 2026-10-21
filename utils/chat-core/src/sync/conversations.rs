@@ -2,15 +2,27 @@ use chat_wire::proto::envelope::Body;
 
 use super::local::Local;
 use super::summary::{self, Facts};
-use super::{SyncEngine, fatal, transient};
-use crate::api::wire::{CardView, ConversationView, SyncConversation};
+use super::{SyncEngine, fatal, system, transient};
+use crate::api::wire::{CardView, ConversationView, MessageView, SyncConversation};
 use crate::contracts::{
-    ChatError, ChatResult, ConvId, ConversationSummary, CoreEvent, HistoryQuery, Seq, SyncEvent,
-    UserId, UserRef,
+    ChatError, ChatResult, ConvId, ConversationKind, ConversationSummary, CoreEvent, HistoryQuery,
+    Seq, SyncEvent, SystemKind, UserId, UserRef,
 };
 use crate::embeds::clean;
 
 pub const RENDER_MAX: u32 = 200;
+
+fn structural(message: &MessageView) -> bool {
+    match (message.class.as_str(), &message.body) {
+        ("meta", _) => true,
+        ("system", Some(body)) => !matches!(
+            system::parse(body).kind,
+            SystemKind::Deleted | SystemKind::Track | SystemKind::Suggest
+        ),
+        ("system", None) => true,
+        _ => false,
+    }
+}
 
 impl<L: Local> SyncEngine<L> {
     pub async fn refresh_conversation(&self, id: ConvId) -> ChatResult<ConversationSummary> {
@@ -33,12 +45,12 @@ impl<L: Local> SyncEngine<L> {
         existing: Option<ConversationSummary>,
         behind: bool,
     ) -> ChatResult<Option<ConversationSummary>> {
-        let structural = entry
-            .messages
-            .iter()
-            .any(|message| matches!(message.class.as_str(), "system" | "meta"));
+        let structural = entry.messages.iter().any(structural);
         let bump = entry.messages.is_empty() && entry.typing.is_empty() && entry.marks.is_empty();
-        let refresh = existing.is_none() || structural || bump || behind;
+        let room = existing
+            .as_ref()
+            .is_some_and(|summary| summary.kind == ConversationKind::Room);
+        let refresh = existing.is_none() || (!room && (structural || bump || behind));
         if !refresh {
             return Ok(existing);
         }

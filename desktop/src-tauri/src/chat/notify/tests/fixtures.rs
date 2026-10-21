@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
+use chat_core::channel::Channel;
 use chat_core::{
-    ConversationKind, ConversationSummary, DeliveryState, Device, DeviceActions, DeviceStatus,
-    MemberRole, MemberState, Message, MessageBody, Millis, NotifyLevel, RichText, Seq, Span,
-    SpanKind, SystemEvent, SystemKind, Tier, UserRef,
+    Clock, ConversationKind, ConversationSummary, DeliveryState, Device, DeviceActions,
+    DeviceStatus, MemberRole, MemberState, Message, MessageBody, Millis, NotifyLevel, RichText,
+    Seq, Span, SpanKind, SystemEvent, SystemKind, Tier, UserRef,
 };
 use uuid::Uuid;
 
@@ -86,6 +89,8 @@ pub fn system(seq: Seq, kind: SystemKind, target: &str) -> Message {
         ttl_s: None,
         until: None,
         track: None,
+        role: None,
+        on: None,
     };
     message(seq, MessageBody::System(event))
 }
@@ -128,4 +133,21 @@ pub fn device(name: &str, platform: &str) -> Device {
         current: false,
         actions: DeviceActions::default(),
     }
+}
+
+struct BehindClock;
+
+#[chat_core::async_trait]
+impl Clock for BehindClock {
+    fn now_ms(&self) -> Millis {
+        1_000
+    }
+
+    async fn sleep(&self, _ms: u64) {}
+}
+
+pub fn channel_at(server_now: Millis) -> Arc<Channel> {
+    let channel = Channel::new(Arc::new(BehindClock));
+    channel.note_server_now(server_now);
+    Arc::new(channel)
 }

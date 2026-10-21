@@ -316,6 +316,121 @@ async fn system_rows_of_both_shapes_are_parsed() {
 }
 
 #[tokio::test]
+async fn role_delete_moderator_and_suggest_rows_keep_their_kind() {
+    let rig = rig();
+    synced(&rig);
+    rig.local.put_conversations(&[summary(A, 0)]).unwrap();
+    let track = json!({"urn": "soundcloud:tracks:1", "title": "Nightcall", "artist": "Kavinsky"});
+    rig.server.json(
+        "POST",
+        "/chat/sync",
+        answer(
+            4,
+            INC,
+            vec![entry(
+                A,
+                4,
+                vec![
+                    system(1, json!({"kind": "role", "actor": PEER, "target": ME, "role": "admin"})),
+                    system(2, json!({"kind": "deleted", "actor": PEER})),
+                    system(3, json!({"type": "moderator", "user_id": ME, "name": "me", "by": PEER, "on": false})),
+                    system(4, json!({"type": "suggest", "user_id": PEER, "name": "peer", "track": track})),
+                ],
+            )],
+        ),
+    );
+    rig.server
+        .json("GET", &format!("/chat/conversations/{A}"), view(A, 4));
+    rig.server
+        .json("GET", "/chat/users/200/card", card(PEER, "peer"));
+
+    rig.engine.step(plan(&rig)).await.unwrap();
+
+    let events: Vec<chat_core::SystemEvent> = rig
+        .local
+        .stored(A)
+        .into_iter()
+        .filter_map(|row| match row.content {
+            StoredContent::System(event) => Some(event),
+            _ => None,
+        })
+        .collect();
+    let kinds: Vec<SystemKind> = events.iter().map(|event| event.kind).collect();
+    assert_eq!(
+        kinds,
+        [
+            SystemKind::Role,
+            SystemKind::Deleted,
+            SystemKind::Moderator,
+            SystemKind::Suggest
+        ]
+    );
+    assert_eq!(events[0].role, Some(chat_core::MemberRole::Admin));
+    assert_eq!(events[0].target.as_deref(), Some(ME));
+    assert_eq!(
+        (events[2].on, events[2].target.as_deref()),
+        (Some(false), Some(ME))
+    );
+    assert_eq!(
+        events[3].track.as_ref().map(|track| track.title.as_str()),
+        Some("Nightcall")
+    );
+}
+
+struct SavedProbe {
+    local: std::sync::Arc<sync_support::MemoryLocal>,
+    saved: std::sync::Mutex<Vec<bool>>,
+}
+
+impl chat_core::Events for SavedProbe {
+    fn emit(&self, event: chat_core::CoreEvent) {
+        if let chat_core::CoreEvent::Messages(shown) = event {
+            let saved = self.local.summary(shown.conversation_id).is_some();
+            self.saved.lock().unwrap().push(saved);
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_reset_shows_messages_of_a_new_chat_only_after_the_chat_is_saved() {
+    let rig = rig();
+    let probe = std::sync::Arc::new(SavedProbe {
+        local: rig.local.clone(),
+        saved: std::sync::Mutex::default(),
+    });
+    let engine = chat_core::sync::SyncEngine::with_parts(
+        rig.engine.api().clone(),
+        rig.local.clone(),
+        probe.clone(),
+        std::sync::Arc::new(sync_support::TestCipher),
+    );
+    rig.server
+        .json("POST", "/chat/sync", answer(5, INC, vec![]));
+    assert_eq!(engine.step(plan(&rig)).await, Ok(SyncOutcome::Reset));
+    rig.server.json(
+        "GET",
+        "/chat/conversations",
+        json!({"items": [view(A, 1)], "next_cursor": null}),
+    );
+    rig.server
+        .json("GET", "/chat/users/200/card", card(PEER, "peer"));
+    rig.server.json(
+        "GET",
+        &format!("/chat/conversations/{A}/messages"),
+        json!({"messages": [post(A, 1, 1, "one")], "more": false}),
+    );
+    rig.server.json(
+        "GET",
+        &format!("/chat/conversations/{A}/keys"),
+        keys(A, &[1]),
+    );
+
+    engine.reconcile().await.unwrap();
+
+    assert_eq!(*probe.saved.lock().unwrap(), [true]);
+}
+
+#[tokio::test]
 async fn read_marks_ride_the_next_sync_once() {
     let rig = rig();
     synced(&rig);
@@ -444,4 +559,122 @@ async fn a_hidden_window_sends_no_focus() {
     let syncs = rig.server.calls_to("POST", "/chat/sync");
     assert_eq!(syncs[0].body["focus"], json!(null));
     assert_eq!(syncs[1].body["focus"], json!(A));
+}
+
+const ROOM: Uuid = Uuid::from_u128(0xe);
+
+#[tokio::test]
+async fn a_room_chat_is_adopted_from_its_seat_and_never_asks_for_a_conversation_view() {
+    let rig = rig();
+    synced(&rig);
+    rig.server.json(
+        "GET",
+        &format!("/chat/conversations/{ROOM}/messages"),
+        json!({"messages": [post(ROOM, 6, 1, "seated")], "more": false}),
+    );
+    rig.server.json(
+        "GET",
+        &format!("/chat/conversations/{ROOM}/keys"),
+        keys(ROOM, &[1]),
+    );
+    let adopted = rig.engine.adopt_room(ROOM, "ROOM42", 5).await.unwrap();
+    assert_eq!(adopted.kind, ConversationKind::Room);
+    assert_eq!(adopted.room_code.as_deref(), Some("ROOM42"));
+    assert_eq!(adopted.last_seq, 6);
+    let history = &rig
+        .server
+        .calls_to("GET", &format!("/chat/conversations/{ROOM}/messages"))[0];
+    assert!(history.query.contains("after=5"), "{}", history.query);
+
+    rig.server.json(
+        "POST",
+        "/chat/sync",
+        answer(
+            3,
+            INC,
+            vec![entry(
+                ROOM,
+                7,
+                vec![system(
+                    7,
+                    json!({"type": "join", "user_id": PEER, "name": "peer"}),
+                )],
+            )],
+        ),
+    );
+    rig.engine.step(plan(&rig)).await.unwrap();
+    assert_eq!(rig.local.summary(ROOM).unwrap().last_seq, 7);
+    assert!(
+        rig.server
+            .calls_to("GET", &format!("/chat/conversations/{ROOM}"))
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn a_reset_keeps_room_chats_the_list_never_shows_and_catches_them_up() {
+    let rig = rig();
+    let mut room = summary(ROOM, 2);
+    room.kind = ConversationKind::Room;
+    room.room_code = Some("ROOM42".into());
+    rig.local.put_conversations(&[room]).unwrap();
+    rig.server
+        .json("POST", "/chat/sync", answer(5, INC, vec![]));
+    assert_eq!(rig.engine.step(plan(&rig)).await, Ok(SyncOutcome::Reset));
+    rig.server.json(
+        "GET",
+        "/chat/conversations",
+        json!({"items": [], "next_cursor": null}),
+    );
+    for _ in 0..2 {
+        rig.server.json(
+            "GET",
+            &format!("/chat/conversations/{ROOM}/messages"),
+            json!({"messages": [post(ROOM, 3, 1, "while away")], "more": false}),
+        );
+    }
+    rig.server.json(
+        "GET",
+        &format!("/chat/conversations/{ROOM}/keys"),
+        keys(ROOM, &[1]),
+    );
+
+    rig.engine.reconcile().await.unwrap();
+
+    assert!(rig.events.gone().is_empty());
+    assert_eq!(rig.local.summary(ROOM).unwrap().last_seq, 3);
+    let shown = rig.events.messages().pop().unwrap();
+    assert_eq!(shown.conversation_id, ROOM);
+}
+
+#[tokio::test]
+async fn a_reset_purges_a_room_chat_whose_room_ended_while_away() {
+    let rig = rig();
+    let mut room = summary(ROOM, 2);
+    room.kind = ConversationKind::Room;
+    room.room_code = Some("ROOM42".into());
+    rig.local.put_conversations(&[room]).unwrap();
+    rig.server
+        .json("POST", "/chat/sync", answer(5, INC, vec![]));
+    assert_eq!(rig.engine.step(plan(&rig)).await, Ok(SyncOutcome::Reset));
+    rig.server.json(
+        "GET",
+        "/chat/conversations",
+        json!({"items": [], "next_cursor": null}),
+    );
+    rig.server.on(
+        "GET",
+        &format!("/chat/conversations/{ROOM}/messages"),
+        sync_support::Step::Json(403, json!({"error": "chat_not_member"})),
+    );
+
+    rig.engine.reconcile().await.unwrap();
+
+    assert!(rig.local.summary(ROOM).is_none());
+    assert!(
+        rig.events
+            .gone()
+            .iter()
+            .any(|gone| gone.conversations.contains(&ROOM))
+    );
 }

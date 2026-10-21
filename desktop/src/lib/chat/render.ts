@@ -110,9 +110,17 @@ export function systemText(
       return t('chat.thread.system.handoff', { name: target });
     case 'track':
       return t('chat.thread.system.track', { name: event.track?.title ?? actor });
+    case 'role':
+      return t(roleKey(event.role), { name: target });
     default:
       return t('chat.thread.system.other');
   }
+}
+
+function roleKey(role: SystemEvent['role']): string {
+  if (role === 'owner') return 'chat.thread.system.roleOwner';
+  if (role === 'admin') return 'chat.thread.system.roleAdmin';
+  return 'chat.thread.system.roleMember';
 }
 
 export function peerSeqs(marks: PeerMark[], me: UserId | null): { read: Seq; delivered: Seq } {

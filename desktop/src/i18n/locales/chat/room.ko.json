@@ -61,6 +61,7 @@
     "wait": "{{value}}초 후 가능"
   },
   "moderatorRow": "모더레이터 권한: {{name}}",
+  "moderatorOffRow": "모더레이터 권한 해제: {{name}}",
   "toast": {
     "youLead": "이제 내가 음악을 제어해요",
     "ended": "세션이 끝나 채팅이 삭제됐어요",

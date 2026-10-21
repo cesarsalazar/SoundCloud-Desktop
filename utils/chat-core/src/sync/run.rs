@@ -32,7 +32,10 @@ impl<L: Local> SyncEngine<L> {
         while !self.stopped() {
             self.wake.reset();
             if self.reset_pending() {
-                clock.sleep(jitter::upto(RESET_JITTER_MS)).await;
+                self.nap(clock, jitter::upto(RESET_JITTER_MS)).await;
+                if self.stopped() {
+                    break;
+                }
                 if let Err(error) = self.reconcile().await {
                     let after = self.failed(error)?;
                     self.pause(clock, after).await;
@@ -76,6 +79,12 @@ impl<L: Local> SyncEngine<L> {
     async fn pause(&self, clock: &dyn Clock, ms: u64) {
         if ms > 0 && !self.stopped() {
             first(clock.sleep(ms), self.wake.wait()).await;
+        }
+    }
+
+    async fn nap(&self, clock: &dyn Clock, ms: u64) {
+        if ms > 0 && !self.stopped() {
+            first(clock.sleep(ms), self.halt.wait()).await;
         }
     }
 
@@ -189,7 +198,10 @@ impl<L: Local> SyncEngine<L> {
             return Err(error);
         }
         Ok(match error {
-            ChatError::Busy { retry_ms } if retry_ms > 0 => retry_ms.min(BUSY_RETRY_MAX_MS),
+            ChatError::Busy { retry_ms } if retry_ms > 0 => {
+                let asked = retry_ms.min(BUSY_RETRY_MAX_MS);
+                asked + jitter::upto(asked / 2)
+            }
             ChatError::Busy { .. } | ChatError::Offline => jitter::upto(RECONNECT_JITTER_MS),
             ChatError::ReadLimited | ChatError::RequestLimit | ChatError::SendLimited => {
                 LIMITED_RETRY_MS

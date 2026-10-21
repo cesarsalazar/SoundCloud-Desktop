@@ -59,6 +59,9 @@
     "renamed": "새 이름: {{name}}",
     "handoff": "이제 {{name}} 님이 진행합니다",
     "track": "지금 재생 중: {{name}}",
+    "roleOwner": "이제 {{name}} 님이 소유자입니다",
+    "roleAdmin": "이제 {{name}} 님이 관리자입니다",
+    "roleMember": "{{name}} 님은 더 이상 관리자가 아닙니다",
     "other": "채팅이 변경되었습니다"
   },
   "bubble": {

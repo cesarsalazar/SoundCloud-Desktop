@@ -268,3 +268,22 @@ fn an_oversized_call_does_not_fit_the_envelope() {
         Some(ChatError::Invalid)
     );
 }
+
+#[test]
+fn a_dev_ock_pin_reads_as_version_and_hex_key() {
+    let key = "dde332903df0f9e9fbc91a814131b5bcea28b46f5728e2a7e28700ed4a6c2d4d";
+    let (version, public) = chat_core::channel::dev_pin(&format!(" 1:{key}\n")).unwrap();
+    assert_eq!(version, 1);
+    assert_eq!((public[0], public[31]), (0xdd, 0x4d));
+    for broken in [
+        "",
+        key,
+        "0:00",
+        &format!("0:{key}"),
+        &format!("x:{key}"),
+        &format!("1:{}", &key[2..]),
+        &format!("1:{}zz", &key[2..]),
+    ] {
+        assert_eq!(chat_core::channel::dev_pin(broken), None, "{broken}");
+    }
+}

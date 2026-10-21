@@ -187,6 +187,10 @@ export type SystemKind =
   | 'handoff'
   | 'track'
   | 'ttl'
+  | 'role'
+  | 'deleted'
+  | 'moderator'
+  | 'suggest'
   | 'other';
 
 export interface SystemEvent {
@@ -197,6 +201,8 @@ export interface SystemEvent {
   ttlS: number | null;
   until: Millis | null;
   track: Embed | null;
+  role: MemberRole | null;
+  on: boolean | null;
 }
 
 export type MessageBody =

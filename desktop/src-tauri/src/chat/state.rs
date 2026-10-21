@@ -17,16 +17,12 @@ const KEYCHAIN_SUFFIX: &str = ".chat";
 pub struct ChatState {
     pub app: AppHandle,
     pub rt: tokio::runtime::Handle,
-    pub dir: PathBuf,
     pub keys: Arc<dyn KeyStore>,
-    pub keychain: Arc<Keychain>,
     pub transport: Arc<dyn Transport>,
     pub events: Arc<dyn Events>,
-    pub clock: Arc<dyn Clock>,
-    pub channel: Arc<Channel>,
     pub api: Arc<Api>,
     pub runtime: Arc<Runtime>,
-    pub notifier: Notifier,
+    pub notifier: Arc<Notifier>,
 }
 
 impl ChatState {
@@ -39,30 +35,28 @@ impl ChatState {
         let clock: Arc<dyn Clock> = Arc::new(SystemClock);
         let transport: Arc<dyn Transport> = Arc::new(EdgeTransport::new(Route::from_env()));
         let channel = Arc::new(Channel::new(clock.clone()));
-        let api = Arc::new(Api::new(channel.clone(), transport.clone()));
+        let api = Arc::new(Api::new(channel, transport.clone()));
+        let notifier = Arc::new(Notifier::default());
         let runtime = Arc::new(Runtime::new(Parts {
             app: app.clone(),
             rt: rt.clone(),
-            dir: dir.clone(),
+            dir,
             keychain: keychain.clone(),
             api: api.clone(),
-            clock: clock.clone(),
+            clock,
             events: tap.clone(),
             status,
+            notifier: notifier.clone(),
         }));
         Self {
             app,
             rt,
-            dir,
-            keys: keychain.clone(),
-            keychain,
+            keys: keychain,
             transport,
             events: tap,
-            clock,
-            channel,
             api,
             runtime,
-            notifier: Notifier::default(),
+            notifier,
         }
     }
 
@@ -74,19 +68,7 @@ impl ChatState {
         self.runtime.ready()
     }
 
-    pub async fn local_core(&self) -> ChatResult<Arc<Core>> {
-        self.runtime.local_core().await
-    }
-
-    pub async fn wipe(&self, forget_device: bool) -> ChatResult<()> {
-        self.runtime.wipe(forget_device).await
-    }
-
     pub async fn log_out(&self) -> ChatResult<()> {
         self.runtime.log_out().await
-    }
-
-    pub fn relogged(&self) {
-        self.runtime.relogged();
     }
 }

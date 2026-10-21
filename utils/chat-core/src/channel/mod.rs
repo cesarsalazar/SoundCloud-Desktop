@@ -1,4 +1,5 @@
 mod answer;
+mod pins;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, AtomicU8, Ordering};
@@ -11,6 +12,7 @@ use crate::contracts::{ChatError, ChatResult, Clock, DeviceId, Millis, Tier};
 use crate::crypto::DeviceKeys;
 
 pub use answer::{BUSY_RETRY_MAX_MS, BUSY_RETRY_MS, InnerAnswer};
+pub use pins::{DEV_OCK_ENV, dev_pin};
 
 pub const CHANNEL_PATH: &str = "/chat/x";
 
@@ -45,7 +47,7 @@ pub struct Channel {
 
 impl Channel {
     pub fn new(clock: Arc<dyn Clock>) -> Self {
-        Self::with_pins(clock, chat_wire::ock::OCK_PINS.to_vec())
+        Self::with_pins(clock, pins::pinned())
     }
 
     pub fn with_pins(clock: Arc<dyn Clock>, pins: Vec<OckPin>) -> Self {

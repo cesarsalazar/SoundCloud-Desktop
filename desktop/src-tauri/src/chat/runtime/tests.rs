@@ -5,9 +5,8 @@ use chat_core::api::wire::{ConfigView, LimitsView};
 use chat_core::{Access, ChatPhase, ChatStatus, CoreEvent, Events, HistoryGate, Tier, TypingEvent};
 use uuid::Uuid;
 
-use super::bringup::{backoff, clock_retry, config_of};
+use super::bringup::{backoff, busy_retry, clock_retry, config_of};
 use super::clock::spread;
-use super::drive::hold_cap;
 use super::expiry::nap_of;
 use super::lifecycle::{AuthMove, auth_move};
 use super::signals::Signals;
@@ -72,6 +71,16 @@ fn backoff_grows_and_caps_at_a_minute() {
 }
 
 #[test]
+fn a_busy_bring_up_waits_at_least_two_seconds_give_or_take_a_fifth() {
+    for _ in 0..20 {
+        let short = busy_retry(1_000);
+        assert!(short >= Duration::from_millis(1_600) && short <= Duration::from_millis(2_400));
+        let long = busy_retry(10_000);
+        assert!(long >= Duration::from_millis(8_000) && long <= Duration::from_millis(12_000));
+    }
+}
+
+#[test]
 fn a_repeated_clock_answer_backs_off() {
     assert_eq!(clock_retry(1), Duration::ZERO);
     assert!(clock_retry(2) >= Duration::from_millis(3_200));
@@ -93,12 +102,6 @@ fn a_late_tick_means_the_machine_slept() {
     assert!(watch.woke(16_000 + 90_000));
     assert!(!watch.woke(16_000 + 95_000));
     assert!(watch.woke(0));
-}
-
-#[test]
-fn the_server_hold_caps_the_poll_unless_it_is_zero() {
-    assert_eq!(hold_cap(15_000), Some(15_000));
-    assert_eq!(hold_cap(0), None);
 }
 
 #[test]
@@ -235,6 +238,7 @@ fn server_config_maps_to_the_client_config() {
             envelope_max: 65_536,
             disappearing_ttls: vec![3_600, 86_400, 604_800],
         },
+        user_id: Some("100".into()),
     });
     assert_eq!(config.access, Access::All);
     assert_eq!(config.limits.group_members_max, 200);
@@ -254,6 +258,7 @@ fn server_config_maps_to_the_client_config() {
             envelope_max: 1,
             disappearing_ttls: Vec::new(),
         },
+        user_id: None,
     });
     assert_eq!(beta.access, Access::Beta);
     assert!(beta.send_paused);

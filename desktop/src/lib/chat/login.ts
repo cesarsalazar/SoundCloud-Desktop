@@ -70,6 +70,10 @@ export function sealedLinkClaimPush(claimToken: string): Promise<LinkClaimed | n
   return sealedOrPlain('link claim', () => chatBridge.linkClaimPush(claimToken));
 }
 
+export function sealedLinkClaimPull(claimToken: string): Promise<LinkClaimed | null> {
+  return sealedOrPlain('pull link claim', () => chatBridge.linkClaimPull(claimToken));
+}
+
 export function sealedLinkPoll(linkRequestId: string): Promise<LinkPoll | null> {
   return quietly(() => chatBridge.linkPoll(linkRequestId));
 }
