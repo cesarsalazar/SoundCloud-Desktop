@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { UserRef } from '../../../lib/chat/types';
 import { useMyFollowings } from '../../../lib/hooks';
 import { MIN_SEARCH_QUERY, useScStrip } from '../../../lib/search';
+import { useChatStore } from '../../../stores/chat';
 import { useDebouncedValue } from '../../discover/useDebouncedValue';
 import { Skeleton } from '../../ui/Skeleton';
 import { PersonRow } from './PersonRow';
@@ -29,7 +30,11 @@ export const PeoplePicker = memo(function PeoplePicker({
   const followings = useMyFollowings(FOLLOWINGS_LIMIT, !searching);
   const results = useScStrip('users', searching ? text : '');
   const source = searching ? results.data : followings.items;
-  const people = useMemo(() => (source ?? []).map(userRef), [source]);
+  const myId = useChatStore((state) => state.status?.userId ?? null);
+  const people = useMemo(
+    () => (source ?? []).map(userRef).filter((person) => person.id !== myId),
+    [source, myId],
+  );
   const pickedIds = useMemo(() => new Set(picked.map((person) => person.id)), [picked]);
   const loading = searching ? results.isLoading : followings.isLoading;
 

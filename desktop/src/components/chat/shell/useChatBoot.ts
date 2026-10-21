@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { chatBridge } from '../../../lib/chat/bridge';
+import { queryClient } from '../../../lib/query-client';
 import { initChatBridge, useChatStore } from '../../../stores/chat';
 import { useChatListStore } from '../../../stores/chat/list';
+import { useChatPrefsStore } from '../../../stores/chat/prefs';
+import { useChatToastStore } from '../toasts/toast-store';
 
 function refetchConfig() {
   if (useChatStore.getState().config !== null) return;
@@ -9,6 +12,19 @@ function refetchConfig() {
     .config()
     .then((config) => useChatStore.getState().setConfig(config))
     .catch(() => undefined);
+}
+
+function forgetAccount() {
+  useChatListStore.getState().clear();
+  useChatToastStore.getState().clear();
+  queryClient.removeQueries({ queryKey: ['chat'] });
+}
+
+function claimDock() {
+  const userId = useChatStore.getState().status?.userId;
+  if (userId && useChatPrefsStore.persist.hasHydrated()) {
+    useChatPrefsStore.getState().claim(userId);
+  }
 }
 
 export function useChatBoot() {
@@ -21,8 +37,13 @@ export function useChatBoot() {
         else stop = unlisten;
       })
       .catch(() => undefined);
+    const stopHydration = useChatPrefsStore.persist.onFinishHydration(claimDock);
     const unsubscribe = useChatStore.subscribe((state, prev) => {
       const status = state.status;
+      const userId = status?.userId ?? null;
+      const prevUserId = prev.status?.userId ?? null;
+      if (prevUserId !== null && userId !== prevUserId) forgetAccount();
+      if (userId !== prevUserId) claimDock();
       if (status && status.requests !== prev.status?.requests) {
         useChatListStore.getState().setRequests(status.requests);
       }
@@ -34,6 +55,7 @@ export function useChatBoot() {
     return () => {
       stopped = true;
       stop?.();
+      stopHydration();
       unsubscribe();
     };
   }, []);

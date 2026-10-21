@@ -10,6 +10,8 @@ import { blockUser } from '../list/row-actions';
 import { chatErrorKey } from '../shell/errors';
 import { openReport } from './report-store';
 
+const REPORT_RANGE = 50;
+
 function fail(error: unknown) {
   notifyError(i18n.t(chatErrorKey(error)));
 }
@@ -50,14 +52,16 @@ export function useRequestActions() {
       if (await blockUser(user)) await decline(conversation);
     };
 
-    const report = (conversation: ConversationSummary, user: UserRef) =>
+    const report = (conversation: ConversationSummary, user: UserRef) => {
+      const seqTo = Math.max(1, conversation.lastSeq);
       openReport({
         conversationId: conversation.id,
-        seqFrom: 1,
-        seqTo: Math.max(1, conversation.lastSeq),
+        seqFrom: Math.max(1, seqTo - REPORT_RANGE + 1),
+        seqTo,
         name: user.name,
         userId: user.id,
       });
+    };
 
     return { accept, decline, block, report };
   }, [navigate, openId]);

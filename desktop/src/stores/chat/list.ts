@@ -76,6 +76,7 @@ export interface ChatListState {
   setRequests: (requests: number) => void;
   applySync: (event: SyncEvent) => void;
   applyGone: (event: GoneEvent) => void;
+  clear: () => void;
 }
 
 let generation = 0;
@@ -149,7 +150,7 @@ export const useChatListStore = create<ChatListState>()((set, get) => {
       const requestsChanged = event.requests !== get().requests;
       set({ requests: event.requests });
       if (event.reset) {
-        set({ byId: {}, items: [] });
+        place(withSummaries({}, event.conversations));
         void run(null);
         return;
       }
@@ -162,6 +163,18 @@ export const useChatListStore = create<ChatListState>()((set, get) => {
       const byId = Object.fromEntries(Object.entries(get().byId).filter(([id]) => !gone.has(id)));
       set({ requestItems: get().requestItems.filter((r) => !gone.has(r.conversation.id)) });
       place(byId);
+    },
+    clear: () => {
+      generation += 1;
+      set({
+        filter: 'all',
+        items: [],
+        byId: {},
+        nextCursor: null,
+        requests: 0,
+        requestItems: [],
+        load: 'idle',
+      });
     },
   };
 });

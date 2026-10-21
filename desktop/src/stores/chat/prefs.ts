@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { ConvId } from '../../lib/chat/types';
+import type { ConvId, UserId } from '../../lib/chat/types';
 import { tauriStorage } from '../../lib/tauri-storage';
 
 export const CHAT_HOTKEY_DEFAULT = 'Alt+KeyC';
@@ -20,6 +20,7 @@ export interface ChatPrefsState {
   dockWidth: number;
   tabs: ConvId[];
   active: DockView;
+  owner: UserId | null;
   setHotkey: (hotkey: string) => void;
   setDockOpen: (dockOpen: boolean) => void;
   setDockWidth: (dockWidth: number) => void;
@@ -28,6 +29,7 @@ export interface ChatPrefsState {
   openInDock: (conversationId: ConvId) => void;
   closeTab: (conversationId: ConvId) => void;
   show: (view: DockView) => void;
+  claim: (owner: UserId) => void;
 }
 
 function withTab(tabs: ConvId[], id: ConvId): ConvId[] {
@@ -47,6 +49,7 @@ export const useChatPrefsStore = create<ChatPrefsState>()(
       dockWidth: CHAT_DOCK_DEFAULT,
       tabs: [],
       active: DOCK_LIST,
+      owner: null,
       setHotkey: (hotkey) => set({ hotkey }),
       setDockOpen: (dockOpen) => set({ dockOpen }),
       setDockWidth: (dockWidth) => set({ dockWidth: clampDockWidth(dockWidth) }),
@@ -60,17 +63,20 @@ export const useChatPrefsStore = create<ChatPrefsState>()(
           active: state.active === id ? DOCK_LIST : state.active,
         })),
       show: (active) => set({ active, dockOpen: true }),
+      claim: (owner) =>
+        set((state) => (state.owner === owner ? state : { owner, tabs: [], active: DOCK_LIST })),
     }),
     {
       name: 'sc-chat-prefs',
       version: 1,
       storage: createJSONStorage(() => tauriStorage),
-      partialize: ({ hotkey, dockOpen, dockWidth, tabs, active }) => ({
+      partialize: ({ hotkey, dockOpen, dockWidth, tabs, active, owner }) => ({
         hotkey,
         dockOpen,
         dockWidth,
         tabs,
         active,
+        owner,
       }),
     },
   ),

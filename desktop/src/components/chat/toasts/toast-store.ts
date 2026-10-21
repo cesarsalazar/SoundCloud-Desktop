@@ -14,6 +14,7 @@ interface ChatToastState {
   items: ChatToastItem[];
   push: (message: Message, now: number) => void;
   dismiss: (conversationId: ConvId) => void;
+  clear: () => void;
 }
 
 export const useChatToastStore = create<ChatToastState>()((set) => ({
@@ -35,4 +36,5 @@ export const useChatToastStore = create<ChatToastState>()((set) => ({
     set((state) => ({
       items: state.items.filter((item) => item.conversationId !== conversationId),
     })),
+  clear: () => set({ items: [] }),
 }));

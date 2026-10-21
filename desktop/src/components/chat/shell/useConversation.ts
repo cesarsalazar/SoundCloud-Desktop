@@ -34,7 +34,10 @@ export function useThreadFocus(conversationId: ConvId) {
     return () => {
       if (useChatThreadStore.getState().openId !== conversationId) return;
       useChatThreadStore.getState().setOpen(null);
-      void chatBridge.focus(null).catch(() => undefined);
+      queueMicrotask(() => {
+        if (useChatThreadStore.getState().openId !== null) return;
+        void chatBridge.focus(null).catch(() => undefined);
+      });
     };
   }, [conversationId]);
 }
