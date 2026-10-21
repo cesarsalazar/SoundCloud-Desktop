@@ -1,4 +1,13 @@
-#![allow(unused_variables)]
+mod compose;
+mod conversations;
+mod convert;
+mod devices;
+mod members;
+mod reads;
+mod remote;
+mod rooms;
+mod safety;
+mod views;
 
 use chat_core::{
     ChatConfig, ChatError, ChatRequest, ChatSettings, ChatStatus, ConvId, ConversationPage,
@@ -21,7 +30,7 @@ pub async fn chat_status(state: State<'_, ChatState>) -> Result<ChatStatus, Chat
 
 #[tauri::command]
 pub async fn chat_config(state: State<'_, ChatState>) -> Result<ChatConfig, ChatError> {
-    Err(ChatError::Unimplemented)
+    devices::config(&state).await
 }
 
 #[tauri::command]
@@ -66,7 +75,7 @@ pub async fn chat_list(
     state: State<'_, ChatState>,
     query: ListQuery,
 ) -> Result<ConversationPage, ChatError> {
-    Err(ChatError::Unimplemented)
+    reads::list(&state, query).await
 }
 
 #[tauri::command]
@@ -74,7 +83,7 @@ pub async fn chat_open(
     state: State<'_, ChatState>,
     conversation_id: ConvId,
 ) -> Result<ThreadSnapshot, ChatError> {
-    Err(ChatError::Unimplemented)
+    reads::open(&state, conversation_id).await
 }
 
 #[tauri::command]
@@ -83,7 +92,7 @@ pub async fn chat_history(
     conversation_id: ConvId,
     query: HistoryQuery,
 ) -> Result<HistoryPage, ChatError> {
-    Err(ChatError::Unimplemented)
+    reads::history(&state, conversation_id, query).await
 }
 
 #[tauri::command]
@@ -91,7 +100,7 @@ pub async fn chat_create(
     state: State<'_, ChatState>,
     input: CreateConversation,
 ) -> Result<ConversationSummary, ChatError> {
-    Err(ChatError::Unimplemented)
+    conversations::create(&state, input).await
 }
 
 #[tauri::command]
@@ -100,7 +109,7 @@ pub async fn chat_conversation_update(
     conversation_id: ConvId,
     patch: ConversationPatch,
 ) -> Result<ConversationSummary, ChatError> {
-    Err(ChatError::Unimplemented)
+    conversations::update(&state, conversation_id, patch).await
 }
 
 #[tauri::command]
@@ -109,7 +118,7 @@ pub async fn chat_conversation_delete(
     conversation_id: ConvId,
     scope: DeleteScope,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    conversations::delete(&state, conversation_id, scope).await
 }
 
 #[tauri::command]
@@ -118,7 +127,7 @@ pub async fn chat_set_ttl(
     conversation_id: ConvId,
     ttl_s: Option<u32>,
 ) -> Result<ConversationSummary, ChatError> {
-    Err(ChatError::Unimplemented)
+    conversations::set_ttl(&state, conversation_id, ttl_s).await
 }
 
 #[tauri::command]
@@ -126,7 +135,7 @@ pub async fn chat_send(
     state: State<'_, ChatState>,
     input: SendInput,
 ) -> Result<Message, ChatError> {
-    Err(ChatError::Unimplemented)
+    compose::send(&state, input).await
 }
 
 #[tauri::command]
@@ -136,7 +145,7 @@ pub async fn chat_edit(
     seq: Seq,
     text: RichText,
 ) -> Result<Message, ChatError> {
-    Err(ChatError::Unimplemented)
+    compose::edit(&state, conversation_id, seq, text).await
 }
 
 #[tauri::command]
@@ -146,7 +155,7 @@ pub async fn chat_delete(
     target: MessageTarget,
     scope: DeleteScope,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    compose::delete(&state, conversation_id, target, scope).await
 }
 
 #[tauri::command]
@@ -157,7 +166,7 @@ pub async fn chat_react(
     emoji: String,
     on: bool,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    compose::react(&state, conversation_id, seq, emoji, on).await
 }
 
 #[tauri::command]
@@ -167,7 +176,7 @@ pub async fn chat_pin(
     seq: Seq,
     on: bool,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    compose::pin(&state, conversation_id, seq, on).await
 }
 
 #[tauri::command]
@@ -176,7 +185,7 @@ pub async fn chat_mark_read(
     conversation_id: ConvId,
     seq: Seq,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    compose::mark_read(&state, conversation_id, seq).await
 }
 
 #[tauri::command]
@@ -184,7 +193,7 @@ pub async fn chat_typing(
     state: State<'_, ChatState>,
     conversation_id: ConvId,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    compose::typing(&state, conversation_id).await
 }
 
 #[tauri::command]
@@ -192,7 +201,7 @@ pub async fn chat_focus(
     state: State<'_, ChatState>,
     conversation_id: Option<ConvId>,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    compose::focus(&state, conversation_id).await
 }
 
 #[tauri::command]
@@ -201,7 +210,7 @@ pub async fn chat_draft_save(
     conversation_id: ConvId,
     draft: Option<RichText>,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    reads::save_draft(&state, conversation_id, draft).await
 }
 
 #[tauri::command]
@@ -209,7 +218,7 @@ pub async fn chat_search(
     state: State<'_, ChatState>,
     query: SearchQuery,
 ) -> Result<Vec<SearchHit>, ChatError> {
-    Err(ChatError::Unimplemented)
+    reads::search(&state, query).await
 }
 
 #[tauri::command]
@@ -218,7 +227,7 @@ pub async fn chat_embeds(
     conversation_id: ConvId,
     query: EmbedsQuery,
 ) -> Result<EmbedPage, ChatError> {
-    Err(ChatError::Unimplemented)
+    reads::embeds(&state, conversation_id, query).await
 }
 
 #[tauri::command]
@@ -226,7 +235,7 @@ pub async fn chat_members(
     state: State<'_, ChatState>,
     conversation_id: ConvId,
 ) -> Result<Vec<Member>, ChatError> {
-    Err(ChatError::Unimplemented)
+    members::list(&state, conversation_id).await
 }
 
 #[tauri::command]
@@ -235,7 +244,7 @@ pub async fn chat_member_add(
     conversation_id: ConvId,
     user_ids: Vec<UserId>,
 ) -> Result<Vec<Member>, ChatError> {
-    Err(ChatError::Unimplemented)
+    members::add(&state, conversation_id, user_ids).await
 }
 
 #[tauri::command]
@@ -244,7 +253,7 @@ pub async fn chat_member_remove(
     conversation_id: ConvId,
     user_id: UserId,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    members::remove(&state, conversation_id, user_id).await
 }
 
 #[tauri::command]
@@ -254,7 +263,7 @@ pub async fn chat_member_role(
     user_id: UserId,
     role: MemberRole,
 ) -> Result<Member, ChatError> {
-    Err(ChatError::Unimplemented)
+    members::set_role(&state, conversation_id, user_id, role).await
 }
 
 #[tauri::command]
@@ -262,7 +271,7 @@ pub async fn chat_accept(
     state: State<'_, ChatState>,
     conversation_id: ConvId,
 ) -> Result<ConversationSummary, ChatError> {
-    Err(ChatError::Unimplemented)
+    conversations::accept(&state, conversation_id).await
 }
 
 #[tauri::command]
@@ -270,12 +279,12 @@ pub async fn chat_decline(
     state: State<'_, ChatState>,
     conversation_id: ConvId,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    conversations::decline(&state, conversation_id).await
 }
 
 #[tauri::command]
 pub async fn chat_requests(state: State<'_, ChatState>) -> Result<Vec<ChatRequest>, ChatError> {
-    Err(ChatError::Unimplemented)
+    members::requests(&state).await
 }
 
 #[tauri::command]
@@ -284,7 +293,7 @@ pub async fn chat_invite_create(
     conversation_id: ConvId,
     options: InviteOptions,
 ) -> Result<Invite, ChatError> {
-    Err(ChatError::Unimplemented)
+    members::invite_create(&state, conversation_id, options).await
 }
 
 #[tauri::command]
@@ -292,7 +301,7 @@ pub async fn chat_invite_revoke(
     state: State<'_, ChatState>,
     token: String,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    members::invite_revoke(&state, token).await
 }
 
 #[tauri::command]
@@ -300,17 +309,17 @@ pub async fn chat_invite_join(
     state: State<'_, ChatState>,
     token: String,
 ) -> Result<ConversationSummary, ChatError> {
-    Err(ChatError::Unimplemented)
+    members::invite_join(&state, token).await
 }
 
 #[tauri::command]
 pub async fn chat_block(state: State<'_, ChatState>, user_id: UserId) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    safety::block(&state, user_id).await
 }
 
 #[tauri::command]
 pub async fn chat_unblock(state: State<'_, ChatState>, user_id: UserId) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    safety::unblock(&state, user_id).await
 }
 
 #[tauri::command]
@@ -318,12 +327,12 @@ pub async fn chat_report(
     state: State<'_, ChatState>,
     report: ReportInput,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    safety::report(&state, report).await
 }
 
 #[tauri::command]
 pub async fn chat_settings_get(state: State<'_, ChatState>) -> Result<ChatSettings, ChatError> {
-    Err(ChatError::Unimplemented)
+    safety::settings(&state).await
 }
 
 #[tauri::command]
@@ -331,7 +340,7 @@ pub async fn chat_settings_put(
     state: State<'_, ChatState>,
     patch: SettingsPatch,
 ) -> Result<ChatSettings, ChatError> {
-    Err(ChatError::Unimplemented)
+    safety::put_settings(&state, patch).await
 }
 
 #[tauri::command]
@@ -339,12 +348,12 @@ pub async fn chat_user_card(
     state: State<'_, ChatState>,
     user_id: UserId,
 ) -> Result<UserCard, ChatError> {
-    Err(ChatError::Unimplemented)
+    safety::card(&state, user_id).await
 }
 
 #[tauri::command]
 pub async fn chat_devices(state: State<'_, ChatState>) -> Result<Vec<Device>, ChatError> {
-    Err(ChatError::Unimplemented)
+    devices::list(&state).await
 }
 
 #[tauri::command]
@@ -352,7 +361,7 @@ pub async fn chat_device_confirm(
     state: State<'_, ChatState>,
     device_id: DeviceId,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    devices::confirm(&state, device_id).await
 }
 
 #[tauri::command]
@@ -360,7 +369,7 @@ pub async fn chat_device_not_me(
     state: State<'_, ChatState>,
     device_id: DeviceId,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    devices::not_me(&state, device_id).await
 }
 
 #[tauri::command]
@@ -368,7 +377,7 @@ pub async fn chat_device_remove(
     state: State<'_, ChatState>,
     device_id: DeviceId,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    devices::remove(&state, device_id).await
 }
 
 #[tauri::command]
@@ -376,7 +385,7 @@ pub async fn chat_room_chat(
     state: State<'_, ChatState>,
     code: String,
 ) -> Result<ConversationSummary, ChatError> {
-    Err(ChatError::Unimplemented)
+    rooms::chat(&state, code).await
 }
 
 #[tauri::command]
@@ -384,7 +393,7 @@ pub async fn chat_room_preview(
     state: State<'_, ChatState>,
     code: String,
 ) -> Result<RoomPreview, ChatError> {
-    Err(ChatError::Unimplemented)
+    rooms::preview(&state, code).await
 }
 
 #[tauri::command]
@@ -393,7 +402,7 @@ pub async fn chat_room_moderate(
     code: String,
     action: RoomModeration,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    rooms::moderate(&state, code, action).await
 }
 
 #[tauri::command]
@@ -402,7 +411,7 @@ pub async fn chat_room_settings(
     code: String,
     patch: RoomSettingsPatch,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    rooms::settings(&state, code, patch).await
 }
 
 #[tauri::command]
@@ -411,12 +420,12 @@ pub async fn chat_room_suggest(
     code: String,
     track: Embed,
 ) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    rooms::suggest(&state, code, track).await
 }
 
 #[tauri::command]
 pub async fn chat_logout(state: State<'_, ChatState>) -> Result<(), ChatError> {
-    Err(ChatError::Unimplemented)
+    devices::logout(&state).await
 }
 
 #[tauri::command]
@@ -426,3 +435,6 @@ pub async fn chat_notify_prefs(
 ) -> Result<NotifyPrefs, ChatError> {
     Ok(state.notifier.prefs(prefs))
 }
+
+#[cfg(test)]
+mod tests;
