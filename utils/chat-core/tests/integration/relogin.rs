@@ -144,7 +144,7 @@ async fn a_sealed_relogin_of_the_current_session_stores_its_bind_and_shows_the_r
         vec![(chat_core::Tier::Direct, stack.origin.clone())],
         &Person {
             session_id: current,
-            ..owner
+            ..owner.clone()
         },
     );
     let device = BindSigner {
@@ -181,4 +181,16 @@ async fn a_sealed_relogin_of_the_current_session_stores_its_bind_and_shows_the_r
         .await
         .unwrap();
     assert_eq!(mine.session_id, Some(current.to_string()));
+
+    stack.sql(&format!(
+        "UPDATE sessions SET chat_bind = (SELECT chat_bind FROM login_requests WHERE id = '{}') WHERE id = '{current}'",
+        begun.login_request_id
+    ));
+    let back = Client::up(&stack, &linked(&owner, &device, &current.to_string())).await;
+    let devices = back.engine.devices().await.unwrap();
+    assert!(
+        devices
+            .iter()
+            .any(|seen| seen.id == device.device_id && seen.current)
+    );
 }

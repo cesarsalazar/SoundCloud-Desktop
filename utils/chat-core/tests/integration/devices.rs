@@ -22,19 +22,18 @@ async fn a_young_device_cannot_drop_an_older_one_but_the_older_one_can_say_not_m
         .unwrap();
     assert!(!older.actions.not_me && !older.actions.remove && !older.actions.confirm);
 
-    assert!(
-        second
-            .api
-            .remove_device(first.person.device_id)
-            .await
-            .is_err()
+    let older_id = first.person.device_id;
+    assert_eq!(
+        second.api.remove_device(older_id).await,
+        Err(ChatError::TooYoung)
     );
-    assert!(
-        second
-            .api
-            .confirm_device(first.person.device_id)
-            .await
-            .is_err()
+    assert_eq!(
+        second.api.confirm_device(older_id).await,
+        Err(ChatError::TooYoung)
+    );
+    assert_eq!(
+        second.api.device_not_me(older_id).await,
+        Err(ChatError::TooYoung)
     );
     first
         .api

@@ -1,3 +1,5 @@
+use chat_core::{ChatError, DeliveryState};
+
 use crate::dm::direct;
 use crate::support::{Client, Stack};
 
@@ -21,8 +23,11 @@ async fn a_block_stops_new_messages_and_an_unblock_lets_them_through() {
     .await;
 
     bob.api.block(&ann.person.user_id).await.unwrap();
-    assert!(ann.raw_post(view.id).await.is_err());
+    assert_eq!(ann.raw_post(view.id).await, Err(ChatError::Unavailable));
     assert_eq!(ann.send(view.id, "while blocked").await, Ok(0));
+    let held = ann.outbox.pending(view.id).unwrap();
+    assert_eq!(held.len(), 1);
+    assert_eq!(held[0].state, DeliveryState::Failed);
     let settings = bob.api.settings().await.unwrap();
     assert!(
         settings

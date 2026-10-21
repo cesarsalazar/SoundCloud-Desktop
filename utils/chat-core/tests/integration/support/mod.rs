@@ -3,6 +3,7 @@ pub mod http;
 pub mod people;
 pub mod transport;
 
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
@@ -21,6 +22,15 @@ pub struct Stack {
     psql: Vec<String>,
     redis: Vec<String>,
     admin_token: String,
+    ai_key: String,
+    log: PathBuf,
+}
+
+fn read_trimmed(path: &Path) -> String {
+    std::fs::read_to_string(path)
+        .unwrap_or_else(|_| panic!("{} is readable", path.display()))
+        .trim()
+        .to_owned()
 }
 
 fn words(command: &str) -> Vec<String> {
@@ -47,7 +57,7 @@ impl Stack {
             std::env::var(name)
                 .unwrap_or_else(|_| panic!("{name} is not set, see tests/integration/README.md"))
         };
-        let token_file = need("CHAT_IT_ADMIN_TOKEN_FILE");
+        let token_file = PathBuf::from(need("CHAT_IT_ADMIN_TOKEN_FILE"));
         assert!(
             std::env::var(chat_core::channel::DEV_OCK_ENV).is_ok(),
             "{} is not set",
@@ -58,11 +68,18 @@ impl Stack {
             relay: need("CHAT_IT_RELAY"),
             psql: words(&need("CHAT_IT_PSQL")),
             redis: words(&need("CHAT_IT_REDIS_RT")),
-            admin_token: std::fs::read_to_string(token_file)
-                .expect("the admin token file is readable")
-                .trim()
-                .to_owned(),
+            admin_token: read_trimmed(&token_file),
+            ai_key: read_trimmed(&token_file.with_file_name("mod-ai-key")),
+            log: PathBuf::from(need("CHAT_IT_LOG")),
         }
+    }
+
+    pub fn ai_key(&self) -> &str {
+        &self.ai_key
+    }
+
+    pub fn log(&self) -> String {
+        std::fs::read_to_string(&self.log).expect("the chat-api log is readable")
     }
 
     pub fn sql(&self, statement: &str) -> String {

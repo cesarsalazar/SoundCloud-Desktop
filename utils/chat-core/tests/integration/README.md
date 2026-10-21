@@ -36,12 +36,12 @@ cargo test --manifest-path ../../utils/chat-core/Cargo.toml --target-dir target 
 | `group.rs` | fan-out, a promotion row, a kick purges the chat on the kicked device, a leave |
 | `room.rs` | rename, mute, kick, ban, handoff, end with server and local purge; a quiet room is reaped after 10 min |
 | `request.rs` | 1 h session rule, 3 posts before accept, decline closes the chat, accept moves it to the list |
-| `block.rs` | block refuses posts, unblock lets them through |
-| `report.rs` | evidence decrypts on the admin route, decrypt is audited |
-| `moderation.rs` | the AI judge rejects a harmless report, removes harassment, bans a repeat for 7 days, every step audited |
-| `relogin.rs` | unbound session, bound to another device, sealed relogin of the current session, sealed pull and push links |
-| `devices.rs` | young device rules, not me revokes |
-| `history.rs` | a new device reads only what came after it until an older device says it is me |
+| `block.rs` | block refuses posts as `chat_unavailable` and fails the queued copy, unblock lets new ones through |
+| `report.rs` | evidence decrypts on the admin route, decrypt is audited, no plaintext in the chat-api log |
+| `moderation.rs` | the AI judge rejects a harmless report, removes harassment, bans a repeat for 7 days, every step audited, the key and the text stay out of the log |
+| `relogin.rs` | unbound session, bound to another device, sealed relogin of the current session registers with the stored bind, sealed pull and push links |
+| `devices.rs` | a young device gets `chat_too_young` for remove, confirm and not me, the older one revokes it |
+| `history.rs` | a new device gets no old keys and reads only what came after it until an older device says it is me or 72 h pass; the older device gets the alert |
 | `ttl.rs` | disappearing messages: timer rows, expiry on the server, `gone_msgs`, local expiry offline, timer off |
 | `replay.rs` | a captured request sent again is `chat_replay` |
 | `tiers.rs` | a dead direct route falls through to the podman relay |

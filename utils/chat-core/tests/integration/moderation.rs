@@ -172,4 +172,13 @@ async fn the_ai_moderator_rejects_a_harmless_report_and_removes_harassment_then_
         ann.raw_post(view.id).await,
         Err(ChatError::Muted { .. })
     ));
+
+    let log = stack.log();
+    assert!(
+        !log.contains(stack.ai_key()),
+        "the model key reached the log"
+    );
+    for text in [HARMLESS, HARASSMENT, REPEAT] {
+        assert!(!log.contains(text), "reported text reached the log");
+    }
 }

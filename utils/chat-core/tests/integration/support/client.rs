@@ -11,8 +11,9 @@ use chat_core::outbox::{Outbox, OutboxItem};
 use chat_core::store::Store;
 use chat_core::sync::{SyncEngine, SyncOutcome};
 use chat_core::{
-    ChatResult, Clock, ConvId, ConversationSummary, CoreEvent, Events, GoneMessage, HistoryQuery,
-    Message, MessageBody, Millis, RichText, SystemEvent, SystemKind, Tier, async_trait,
+    ChatResult, Clock, ConvId, ConversationSummary, CoreEvent, DeviceId, Events, GoneMessage,
+    HistoryQuery, Message, MessageBody, Millis, RichText, SystemEvent, SystemKind, Tier,
+    async_trait,
 };
 use uuid::Uuid;
 
@@ -53,6 +54,18 @@ impl Recorder {
                 _ => None,
             })
             .flatten()
+            .collect()
+    }
+
+    pub fn devices_added(&self) -> Vec<DeviceId> {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|event| match event {
+                CoreEvent::DeviceAdded(added) => Some(added.device.id),
+                _ => None,
+            })
             .collect()
     }
 

@@ -70,4 +70,8 @@ async fn a_report_keeps_evidence_that_the_admin_decrypts_with_an_audit_row() {
                 .unwrap_or_default()
                 .contains("decrypt")
     }));
+    let log = stack.log();
+    for text in ["context before", "the reported line"] {
+        assert!(!log.contains(text), "decrypted evidence reached the log");
+    }
 }
