@@ -74,6 +74,50 @@ fn device_keys_are_created_once_and_then_loaded() {
     assert_eq!(loaded.box_public().unwrap(), keys.box_public().unwrap());
 }
 
+struct SlowKeys(MemoryKeys);
+
+impl KeyStore for SlowKeys {
+    fn storage(&self) -> KeyStorage {
+        KeyStorage::Os
+    }
+
+    fn load(&self, name: KeyName) -> ChatResult<Option<Zeroizing<Vec<u8>>>> {
+        self.0.load(name)
+    }
+
+    fn save(&self, name: KeyName, secret: &[u8]) -> ChatResult<()> {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        self.0.save(name, secret)
+    }
+
+    fn delete(&self, name: KeyName) -> ChatResult<()> {
+        self.0.delete(name)
+    }
+}
+
+#[test]
+fn two_first_starts_at_once_end_with_one_identity() {
+    let store = std::sync::Arc::new(SlowKeys(MemoryKeys::default()));
+    let starts: Vec<_> = (0..4)
+        .map(|_| {
+            let store = store.clone();
+            std::thread::spawn(move || {
+                let (device_id, keys) = DeviceKeys::load_or_create(store.as_ref()).unwrap();
+                (device_id, keys.auth_public())
+            })
+        })
+        .collect();
+    let made: Vec<_> = starts
+        .into_iter()
+        .map(|start| start.join().unwrap())
+        .collect();
+    let (stored_id, stored_keys) = DeviceKeys::load_or_create(store.as_ref()).unwrap();
+    assert!(
+        made.iter()
+            .all(|(id, auth)| *id == stored_id && *auth == stored_keys.auth_public())
+    );
+}
+
 #[test]
 fn a_half_written_identity_is_replaced_whole() {
     let store = MemoryKeys::default();

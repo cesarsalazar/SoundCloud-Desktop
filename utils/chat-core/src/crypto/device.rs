@@ -1,9 +1,13 @@
+use std::sync::{Mutex, MutexGuard, PoisonError};
+
 use chat_wire::proto::{Bind, Inner};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
 use super::message::Ck;
 use crate::contracts::{ChatError, ChatResult, ConvId, DeviceId, KeyName, KeyStore};
+
+static KEYCHAIN: Mutex<()> = Mutex::new(());
 
 pub struct DeviceKeys {
     auth_seed: Zeroizing<[u8; 32]>,
@@ -26,6 +30,7 @@ impl DeviceKeys {
     }
 
     pub fn load_or_create(store: &dyn KeyStore) -> ChatResult<(DeviceId, Self)> {
+        let _one_at_a_time = keychain();
         match Self::load(store)? {
             Some(found) => Ok(found),
             None => Self::create(store),
@@ -33,6 +38,7 @@ impl DeviceKeys {
     }
 
     pub fn erase(store: &dyn KeyStore) -> ChatResult<()> {
+        let _one_at_a_time = keychain();
         store.delete(KeyName::DeviceId)?;
         store.delete(KeyName::DeviceAuth)?;
         store.delete(KeyName::DeviceBox)
@@ -117,6 +123,10 @@ impl DeviceKeys {
         )?;
         Ok(Ck::from_bytes(ck))
     }
+}
+
+fn keychain() -> MutexGuard<'static, ()> {
+    KEYCHAIN.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 fn secret(stored: Option<Zeroizing<Vec<u8>>>) -> Option<Zeroizing<[u8; 32]>> {
