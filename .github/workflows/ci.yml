@@ -9,6 +9,7 @@ on:
       - 'rust-toolchain.toml'
       - '.cargo/**'
       - 'scripts/ci-mtime.sh'
+      - 'scripts/ci-toolchain.sh'
       - '.github/scripts/changes.sh'
       - '.github/workflows/ci.yml'
   pull_request:
@@ -19,6 +20,7 @@ on:
       - 'rust-toolchain.toml'
       - '.cargo/**'
       - 'scripts/ci-mtime.sh'
+      - 'scripts/ci-toolchain.sh'
       - '.github/scripts/changes.sh'
       - '.github/workflows/ci.yml'
 
