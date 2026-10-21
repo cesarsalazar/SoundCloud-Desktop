@@ -24,7 +24,7 @@ function Tag({ tone, children }: { tone: 'accent' | 'rose' | 'wait'; children: s
   }[tone];
   return (
     <span
-      className={`min-w-0 truncate rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${look}`}
+      className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${look}`}
     >
       {children}
     </span>
@@ -51,7 +51,12 @@ export function DeviceRow({ device, me, now, busy, locked, onRun }: DeviceRowPro
       />
       <div className="min-w-[180px] flex-1">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 text-[13.5px] font-semibold text-white/85">{device.name}</span>
+          <span
+            title={device.name}
+            className="min-w-0 truncate text-[13.5px] font-semibold text-white/85"
+          >
+            {device.name}
+          </span>
           {device.current && <Tag tone="accent">{t('chat.devices.list.current')}</Tag>}
           {waiting && !device.current && <Tag tone="wait">{t('chat.devices.list.waiting')}</Tag>}
           {revoked && <Tag tone="rose">{t('chat.devices.list.revoked')}</Tag>}

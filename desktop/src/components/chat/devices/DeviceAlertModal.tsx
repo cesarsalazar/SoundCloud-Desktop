@@ -54,8 +54,12 @@ export function DeviceAlertModal({ device, queued, onHold, onClose }: DeviceAler
         onSuccess: () => setOutcome(kind === 'confirm' ? 'confirmed' : 'revoked'),
         onError: (failure) => {
           const key = deviceErrorKey(failure);
-          if (key.endsWith('.not_found')) onClose();
-          else setError(key);
+          if (key.endsWith('.not_found')) {
+            onClose();
+            return;
+          }
+          onHold(null);
+          setError(key);
         },
       },
     );
@@ -100,7 +104,7 @@ export function DeviceAlertModal({ device, queued, onHold, onClose }: DeviceAler
             outcome={ringOutcome(outcome)}
           />
         </div>
-        <ModalTitle className="mt-5 text-[19px] font-bold tracking-tight text-white/92">
+        <ModalTitle className="mt-5 line-clamp-2 max-w-full text-[19px] font-bold tracking-tight text-white/92 wrap-anywhere">
           {device.name}
         </ModalTitle>
         <ModalDescription className="mt-1 text-[12.5px] leading-snug text-white/45">
