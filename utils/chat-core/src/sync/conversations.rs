@@ -46,7 +46,9 @@ impl<L: Local> SyncEngine<L> {
         behind: bool,
     ) -> ChatResult<Option<ConversationSummary>> {
         let structural = entry.messages.iter().any(structural);
-        let bump = entry.messages.is_empty() && entry.typing.is_empty() && entry.marks.is_empty();
+        let bump = entry.messages.is_empty()
+            && entry.typing.is_empty()
+            && !self.marks_moved(entry, existing.as_ref());
         let room = existing
             .as_ref()
             .is_some_and(|summary| summary.kind == ConversationKind::Room);
@@ -62,6 +64,18 @@ impl<L: Local> SyncEngine<L> {
             Err(error) if transient(&error) => Err(error),
             Err(_) => Ok(existing),
         }
+    }
+
+    fn marks_moved(
+        &self,
+        entry: &SyncConversation,
+        existing: Option<&ConversationSummary>,
+    ) -> bool {
+        let me = self.with(|state| state.user.clone());
+        let read = existing.map(|summary| summary.last_read_seq);
+        entry.marks.iter().any(|mark| {
+            me.as_ref() != Some(&mark.user_id) || read.is_none_or(|read| mark.read_seq > read)
+        })
     }
 
     pub(super) async fn summary_of(

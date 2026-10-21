@@ -59,6 +59,7 @@ impl<L: Local> SyncEngine<L> {
                 budget -= 1;
                 messages = self.catch_up(view.id, summary.last_seq).await?;
                 summary::absorb(&mut summary, &messages);
+                self.note_delivered(view.id, &messages);
             }
             self.recount(&mut summary)?;
             self.save(std::slice::from_ref(&summary))?;

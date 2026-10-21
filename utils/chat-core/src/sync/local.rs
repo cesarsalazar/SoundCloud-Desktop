@@ -26,7 +26,13 @@ pub trait Local: Send + Sync {
     fn purge_messages(&self, gone: &[GoneMessage]) -> ChatResult<()>;
     fn keep_local_above(&self, server_last: &[(ConvId, Seq)]) -> ChatResult<()>;
     fn outbox_due(&self, now: Millis, limit: usize) -> ChatResult<Vec<OutboxItem>>;
-    fn outbox_sent(&self, client_id: ClientId, seq: Seq, ts: Millis) -> ChatResult<()>;
+    fn outbox_sent(
+        &self,
+        client_id: ClientId,
+        seq: Seq,
+        ts: Millis,
+        expires_at: Option<Millis>,
+    ) -> ChatResult<()>;
     fn outbox_failed(&self, client_id: ClientId, retry_at: Option<Millis>) -> ChatResult<()>;
     fn outbox_pending(&self, id: ConvId) -> ChatResult<Vec<Message>>;
 }
@@ -118,8 +124,14 @@ impl Local for LocalStore {
         self.outbox.due(now, limit)
     }
 
-    fn outbox_sent(&self, client_id: ClientId, seq: Seq, ts: Millis) -> ChatResult<()> {
-        self.outbox.sent(client_id, seq, ts)
+    fn outbox_sent(
+        &self,
+        client_id: ClientId,
+        seq: Seq,
+        ts: Millis,
+        expires_at: Option<Millis>,
+    ) -> ChatResult<()> {
+        self.outbox.sent(client_id, seq, ts, expires_at)
     }
 
     fn outbox_failed(&self, client_id: ClientId, retry_at: Option<Millis>) -> ChatResult<()> {

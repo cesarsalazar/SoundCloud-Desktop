@@ -116,7 +116,7 @@ fn a_sent_item_moves_into_history() {
     let id = conv();
     let queued = item(id, "доставлено", 10);
     outbox.push(queued.clone()).unwrap();
-    outbox.sent(queued.client_id, 7, 5_000).unwrap();
+    outbox.sent(queued.client_id, 7, 5_000, None).unwrap();
 
     assert!(outbox.due(i64::MAX, 10).unwrap().is_empty());
     assert!(outbox.pending(id).unwrap().is_empty());
@@ -137,16 +137,18 @@ fn a_sent_item_moves_into_history() {
 }
 
 #[test]
-fn a_sent_item_in_a_timed_chat_expires_by_the_chat_timer() {
+fn a_sent_item_takes_the_server_timer_even_when_the_local_chat_has_none() {
     let store = Arc::new(store());
     let id = conv();
-    let mut timed = summary(id, ConversationKind::Direct);
-    timed.ttl_s = Some(3_600);
-    store.put_conversations(&[timed]).unwrap();
+    store
+        .put_conversations(&[summary(id, ConversationKind::Direct)])
+        .unwrap();
     let outbox = Outbox::new(store.clone());
     let queued = item(id, "исчезну", 10);
     outbox.push(queued.clone()).unwrap();
-    outbox.sent(queued.client_id, 1, 5_000).unwrap();
+    outbox
+        .sent(queued.client_id, 1, 5_000, Some(5_000 + 3_600_000))
+        .unwrap();
     assert_eq!(history(&store, id)[0].expires_at, Some(5_000 + 3_600_000));
     assert_eq!(store.next_expiry().unwrap(), Some(5_000 + 3_600_000));
 }
@@ -162,7 +164,7 @@ fn the_synced_copy_settles_a_pending_item() {
     synced.client_id = queued.client_id;
     store.put_messages(&[synced]).unwrap();
     assert!(outbox.due(i64::MAX, 10).unwrap().is_empty());
-    outbox.sent(queued.client_id, 3, 3_000).unwrap();
+    outbox.sent(queued.client_id, 3, 3_000, None).unwrap();
     assert_eq!(history(&store, id).len(), 1);
 }
 

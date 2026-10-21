@@ -6,7 +6,7 @@ use super::{SyncEngine, SyncOutcome, summary};
 use crate::api::wire::{SyncAnswer, SyncConversation};
 use crate::contracts::{
     ChatResult, ConvId, ConversationMarks, ConversationSummary, CoreEvent, GoneEvent, GoneMessage,
-    MessagesEvent, MessagesOrigin, PeerMark, Seq, SyncEvent, TypingEvent,
+    Message, MessagesEvent, MessagesOrigin, PeerMark, Seq, SyncEvent, TypingEvent,
 };
 use crate::store::SyncState;
 
@@ -96,7 +96,7 @@ impl<L: Local> SyncEngine<L> {
         summary::absorb(&mut summary, &messages);
         let marks = self.take_marks(entry, &mut summary)?;
         self.save(std::slice::from_ref(&summary))?;
-        self.note_delivered(entry);
+        self.note_delivered(entry.id, &messages);
         if self.focus() == Some(entry.id) {
             self.events.emit(CoreEvent::Typing(TypingEvent {
                 conversation_id: entry.id,
@@ -143,16 +143,15 @@ impl<L: Local> SyncEngine<L> {
         Ok(marks)
     }
 
-    fn note_delivered(&self, entry: &SyncConversation) {
+    pub(super) fn note_delivered(&self, conversation_id: ConvId, messages: &[Message]) {
         let me = self.with(|state| state.user.clone());
-        let newest = entry
-            .messages
+        let newest = messages
             .iter()
             .filter(|message| me.as_ref() != Some(&message.sender))
-            .map(|message| message.seq)
+            .filter_map(|message| message.seq)
             .max();
         if let Some(seq) = newest {
-            self.with(|state| state.marks.delivered(entry.id, seq));
+            self.with(|state| state.marks.delivered(conversation_id, seq));
         }
     }
 

@@ -321,7 +321,13 @@ impl Local for MemoryLocal {
             .collect())
     }
 
-    fn outbox_sent(&self, client_id: ClientId, seq: Seq, ts: Millis) -> ChatResult<()> {
+    fn outbox_sent(
+        &self,
+        client_id: ClientId,
+        seq: Seq,
+        ts: Millis,
+        expires_at: Option<Millis>,
+    ) -> ChatResult<()> {
         let mut data = self.data.lock().unwrap();
         let Some(at) = data
             .outbox
@@ -341,7 +347,7 @@ impl Local for MemoryLocal {
             epoch: 0,
             target_seq: item.target_seq,
             ts,
-            expires_at: None,
+            expires_at,
             local_only: false,
             content: StoredContent::Open(item.envelope),
         };

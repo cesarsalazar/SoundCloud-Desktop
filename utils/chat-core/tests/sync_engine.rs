@@ -678,3 +678,78 @@ async fn a_reset_purges_a_room_chat_whose_room_ended_while_away() {
             .any(|gone| gone.conversations.contains(&ROOM))
     );
 }
+
+#[tokio::test]
+async fn a_new_chat_caught_up_from_history_is_marked_delivered() {
+    let rig = rig();
+    synced(&rig);
+    rig.server.json(
+        "POST",
+        "/chat/sync",
+        answer(2, INC, vec![entry(A, 2, vec![])]),
+    );
+    rig.server
+        .json("GET", &format!("/chat/conversations/{A}"), view(A, 2));
+    rig.server
+        .json("GET", "/chat/users/200/card", card(PEER, "peer"));
+    rig.server.json(
+        "GET",
+        &format!("/chat/conversations/{A}/messages"),
+        json!({"messages": [post(A, 1, 1, "one"), post(A, 2, 1, "two")], "more": false}),
+    );
+    rig.server.json(
+        "GET",
+        &format!("/chat/conversations/{A}/keys"),
+        keys(A, &[1]),
+    );
+    rig.server
+        .on("POST", "/chat/sync", sync_support::Step::Empty(204, vec![]));
+
+    rig.engine.step(plan(&rig)).await.unwrap();
+    rig.engine.step(plan(&rig)).await.unwrap();
+
+    let syncs = rig.server.calls_to("POST", "/chat/sync");
+    assert_eq!(syncs[1].body["delivered"], json!([[A, 2]]));
+}
+
+#[tokio::test]
+async fn a_bump_that_carries_only_my_settled_mark_refreshes_the_chat() {
+    let rig = rig();
+    synced(&rig);
+    let mut invited = summary(A, 3);
+    invited.accepted = false;
+    invited.last_read_seq = 3;
+    rig.local.put_conversations(&[invited]).unwrap();
+    let mut bump = entry(A, 3, vec![]);
+    bump["marks"] = json!([{"user_id": ME, "read_seq": 3, "delivered_seq": 3}]);
+    rig.server
+        .json("POST", "/chat/sync", answer(2, INC, vec![bump]));
+    rig.server
+        .json("GET", &format!("/chat/conversations/{A}"), view(A, 3));
+    rig.server
+        .json("GET", "/chat/users/200/card", card(PEER, "peer"));
+
+    rig.engine.step(plan(&rig)).await.unwrap();
+
+    assert!(rig.local.summary(A).unwrap().accepted);
+}
+
+#[tokio::test]
+async fn my_read_mark_from_another_device_moves_without_a_refresh() {
+    let rig = rig();
+    synced(&rig);
+    rig.local.put_conversations(&[summary(A, 5)]).unwrap();
+    let mut read = entry(A, 5, vec![]);
+    read["marks"] = json!([{"user_id": ME, "read_seq": 5, "delivered_seq": 5}]);
+    rig.server
+        .json("POST", "/chat/sync", answer(2, INC, vec![read]));
+
+    rig.engine.step(plan(&rig)).await.unwrap();
+
+    assert_eq!(rig.local.summary(A).unwrap().last_read_seq, 5);
+    assert!(
+        rig.server
+            .calls_to("GET", &format!("/chat/conversations/{A}"))
+            .is_empty()
+    );
+}

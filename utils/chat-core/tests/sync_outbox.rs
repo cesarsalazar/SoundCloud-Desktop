@@ -219,3 +219,40 @@ async fn a_revoked_device_stops_the_outbox() {
     );
     assert!(!rig.local.outbox()[0].1);
 }
+
+#[tokio::test]
+async fn a_send_that_lands_after_unseen_messages_keeps_the_cursor_and_the_server_timer() {
+    let rig = rig_on(&[Tier::Direct]);
+    queued(&rig);
+    rig.local
+        .set_sync_state(SyncState {
+            pos: 1,
+            inc: Some(INC),
+        })
+        .unwrap();
+    let expires_at = START_MS + 3_600_000;
+    rig.server.json(
+        "GET",
+        &format!("/chat/conversations/{A}/keys"),
+        keys(A, &[1]),
+    );
+    rig.server.json(
+        "POST",
+        &format!("/chat/conversations/{A}/messages"),
+        json!({"seq": 9, "ts": START_MS, "expires_at": expires_at}),
+    );
+    rig.server
+        .on("POST", "/chat/sync", Step::Empty(204, vec![]));
+
+    assert_eq!(rig.engine.flush_outbox().await, Ok(1));
+    rig.engine
+        .step(rig.engine.plan(Tier::Direct))
+        .await
+        .unwrap();
+
+    let stored = rig.local.stored(A);
+    assert_eq!((stored[0].seq, stored[0].expires_at), (9, Some(expires_at)));
+    assert_eq!(rig.local.summary(A).unwrap().last_seq, 6);
+    let syncs = rig.server.calls_to("POST", "/chat/sync");
+    assert_eq!(syncs[0].body["known"], json!([[A, 6]]));
+}

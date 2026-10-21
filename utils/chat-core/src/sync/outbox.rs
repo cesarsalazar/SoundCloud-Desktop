@@ -26,8 +26,12 @@ impl<L: Local> SyncEngine<L> {
             for item in &due {
                 match self.send_item(item).await {
                     Ok(answer) => {
-                        self.store
-                            .outbox_sent(item.client_id, answer.seq, answer.ts)?;
+                        self.store.outbox_sent(
+                            item.client_id,
+                            answer.seq,
+                            answer.ts,
+                            answer.expires_at,
+                        )?;
                         self.after_send(item, answer.seq)?;
                         sent += 1;
                     }
@@ -76,7 +80,11 @@ impl<L: Local> SyncEngine<L> {
         let conversation_id = item.conversation_id;
         let mut messages = self.message_at(conversation_id, seq)?;
         if let Some(mut summary) = self.store.conversation(conversation_id)? {
+            let contiguous = summary.last_seq;
             summary::absorb(&mut summary, &messages);
+            if seq > contiguous + 1 {
+                summary.last_seq = contiguous;
+            }
             self.save(std::slice::from_ref(&summary))?;
             self.emit_summaries(vec![summary]);
         }

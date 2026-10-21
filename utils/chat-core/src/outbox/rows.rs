@@ -1,7 +1,7 @@
 use rusqlite::{Connection, OptionalExtension, Params, params};
 
 use super::OutboxItem;
-use crate::contracts::{ChatResult, ClientId, ConvId, MessageClass, Millis, Seq};
+use crate::contracts::{ChatResult, ClientId, ConvId, Millis, Seq};
 use crate::store::{StoreKeys, codec, seal};
 
 pub fn load<P: Params>(
@@ -82,29 +82,4 @@ pub fn key_epoch(conn: &Connection, conv: ConvId) -> ChatResult<u32> {
         )
         .optional()?
         .unwrap_or_default())
-}
-
-pub fn expires_at(conn: &Connection, item: &OutboxItem, ts: Millis) -> ChatResult<Option<Millis>> {
-    if item.class == MessageClass::Post {
-        let ttl_s: Option<i64> = conn
-            .query_row(
-                "SELECT ttl_s FROM conversations WHERE id = ?1",
-                [item.conversation_id.as_bytes()],
-                |row| row.get(0),
-            )
-            .optional()?
-            .flatten();
-        return Ok(ttl_s.map(|ttl_s| ts + ttl_s * 1000));
-    }
-    let Some(target) = item.target_seq else {
-        return Ok(None);
-    };
-    Ok(conn
-        .query_row(
-            "SELECT expires_at FROM messages WHERE conversation_id = ?1 AND seq = ?2",
-            params![item.conversation_id.as_bytes(), target],
-            |row| row.get(0),
-        )
-        .optional()?
-        .flatten())
 }

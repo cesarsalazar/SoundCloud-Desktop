@@ -75,7 +75,13 @@ impl Outbox {
         Ok(found.into_iter().map(|(item, _)| item).collect())
     }
 
-    pub fn sent(&self, client_id: ClientId, seq: Seq, ts: Millis) -> ChatResult<()> {
+    pub fn sent(
+        &self,
+        client_id: ClientId,
+        seq: Seq,
+        ts: Millis,
+        expires_at: Option<Millis>,
+    ) -> ChatResult<()> {
         let mut conn = self.store.conn()?;
         let tx = conn.transaction()?;
         let item = rows::load(
@@ -106,7 +112,7 @@ impl Outbox {
                 epoch: rows::key_epoch(&tx, item.conversation_id)?,
                 target_seq: item.target_seq,
                 ts,
-                expires_at: rows::expires_at(&tx, &item, ts)?,
+                expires_at,
                 local_only: false,
                 content: StoredContent::Open(item.envelope),
             };
