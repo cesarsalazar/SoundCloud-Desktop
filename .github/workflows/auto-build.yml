@@ -89,28 +89,43 @@ jobs:
           - platform: ubuntu-22.04
             args: ""
             target: ""
+            triple: x86_64-unknown-linux-gnu
             job_name: linux-amd64
           - platform: ubuntu-22.04-arm
             args: ""
             target: ""
+            triple: aarch64-unknown-linux-gnu
             job_name: linux-arm64
           - platform: macos-latest
             args: "--target aarch64-apple-darwin"
             target: aarch64-apple-darwin
+            triple: aarch64-apple-darwin
             job_name: macos-arm64
           - platform: macos-latest
             args: "--target x86_64-apple-darwin"
             target: x86_64-apple-darwin
+            triple: x86_64-apple-darwin
             job_name: macos-amd64
           - platform: windows-latest
             args: ""
             target: ""
+            triple: x86_64-pc-windows-msvc
             job_name: windows-amd64
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.version.outputs.sha }}
+
+      - name: Restore target
+        uses: ./.github/actions/ghcr-cache
+        with:
+          mode: restore
+          triple: ${{ matrix.triple }}
+
+      - name: Mtimes
+        shell: bash
+        run: bash scripts/ci-mtime.sh restore
 
       - name: Install dependencies (ubuntu only)
         if: runner.os == 'Linux'
@@ -198,6 +213,7 @@ jobs:
         with:
           workspaces: desktop/src-tauri -> target
           key: ${{ matrix.job_name }}
+          cache-targets: false
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install frontend dependencies
@@ -211,6 +227,7 @@ jobs:
         run: node .github/scripts/updater-manifest.mjs config desktop/src-tauri/tauri.updater.conf.json
 
       - name: Build Tauri
+        id: build
         working-directory: desktop
         shell: bash
         env:
@@ -220,6 +237,13 @@ jobs:
           LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
           UPDATER_CONFIG: ${{ env.HAS_UPDATER_KEY == 'true' && format('{0}/desktop/src-tauri/tauri.updater.conf.json', github.workspace) || '' }}
         run: pnpm tauri build ${{ matrix.args }} ${UPDATER_CONFIG:+--config "$UPDATER_CONFIG"}
+
+      - name: Stamp
+        if: always()
+        shell: bash
+        env:
+          BUILD: ${{ steps.build.outcome }}
+        run: bash scripts/ci-mtime.sh stamp "$BUILD"
 
       - name: Check CRT imports (windows only)
         if: matrix.platform == 'windows-latest'
@@ -255,6 +279,13 @@ jobs:
             desktop/src-tauri/target/**/release/bundle/appimage/*.AppImage.sig
             desktop/src-tauri/target/**/release/bundle/macos/*.tar.gz.sig
           retention-days: 2
+
+      - name: Save target
+        if: success() && github.ref == 'refs/heads/main'
+        uses: ./.github/actions/ghcr-cache
+        with:
+          mode: save
+          triple: ${{ matrix.triple }}
 
   flatpak:
     needs: version
