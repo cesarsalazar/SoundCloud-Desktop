@@ -34,7 +34,7 @@
 - **souvlaki** — системные media controls (MPRIS / SMTC / NowPlaying)
 - **discord-rich-presence** — Discord RPC
 - **chrono / tracing / serde / sha2 / base64 / hex** — служебные
-- Внутренние крейты из `../utils/`: `call-client`, `decrypt-client`; `sc-fingerprint` берётся из SoundCloud-Backend по тегу
+- Внутренние крейты из `../utils/`: `call-client`, `decrypt-client`; `sc-fingerprint` берётся из SoundCloud-Backend по тегу, ядро чата `sc-chat` из SoundCloud-Core по тегу `sc-chat-v<версия>`, правки ядра идут в Core с новым тегом
 
 ## Структура
 
