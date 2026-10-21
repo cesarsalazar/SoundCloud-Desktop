@@ -2,8 +2,9 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReloginReason } from '../../../lib/chat/login';
 import { Check, RefreshCw, Shield, ShieldAlert } from '../../../lib/icons';
-import { oauthErrorText } from '../../auth/oauth-error';
+import { usePerfMode } from '../../../lib/perf';
 import { GlassCard } from '../../ui/GlassCard';
+import { reloginFailure } from './failure';
 import { ReloginProgress } from './ReloginProgress';
 import { useRelogin } from './useRelogin';
 
@@ -34,9 +35,10 @@ const PRIMARY =
 
 export const ReloginCard = memo(function ReloginCard({ reason, onDone }: ReloginCardProps) {
   const { t } = useTranslation();
+  const perf = usePerfMode();
   const flow = useRelogin(reason, onDone);
   const look = LOOK[reason];
-  const failure = flow.error ? oauthErrorText(flow.error, t) : null;
+  const failure = flow.error ? reloginFailure(flow.error, t) : null;
   const hint = flow.browserFailed
     ? t('auth.browserFailed')
     : flow.callbackSlow
@@ -45,15 +47,17 @@ export const ReloginCard = memo(function ReloginCard({ reason, onDone }: Relogin
 
   return (
     <GlassCard padding={false} className="relative mx-auto w-full max-w-[380px] overflow-hidden">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-10 left-1/2 h-28 w-3/4 -translate-x-1/2"
-        style={{
-          background: `radial-gradient(ellipse, ${look.glow} 0%, transparent 70%)`,
-          contain: 'strict',
-          transform: 'translateZ(0)',
-        }}
-      />
+      {perf.bloom && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-10 left-1/2 h-28 w-3/4 -translate-x-1/2"
+          style={{
+            background: `radial-gradient(ellipse, ${look.glow} 0%, transparent 70%)`,
+            contain: 'strict',
+            transform: 'translateZ(0)',
+          }}
+        />
+      )}
       <div
         className="relative flex flex-col items-center gap-4 px-6 py-6 text-center"
         style={{ isolation: 'isolate' }}
@@ -96,7 +100,7 @@ export const ReloginCard = memo(function ReloginCard({ reason, onDone }: Relogin
               className={`${PRIMARY} bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white/80`}
             >
               <RefreshCw size={14} />
-              {t('auth.retry')}
+              {t('chat.relogin.retry')}
             </button>
           </div>
         ) : (

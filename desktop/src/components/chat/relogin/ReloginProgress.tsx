@@ -4,10 +4,10 @@ import { Check, ClipboardCopy, ExternalLink } from '../../../lib/icons';
 import type { OAuthStep } from '../../../lib/use-oauth-flow';
 
 const STEP_KEYS: Record<OAuthStep, string> = {
-  waiting: 'auth.stepWaiting',
-  token: 'auth.stepToken',
-  extract: 'auth.stepProfile',
-  finalizing: 'auth.stepSession',
+  waiting: 'chat.relogin.steps.waiting',
+  token: 'chat.relogin.steps.token',
+  extract: 'chat.relogin.steps.extract',
+  finalizing: 'chat.relogin.steps.finalizing',
 };
 
 const LINK_BUTTON =

@@ -18,10 +18,12 @@ const POLL_INTERVAL_MS = 2000;
 export function useQrLink(mode: LinkMode, onSuccess?: (sessionId: string) => void) {
   const [state, setState] = useState<QrLinkState>({ status: 'idle' });
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flowRef = useRef(0);
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
 
   const stop = useCallback(() => {
+    flowRef.current++;
     if (pollRef.current) {
       clearTimeout(pollRef.current);
       pollRef.current = null;
@@ -37,9 +39,12 @@ export function useQrLink(mode: LinkMode, onSuccess?: (sessionId: string) => voi
 
   const start = useCallback(async () => {
     stop();
+    const flow = flowRef.current;
+    const stale = () => flow !== flowRef.current;
     setState({ status: 'creating' });
     try {
       const created = await createLinkRequest(mode);
+      if (stale()) return;
       setState({
         status: 'pending',
         claimToken: created.claimToken,
@@ -49,6 +54,7 @@ export function useQrLink(mode: LinkMode, onSuccess?: (sessionId: string) => voi
 
       const poll = async () => {
         const data = await getLinkStatus(created).catch(() => null);
+        if (stale()) return;
         if (data?.status === 'claimed') {
           const sessionId = data.sessionId ?? undefined;
           if (mode === 'pull' && !sessionId) {
@@ -69,6 +75,7 @@ export function useQrLink(mode: LinkMode, onSuccess?: (sessionId: string) => voi
 
       pollRef.current = setTimeout(poll, POLL_INTERVAL_MS);
     } catch (err: unknown) {
+      if (stale()) return;
       const needsSession =
         mode === 'push' && err instanceof ApiError && [400, 401, 409].includes(err.status);
       setState({
