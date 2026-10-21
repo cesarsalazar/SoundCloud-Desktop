@@ -36,6 +36,33 @@ pub fn remove_files(path: &Path) -> ChatResult<()> {
     Ok(())
 }
 
+#[cfg(unix)]
+pub fn owner_only(path: &Path) -> ChatResult<()> {
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .mode(0o600)
+        .open(path)
+        .map_err(|_| ChatError::Store)?;
+    for file in [
+        path.to_path_buf(),
+        sibling(path, "-wal"),
+        sibling(path, "-shm"),
+    ] {
+        match std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600)) {
+            Err(error) if error.kind() != ErrorKind::NotFound => return Err(ChatError::Store),
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+pub fn owner_only(_path: &Path) -> ChatResult<()> {
+    Ok(())
+}
+
 fn sibling(path: &Path, suffix: &str) -> PathBuf {
     let mut name = path.as_os_str().to_os_string();
     name.push(suffix);

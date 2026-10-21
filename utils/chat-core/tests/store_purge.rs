@@ -5,16 +5,18 @@ use std::sync::Arc;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
+use chat_core::chat_wire::proto::{self, envelope::Body};
 use chat_core::crypto::Ck;
 use chat_core::outbox::{Outbox, OutboxItem};
 use chat_core::search::Search;
-use chat_core::store::{Store, StoredContent};
+use chat_core::store::{COMPACTION_GAP_MS, Store, StoredContent};
 use chat_core::{
     ConversationKind, EmbedsQuery, GoneMessage, HistoryQuery, Member, MemberRole, MemberState,
-    MessageClass, PeerMark, RichText, SearchQuery, SystemEvent, SystemKind, UserRef,
+    MessageBody, MessageClass, PeerMark, RichText, SearchQuery, SystemEvent, SystemKind, UserRef,
 };
 use store_support::{
-    MemoryKeys, PEER, TempDir, conv, count, edit, post, post_with_track, react, row, store, summary,
+    MemoryKeys, PEER, TempDir, conv, count, edit, envelope, open, post, post_with_track, react,
+    row, store, summary,
 };
 use uuid::Uuid;
 
@@ -278,6 +280,127 @@ fn purge_scrubs_the_database_and_wal_files() {
     for token in &tokens {
         assert!(!on_disk(&path, &token.as_bytes()[4..]));
     }
+}
+
+#[test]
+fn deleted_bodies_and_their_edits_leave_the_disk() {
+    let dir = TempDir::new("deleted");
+    let path = dir.file("chat.db");
+    let keys = MemoryKeys::default();
+    let store = Arc::new(Store::open_keyed(&path, &keys).unwrap());
+    let id = conv();
+    store
+        .put_messages(&[
+            post(id, 1, PEER, &"сервер-стёр ".repeat(30)),
+            post(id, 2, PEER, &"сам-удалил ".repeat(30)),
+            edit(id, 3, PEER, 2, &"правка-ушла ".repeat(30)),
+        ])
+        .unwrap();
+    let probes: Vec<Vec<u8>> = [1, 2, 3]
+        .iter()
+        .map(|seq| body_probe(&store, *seq))
+        .collect();
+    for probe in &probes {
+        assert!(on_disk(&path, probe));
+    }
+
+    let redacted = row(
+        id,
+        1,
+        PEER,
+        MessageClass::Post,
+        None,
+        StoredContent::Deleted,
+    );
+    let delete = row(
+        id,
+        4,
+        PEER,
+        MessageClass::Edit,
+        Some(2),
+        open(&envelope(Body::Delete(proto::Delete { target: 2 }))),
+    );
+    store.put_messages(&[redacted, delete]).unwrap();
+
+    for probe in &probes {
+        assert!(!on_disk(&path, probe));
+    }
+    for word in ["сервер", "сам", "правка"] {
+        for token in tokens(&store.keys().search, word) {
+            assert!(!on_disk(&path, &token.as_bytes()[4..]));
+        }
+    }
+    let page = store
+        .messages(
+            id,
+            &HistoryQuery {
+                before: None,
+                after: None,
+                limit: 10,
+            },
+        )
+        .unwrap();
+    let bodies: Vec<_> = page.messages.iter().map(|message| &message.body).collect();
+    assert_eq!(bodies, vec![&MessageBody::Deleted, &MessageBody::Deleted]);
+}
+
+#[test]
+fn expiry_scrubs_the_body_at_once_and_the_index_within_a_minute() {
+    let dir = TempDir::new("expiry");
+    let path = dir.file("chat.db");
+    let keys = MemoryKeys::default();
+    let store = Arc::new(Store::open_keyed(&path, &keys).unwrap());
+    let id = conv();
+    let mut first = post(id, 1, PEER, &"первая-тайна ".repeat(30));
+    first.expires_at = Some(1_000);
+    let mut second = post(id, 2, PEER, &"вторая-тайна ".repeat(30));
+    second.expires_at = Some(20_000);
+    store.put_messages(&[first, second]).unwrap();
+    let first_body = body_probe(&store, 1);
+    let second_body = body_probe(&store, 2);
+    let first_tokens = tokens(&store.keys().search, "первая");
+    let second_tokens = tokens(&store.keys().search, "вторая");
+    let indexed = |tokens: &[String]| {
+        tokens
+            .iter()
+            .any(|token| on_disk(&path, &token.as_bytes()[4..]))
+    };
+    assert!(indexed(&first_tokens) && indexed(&second_tokens));
+
+    assert_eq!(store.purge_expired(1_000).unwrap().len(), 1);
+    assert!(!on_disk(&path, &first_body));
+    assert!(!indexed(&first_tokens));
+
+    assert_eq!(store.purge_expired(20_000).unwrap().len(), 1);
+    assert!(!on_disk(&path, &second_body));
+    assert!(indexed(&second_tokens));
+    assert!(
+        store
+            .purge_expired(1_000 + COMPACTION_GAP_MS - 1)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(indexed(&second_tokens));
+
+    assert!(
+        store
+            .purge_expired(1_000 + COMPACTION_GAP_MS)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(!indexed(&second_tokens));
+    assert_eq!(hits(&store, "вторая"), 0);
+}
+
+fn body_probe(store: &Store, seq: i64) -> Vec<u8> {
+    let body: Vec<u8> = store
+        .conn()
+        .unwrap()
+        .query_row("SELECT body FROM messages WHERE seq = ?1", [seq], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    body[body.len() / 2..body.len() / 2 + 32].to_vec()
 }
 
 fn tokens(key: &[u8; 32], word: &str) -> Vec<String> {

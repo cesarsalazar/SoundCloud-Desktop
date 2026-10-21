@@ -2,10 +2,14 @@ mod store_support;
 
 use std::sync::Arc;
 
+use chat_core::chat_wire::msg::encode_padded;
+use chat_core::chat_wire::proto::{self, envelope::Body};
+use chat_core::outbox::{Outbox, OutboxItem};
 use chat_core::search::Search;
 use chat_core::store::Store;
-use chat_core::{ConversationKind, HistoryQuery, Message, MessageBody, SearchQuery};
-use store_support::{PEER, conv, edit, post, react, store, summary};
+use chat_core::{ConversationKind, HistoryQuery, Message, MessageBody, MessageClass, SearchQuery};
+use store_support::{PEER, conv, edit, envelope, post, react, store, summary};
+use uuid::Uuid;
 
 fn page(store: &Store, id: uuid::Uuid, query: HistoryQuery) -> Vec<Message> {
     store.messages(id, &query).unwrap().messages
@@ -156,4 +160,51 @@ fn a_second_restore_keeps_both_blocks_apart() {
     let mut seqs: Vec<_> = messages.iter().filter_map(|message| message.seq).collect();
     seqs.dedup();
     assert_eq!(seqs.len(), 5);
+}
+
+#[test]
+fn a_server_row_can_not_take_a_local_seq() {
+    let (store, id) = restored();
+    let local = latest(&store, id)[3].seq.unwrap();
+    store
+        .put_messages(&[post(id, local, PEER, "подмена"), post(id, 0, PEER, "ноль")])
+        .unwrap();
+    assert_eq!(
+        texts(&latest(&store, id)),
+        vec![
+            ("один".into(), false),
+            ("два".into(), false),
+            ("три".into(), false),
+            ("четыре правка".into(), true),
+        ]
+    );
+}
+
+#[test]
+fn queued_actions_on_moved_rows_are_dropped() {
+    let store = Arc::new(store());
+    let id = conv();
+    store
+        .put_messages(&[post(id, 1, PEER, "один"), post(id, 2, PEER, "два")])
+        .unwrap();
+    let outbox = Outbox::new(store.clone());
+    let reaction = |target: i64| OutboxItem {
+        client_id: Uuid::new_v4(),
+        conversation_id: id,
+        class: MessageClass::React,
+        target_seq: Some(target),
+        envelope: encode_padded(&envelope(Body::Reaction(proto::Reaction {
+            target: target as u64,
+            emoji: "👍".into(),
+            on: true,
+        }))),
+        created_at: 10,
+        attempts: 0,
+        next_at: 10,
+    };
+    let kept = reaction(1);
+    outbox.push(kept.clone()).unwrap();
+    outbox.push(reaction(2)).unwrap();
+    store.keep_local_above(&[(id, 1)]).unwrap();
+    assert_eq!(outbox.due(10, 10).unwrap(), vec![kept]);
 }

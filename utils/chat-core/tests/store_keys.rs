@@ -63,3 +63,24 @@ fn a_replaced_key_starts_a_fresh_database() {
     keys.save(KeyName::Database, &[8; 32]).unwrap();
     assert!(Store::open_keyed(&path, &keys).is_ok());
 }
+
+#[cfg(unix)]
+#[test]
+fn the_database_files_are_for_the_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = TempDir::new("mode");
+    let path = dir.file("chat.db");
+    std::fs::write(&path, b"").unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+    let keys = MemoryKeys::default();
+    let store = Store::open_keyed(&path, &keys).unwrap();
+    store
+        .put_messages(&[post(conv(), 1, PEER, "только мне")])
+        .unwrap();
+    let mut wal = path.as_os_str().to_os_string();
+    wal.push("-wal");
+    for file in [path.clone(), wal.into()] {
+        let mode = std::fs::metadata(&file).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600, "{}", file.display());
+    }
+}

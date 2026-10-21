@@ -1,4 +1,4 @@
-use rusqlite::{Connection, Row, params};
+use rusqlite::{Connection, OptionalExtension, Row, params};
 use serde::{Deserialize, Serialize};
 
 use super::codec::{Label, from_json, label, to_json, uuid_at};
@@ -130,9 +130,45 @@ impl Store {
         for row in rows {
             super::purge::drop_row(&tx, row)?;
         }
+        forget_preview(&tx, &self.keys, id, |preview| preview <= seq)?;
         tx.commit()?;
         super::purge::finish(&conn)
     }
+}
+
+pub fn forget_preview(
+    tx: &Connection,
+    keys: &StoreKeys,
+    id: ConvId,
+    gone: impl Fn(Seq) -> bool,
+) -> ChatResult<()> {
+    let found: Option<(Vec<u8>, Vec<u8>)> = tx
+        .prepare_cached(
+            "SELECT meta_nonce, meta FROM conversations WHERE id = ?1 AND meta_nonce IS NOT NULL AND meta IS NOT NULL",
+        )?
+        .query_row([id.as_bytes()], |row| Ok((row.get(0)?, row.get(1)?)))
+        .optional()?;
+    let Some((nonce, body)) = found else {
+        return Ok(());
+    };
+    let Some(mut sealed) = seal::open(&keys.body, &aad(id), &nonce, &body)
+        .ok()
+        .and_then(|plain| from_json::<Sealed>(&plain).ok())
+    else {
+        return Ok(());
+    };
+    if !sealed
+        .preview
+        .as_ref()
+        .is_some_and(|preview| gone(preview.seq))
+    {
+        return Ok(());
+    }
+    sealed.preview = None;
+    let resealed = seal::seal(&keys.body, &aad(id), &to_json(&sealed)?)?;
+    tx.prepare_cached("UPDATE conversations SET meta_nonce = ?2, meta = ?3 WHERE id = ?1")?
+        .execute(params![id.as_bytes(), resealed.nonce, resealed.body])?;
+    Ok(())
 }
 
 fn filter(filter: ListFilter) -> &'static str {

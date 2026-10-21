@@ -2,8 +2,10 @@ use rusqlite::{Connection, OptionalExtension, params};
 
 use super::items::{self, Item};
 use super::project::{self, Context};
-use super::{Store, StoreKeys, StoredContent, StoredMessage, content, embeds, purge};
-use crate::contracts::{ChatResult, ConvId, MessageClass, Seq};
+use super::{
+    Store, StoreKeys, StoredContent, StoredMessage, content, conversations, embeds, purge,
+};
+use crate::contracts::{ChatResult, ConvId, MessageBody, MessageClass, Seq};
 use crate::envelope::Content;
 use crate::search::index;
 
@@ -87,18 +89,17 @@ pub fn write(tx: &Connection, keys: &StoreKeys, item: &StoredMessage) -> ChatRes
     ])?;
     tx.prepare_cached("DELETE FROM outbox WHERE client_id = ?1 AND conversation_id = ?2")?
         .execute(params![item.client_id.as_bytes(), conv.as_bytes()])?;
-    reindex(tx, keys, conv, item.seq, previous.is_none())?;
-    let mut cleared = previous.is_some_and(|old| old != "deleted") && kind == "deleted";
+    let mut cleared = previous.as_deref().is_some_and(|old| old != "deleted") && kind == "deleted";
+    cleared |= reindex(tx, keys, conv, item.seq, previous.is_none())?;
     if item.class == MessageClass::Edit
         && let Some(target) = item.target_seq
     {
-        refresh(tx, keys, conv, target)?;
-        cleared |= deletes_target(&item.content);
+        cleared |= refresh(tx, keys, conv, target)?;
     }
     Ok(cleared)
 }
 
-pub fn refresh(tx: &Connection, keys: &StoreKeys, conv: ConvId, seq: Seq) -> ChatResult<()> {
+pub fn refresh(tx: &Connection, keys: &StoreKeys, conv: ConvId, seq: Seq) -> ChatResult<bool> {
     reindex(tx, keys, conv, seq, false)
 }
 
@@ -108,12 +109,12 @@ fn reindex(
     conv: ConvId,
     seq: Seq,
     fresh: bool,
-) -> ChatResult<()> {
+) -> ChatResult<bool> {
     let Some(item) = items::by_seq(tx, keys, conv, seq)? else {
-        return Ok(());
+        return Ok(false);
     };
     if !project::visible(item.message.class) {
-        return Ok(());
+        return Ok(false);
     }
     let edits = items::edits(tx, keys, conv, seq)?;
     let modifiers: Vec<&Item> = edits.iter().collect();
@@ -124,14 +125,36 @@ fn reindex(
     } else {
         index::replace(tx, &keys.search, item.id, text.as_deref())?;
     }
-    embeds::replace(tx, keys, item.id, conv, &message.embeds)
+    embeds::replace(tx, keys, item.id, conv, &message.embeds)?;
+    if message.body != MessageBody::Deleted {
+        return Ok(false);
+    }
+    conversations::forget_preview(tx, keys, conv, |preview| preview == seq)?;
+    if item.message.content == StoredContent::Deleted {
+        return Ok(false);
+    }
+    blank(tx, item.id)?;
+    for edit in &edits {
+        if rewrites_text(&edit.message.content) {
+            blank(tx, edit.id)?;
+        }
+    }
+    Ok(true)
 }
 
-fn deletes_target(stored: &StoredContent) -> bool {
+fn rewrites_text(stored: &StoredContent) -> bool {
     match stored {
-        StoredContent::Open(bytes) => matches!(content::decode(bytes), Content::Delete { .. }),
+        StoredContent::Open(bytes) => matches!(content::decode(bytes), Content::Edit { .. }),
         _ => false,
     }
+}
+
+fn blank(tx: &Connection, id: i64) -> ChatResult<()> {
+    tx.prepare_cached(
+        "UPDATE messages SET content = 'deleted', nonce = NULL, body = NULL WHERE id = ?1",
+    )?
+    .execute([id])?;
+    Ok(())
 }
 
 pub fn hidden_before(conn: &Connection, conv: ConvId) -> ChatResult<Seq> {

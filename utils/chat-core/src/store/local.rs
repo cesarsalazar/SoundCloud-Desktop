@@ -31,6 +31,10 @@ fn keep_block(tx: &Connection, keys: &StoreKeys, id: ConvId, last: Seq) -> ChatR
         "UPDATE conversations SET last_seq = ?2 WHERE id = ?1",
         params![id.as_bytes(), last],
     )?;
+    tx.execute(
+        "DELETE FROM outbox WHERE conversation_id = ?1 AND target_seq > ?2",
+        params![id.as_bytes(), last],
+    )?;
     let rows = items::load(
         tx,
         keys,

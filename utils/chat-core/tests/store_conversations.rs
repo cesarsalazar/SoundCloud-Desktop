@@ -2,8 +2,8 @@ mod store_support;
 
 use chat_core::crypto::Ck;
 use chat_core::{
-    ConversationKind, EmbedKind, EmbedsQuery, ListFilter, ListQuery, Member, MemberRole,
-    MemberState, PreviewKind, RichText, UserRef,
+    ConversationKind, EmbedKind, EmbedsQuery, GoneMessage, ListFilter, ListQuery, Member,
+    MemberRole, MemberState, MessagePreview, PreviewKind, RichText, UserRef,
 };
 use store_support::{PEER, conv, post, post_with_track, store, summary};
 
@@ -230,4 +230,67 @@ fn known_lists_recent_conversations_first() {
     store.put_conversations(&rows).unwrap();
     assert_eq!(store.known(64).unwrap(), vec![(new, 20), (old, 10)]);
     assert_eq!(store.known(1).unwrap(), vec![(new, 20)]);
+}
+
+fn previewed(text: &str, seq: i64) -> MessagePreview {
+    MessagePreview {
+        seq,
+        sender: PEER.into(),
+        kind: PreviewKind::Text,
+        text: text.into(),
+        ts: seq * 1_000,
+        expires_at: None,
+    }
+}
+
+#[test]
+fn a_gone_message_takes_its_preview_text_along() {
+    let store = store();
+    let expiring = conv();
+    let hidden = conv();
+    let kept = conv();
+    for (id, seq) in [(expiring, 1), (hidden, 2), (kept, 3)] {
+        let mut row = summary(id, ConversationKind::Group);
+        row.preview = Some(previewed("тайное превью", seq));
+        store.put_conversations(&[row]).unwrap();
+    }
+    let mut timed = post(expiring, 1, PEER, "тайное превью");
+    timed.expires_at = Some(5_000);
+    store
+        .put_messages(&[
+            timed,
+            post(hidden, 1, PEER, "раньше"),
+            post(hidden, 2, PEER, "тайное превью"),
+        ])
+        .unwrap();
+
+    store.purge_expired(5_000).unwrap();
+    store.hide_before(hidden, 2).unwrap();
+    store
+        .purge_messages(&[GoneMessage {
+            conversation_id: kept,
+            seq: 1,
+        }])
+        .unwrap();
+
+    assert!(
+        store
+            .conversation(expiring)
+            .unwrap()
+            .unwrap()
+            .preview
+            .is_none()
+    );
+    assert!(
+        store
+            .conversation(hidden)
+            .unwrap()
+            .unwrap()
+            .preview
+            .is_none()
+    );
+    assert_eq!(
+        store.conversation(kept).unwrap().unwrap().preview,
+        Some(previewed("тайное превью", 3))
+    );
 }

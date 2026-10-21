@@ -18,6 +18,7 @@ mod purge;
 pub(crate) mod seal;
 
 use std::path::Path;
+use std::sync::atomic::AtomicI64;
 use std::sync::{Mutex, MutexGuard};
 
 use hmac::{Hmac, Mac};
@@ -32,6 +33,7 @@ use crate::contracts::{
 };
 
 pub use expiry::ExpiryTimer;
+pub use purge::COMPACTION_GAP_MS;
 
 const BODY_LABEL: &[u8] = b"chat-store body";
 const SEARCH_LABEL: &[u8] = b"chat-store fts";
@@ -89,10 +91,12 @@ pub struct StoredMessage {
 pub struct Store {
     conn: Mutex<Connection>,
     keys: StoreKeys,
+    compacted_at: AtomicI64,
 }
 
 impl Store {
     pub fn open(path: &Path, master: &[u8; 32]) -> ChatResult<Self> {
+        dbkey::owner_only(path)?;
         Self::with_connection(Connection::open(path)?, master)
     }
 
@@ -122,6 +126,7 @@ impl Store {
         Ok(Self {
             conn: Mutex::new(conn),
             keys,
+            compacted_at: AtomicI64::new(Millis::MIN),
         })
     }
 
