@@ -1,16 +1,17 @@
-import React, { useCallback } from 'react';
+import React, { type ReactNode, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/shallow';
 import { changeAppLanguage } from '../../i18n';
 import { Clock, Globe, PanelLeftClose, PanelLeftOpen, Settings } from '../../lib/icons';
-import { moveEntry } from '../../lib/layout';
+import { gatedIds, LAYOUT_IDS, moveEntry, resolveLayout } from '../../lib/layout';
 import { usePerfMode } from '../../lib/perf';
 import { useSuperlikeCount } from '../../lib/superlikes';
-import { useLayout } from '../../lib/use-layout';
 import { useAppMode } from '../../stores/app-status';
 import { useAuthStore } from '../../stores/auth';
+import { selectChatEnabled, useChatStore } from '../../stores/chat';
 import { useSettingsStore } from '../../stores/settings';
+import { ChatNavBadge } from '../chat/shell/ChatNavBadge';
 import { SuperHeart } from '../music/superlike/SuperHeart';
 import { Avatar } from '../ui/Avatar';
 import { type IconCmp, NAV_ITEMS } from './nav-items';
@@ -33,6 +34,7 @@ function NavItem({
   collapsed,
   title,
   alert,
+  badge,
 }: {
   to: string;
   icon: IconCmp;
@@ -40,6 +42,7 @@ function NavItem({
   collapsed: boolean;
   title?: string;
   alert?: boolean;
+  badge?: ReactNode;
 }) {
   return (
     <NavLink
@@ -63,6 +66,7 @@ function NavItem({
       <Label collapsed={collapsed} className="text-[13px] font-medium pr-3">
         {label}
       </Label>
+      {badge}
     </NavLink>
   );
 }
@@ -78,7 +82,12 @@ export const Sidebar = React.memo(() => {
       setLayout: s.setLayout,
     })),
   );
-  const layout = useLayout('sidebar');
+  const savedLayout = useSettingsStore((s) => s.layouts.sidebar);
+  const chatEnabled = useChatStore(selectChatEnabled);
+  const layout = useMemo(
+    () => resolveLayout(savedLayout, LAYOUT_IDS.sidebar, gatedIds(chatEnabled)),
+    [savedLayout, chatEnabled],
+  );
   const navIds = layout
     .filter((e) => !e.hidden || (e.id === 'offline' && appMode !== 'online'))
     .map((e) => e.id);
@@ -118,6 +127,7 @@ export const Sidebar = React.memo(() => {
                   collapsed={collapsed}
                   title={collapsed ? t(item.label) : undefined}
                   alert={id === 'offline' && appMode !== 'online'}
+                  badge={id === 'chats' ? <ChatNavBadge collapsed={collapsed} /> : undefined}
                 />
               </SortableSlot>
             );
