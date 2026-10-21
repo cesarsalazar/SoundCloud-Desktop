@@ -10,6 +10,7 @@ import { Skeleton } from '../../ui/Skeleton';
 import { ConversationAvatar } from '../list/ConversationAvatar';
 import { conversationAvatar, conversationTitle } from '../list/conversation-meta';
 import { isMuted } from '../list/mute';
+import { lastOutsidePath } from './useDockMode';
 import { chatPath } from './useOpenChat';
 
 interface ThreadChromeProps {
@@ -76,9 +77,7 @@ export const ThreadChrome = memo(function ThreadChrome({
 
   const toDock = () => {
     useChatPrefsStore.getState().openInDock(conversationId);
-    const index = (window.history.state as { idx?: number } | null)?.idx ?? 0;
-    if (index > 0) navigate(-1);
-    else navigate('/home');
+    navigate(lastOutsidePath());
   };
 
   return (

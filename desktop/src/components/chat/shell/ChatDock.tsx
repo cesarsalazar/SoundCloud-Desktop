@@ -9,7 +9,7 @@ import { DockPanel } from './DockPanel';
 import { CHAT_KEYFRAMES } from './keyframes';
 import { useChatBoot } from './useChatBoot';
 import { useDockHotkey } from './useDockHotkey';
-import { useDockMode } from './useDockMode';
+import { useDockMode, useRememberOutsidePath } from './useDockMode';
 import { useNotifyOpen } from './useNotifyOpen';
 
 function ChatHosts() {
@@ -29,6 +29,7 @@ function ChatHosts() {
 
 export const ChatDock = memo(function ChatDock() {
   useChatBoot();
+  useRememberOutsidePath();
   const enabled = useChatStore(selectChatEnabled);
   const mode = useDockMode();
   if (!enabled) return null;
