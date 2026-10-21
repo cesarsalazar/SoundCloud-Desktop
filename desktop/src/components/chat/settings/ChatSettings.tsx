@@ -7,6 +7,7 @@ import { ChatGate } from '../shell/ChatGate';
 import { BlockedCard } from './BlockedCard';
 import { ChatNotifyCard } from './ChatNotifyCard';
 import { DockHotkeyCard } from './DockHotkeyCard';
+import { DevicesCard } from './devices/DevicesCard';
 import { RulesCard } from './RulesCard';
 import { useChatSettings } from './useChatSettings';
 import { VisibilityCard } from './VisibilityCard';
@@ -70,6 +71,7 @@ export function ChatSettings() {
       </ChatGate>
       <ChatNotifyCard />
       <DockHotkeyCard />
+      {ready && <DevicesCard />}
       {ready && <BlockedSection />}
       <RulesCard />
     </>
