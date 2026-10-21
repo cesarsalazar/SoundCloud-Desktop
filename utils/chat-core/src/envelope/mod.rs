@@ -1,8 +1,18 @@
-use chat_wire::proto::Envelope;
+mod decode;
+mod encode;
+mod snapshot;
+mod text;
 
 use crate::contracts::{
     ChatError, ChatResult, ConversationMeta, Embed, Forwarded, MessageClass, RichText, Seq, UserId,
 };
+use crate::crypto::{Ck, MessageAt, open_message, seal_message};
+
+pub use decode::decode;
+pub use encode::encode;
+
+pub const REACTION_MAX: usize = 64;
+pub const LINK_MAX: usize = 2048;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Post {
@@ -59,10 +69,22 @@ impl Content {
     }
 }
 
-pub fn encode(_content: &Content) -> ChatResult<Envelope> {
-    Err(ChatError::Unimplemented)
+pub fn seal(ck: &Ck, at: &MessageAt, content: &Content) -> ChatResult<Vec<u8>> {
+    if content.class() != at.class {
+        return Err(ChatError::Invalid);
+    }
+    seal_message(ck, at, &encode(content)?)
 }
 
-pub fn decode(_envelope: &Envelope) -> ChatResult<Content> {
-    Err(ChatError::Unimplemented)
+pub fn open(ck: &Ck, at: &MessageAt, target: Option<Seq>, body: &[u8]) -> ChatResult<Content> {
+    let content = decode(&open_message(ck, at, body)?)?;
+    match content {
+        Content::Unknown => Ok(content),
+        _ if content.target() == target => Ok(content),
+        _ => Err(ChatError::Protocol),
+    }
 }
+
+#[cfg(test)]
+#[path = "envelope_tests.rs"]
+mod tests;
