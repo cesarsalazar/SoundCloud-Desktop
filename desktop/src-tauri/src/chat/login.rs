@@ -5,7 +5,6 @@ mod wire;
 use std::sync::{Arc, OnceLock};
 
 use chat_core::channel::{InnerAnswer, InnerCall};
-use chat_core::crypto::DeviceKeys;
 use chat_core::{
     ChatError, ChatResult, LinkClaimed, LinkCreated, LinkMode, LinkPoll, LinkState, LoginBegin,
     LoginPoll, LoginState, LoginTarget,
@@ -51,6 +50,11 @@ pub async fn poll(state: &ChatState, login_request_id: &str) -> ChatResult<Login
 
 pub async fn link_create_pull(state: &ChatState) -> ChatResult<LinkCreated> {
     create_link(state, LinkMode::Pull, None).await
+}
+
+#[tauri::command]
+pub async fn chat_link_create_push(state: tauri::State<'_, ChatState>) -> ChatResult<LinkCreated> {
+    link_create_push(&state).await
 }
 
 pub async fn link_create_push(state: &ChatState) -> ChatResult<LinkCreated> {
@@ -108,12 +112,7 @@ async fn held_signer(state: &ChatState, request_id: &str) -> ChatResult<Arc<Sign
 }
 
 async fn load_signer(state: &ChatState) -> ChatResult<Arc<Signer>> {
-    let keys = state.keys.clone();
-    let (device_id, keys) =
-        tokio::task::spawn_blocking(move || DeviceKeys::load_or_create(keys.as_ref()))
-            .await
-            .map_err(|_| ChatError::Keychain)??;
-    Ok(Arc::new(Signer { device_id, keys }))
+    lane().signer(state.keys.clone()).await
 }
 
 fn get(path: &str, query: String) -> InnerCall {
@@ -139,5 +138,7 @@ fn by_id(request_id: &str) -> ChatResult<String> {
     Ok(format!("id={id}"))
 }
 
+#[cfg(test)]
+mod sealed_tests;
 #[cfg(test)]
 mod tests;
