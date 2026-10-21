@@ -6,7 +6,7 @@ import { DockFrost } from './DockFrost';
 import { DockResizeHandle } from './DockResizeHandle';
 import { DockTabs } from './DockTabs';
 
-export const DOCK_PLAYER_INSET = 136;
+const PLAYER_INSET = { docked: 0, overlay: 136 } as const;
 const OVERLAY_GAP = 48;
 
 export const DockPanel = memo(function DockPanel({ mode }: { mode: 'docked' | 'overlay' }) {
@@ -46,7 +46,7 @@ export const DockPanel = memo(function DockPanel({ mode }: { mode: 'docked' | 'o
         <DockResizeHandle />
         <div
           className="@container relative z-10 flex h-full min-h-0 flex-col"
-          style={{ isolation: 'isolate', paddingBottom: DOCK_PLAYER_INSET }}
+          style={{ isolation: 'isolate', paddingBottom: PLAYER_INSET[mode] }}
         >
           <DockTabs />
           <DockBody />

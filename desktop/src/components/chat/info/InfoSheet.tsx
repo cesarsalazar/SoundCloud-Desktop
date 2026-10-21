@@ -2,13 +2,15 @@ import { memo, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { conversationAvatar, conversationTitle } from '../../../lib/chat/render';
+import { surface } from '../../../lib/chat/tone';
 import type { Seq } from '../../../lib/chat/types';
 import { Bookmark, ListMusic, Users, X } from '../../../lib/icons';
 import { linkRoute } from '../../../lib/soundcloudLink';
 import { Avatar } from '../../ui/Avatar';
 import { useThread } from '../thread/context';
 import { GlassLayer } from '../thread/GlassLayer';
-import { hasTimer, isActiveMember } from '../thread/permissions';
+import { canManageMembers, hasTimer, isActiveMember } from '../thread/permissions';
+import { InviteRow } from './InviteRow';
 import { MembersTab } from './MembersTab';
 import { MuteRow } from './MuteRow';
 import { TimerPicker } from './TimerPicker';
@@ -116,12 +118,13 @@ export const InfoSheet = memo(function InfoSheet({
         className="absolute inset-0 cursor-default bg-black/45"
       />
       <aside
+        data-ui="chat-info"
         role="dialog"
         aria-label={t('chat.thread.menu.info')}
         className="chat-thread-motion relative flex h-full w-full max-w-[380px] flex-col border-l border-white/[0.06] shadow-[-24px_0_60px_rgba(0,0,0,0.45)]"
         style={{ animation: 'chat-thread-sheet 220ms cubic-bezier(0.16,1,0.3,1)' }}
       >
-        <GlassLayer blur={36} tint="rgba(16,16,20,0.82)" solid="rgb(17,17,21)" />
+        <GlassLayer blur={36} tint={surface(7, 82)} solid={surface(7)} />
         <div className="relative flex min-h-0 flex-1 flex-col" style={{ isolation: 'isolate' }}>
           <div className="flex h-12 shrink-0 items-center justify-end px-2">
             <button
@@ -142,11 +145,12 @@ export const InfoSheet = memo(function InfoSheet({
             <div className="flex flex-col gap-2">
               {hasTimer(conversation) && isActiveMember(conversation) && <TimerPicker />}
               {conversation.kind !== 'self' && isActiveMember(conversation) && <MuteRow />}
+              {canManageMembers(conversation) && <InviteRow />}
             </div>
             <div
               role="tablist"
               className="sticky top-0 z-10 mt-4 mb-2 flex gap-1 rounded-2xl p-1"
-              style={{ background: 'rgb(22,22,27)' }}
+              style={{ background: surface(9) }}
             >
               <TabButton
                 active={tab === 'tracks'}

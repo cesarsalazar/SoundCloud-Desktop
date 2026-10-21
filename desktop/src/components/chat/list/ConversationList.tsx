@@ -12,6 +12,7 @@ import { type ListVariant, useRowMenu } from './useRowMenu';
 interface ConversationListProps {
   variant: ListVariant;
   selectedId: ConvId | null;
+  roomSelected?: boolean;
   onOpen: (conversationId: ConvId) => void;
   onOpenRoom: () => void;
 }
@@ -19,6 +20,7 @@ interface ConversationListProps {
 export const ConversationList = memo(function ConversationList({
   variant,
   selectedId,
+  roomSelected = false,
   onOpen,
   onOpenRoom,
 }: ConversationListProps) {
@@ -34,10 +36,10 @@ export const ConversationList = memo(function ConversationList({
   }, [load, refresh]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div data-ui="chat-list" className="flex h-full min-h-0 flex-col">
       <ListHeader variant={variant} query={query} onQuery={setQuery} />
       {!searching && <FilterChips />}
-      {!searching && filter === 'all' && <RoomRow onOpen={onOpenRoom} />}
+      {!searching && filter === 'all' && <RoomRow selected={roomSelected} onOpen={onOpenRoom} />}
       {searching ? (
         <SearchResults query={query} onOpen={onOpen} />
       ) : filter === 'requests' ? (

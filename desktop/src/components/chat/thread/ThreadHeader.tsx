@@ -2,6 +2,7 @@ import { memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BellOff, Timer } from '../../../lib/chat/icons';
 import { conversationAvatar, conversationTitle, ttlShort } from '../../../lib/chat/render';
+import { surface } from '../../../lib/chat/tone';
 import type { UserId } from '../../../lib/chat/types';
 import { Bookmark, ChevronLeft, Ellipsis, Info, Users } from '../../../lib/icons';
 import { useChatThreadStore } from '../../../stores/chat/thread';
@@ -82,8 +83,11 @@ export const ThreadHeader = memo(function ThreadHeader({
   const muted = isMuted(conversation, Date.now());
 
   return (
-    <header className="relative z-20 h-[58px] shrink-0 border-b border-white/[0.05]">
-      <GlassLayer blur={30} tint="rgba(14,14,18,0.55)" solid="rgb(16,16,20)" />
+    <header
+      data-ui="chat-thread-header"
+      className="relative z-20 h-[58px] shrink-0 border-b border-white/[0.05]"
+    >
+      <GlassLayer blur={30} tint={surface(6, 55)} solid={surface(7)} />
       <div
         className="relative flex h-full items-center gap-2 px-2.5"
         style={{ isolation: 'isolate' }}
@@ -93,7 +97,7 @@ export const ThreadHeader = memo(function ThreadHeader({
             type="button"
             aria-label={t('chat.thread.back')}
             onClick={onBack}
-            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white/55 transition-colors duration-150 hover:bg-white/[0.07] hover:text-white"
+            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white/55 transition-colors duration-150 hover:bg-white/[0.07] hover:text-white @min-[641px]:hidden"
           >
             <ChevronLeft size={18} />
           </button>

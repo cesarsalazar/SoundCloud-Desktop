@@ -4,7 +4,6 @@
   "clear": "Clear",
   "newChat": "New chat",
   "saved": "Saved",
-  "savedHint": "Notes to self",
   "room": "Room",
   "unknown": "No name",
   "untitledGroup": "Group",
@@ -16,13 +15,6 @@
   "retry": "Retry",
   "cancel": "Cancel",
   "blockedToast": "{{name}} blocked",
-  "members_one": "{{count}} member",
-  "members_other": "{{count}} members",
-  "ttl": {
-    "3600": "disappear in an hour",
-    "86400": "disappear in a day",
-    "604800": "disappear in a week"
-  },
   "filters": {
     "all": "All",
     "direct": "Direct",
@@ -73,7 +65,6 @@
     "closeTab": "Close tab",
     "expand": "Open as page",
     "toDock": "Open in dock",
-    "back": "Back",
     "resize": "Dock width"
   },
   "gate": {

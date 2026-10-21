@@ -8,7 +8,7 @@ import { notifyError } from '../../../lib/notify';
 import { useChatListStore } from '../../../stores/chat/list';
 import { useChatPrefsStore } from '../../../stores/chat/prefs';
 import { Modal, ModalContent, ModalTitle } from '../../ui/Modal';
-import { chatErrorKey } from '../shell/errors';
+import { listErrorKey } from '../shell/errors';
 import { conversationTitle } from './conversation-meta';
 import { useDeleteChatStore } from './delete-chat-store';
 
@@ -39,7 +39,7 @@ export const DeleteChatDialog = memo(function DeleteChatDialog() {
       if (openMatch?.params.id === target.id) navigate('/chats');
       close();
     } catch (error) {
-      notifyError(t(chatErrorKey(error)));
+      notifyError(t(listErrorKey(error)));
     } finally {
       setBusy(false);
     }

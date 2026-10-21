@@ -78,5 +78,17 @@
     "disabled": "Sohbetler şu an kapalı",
     "invalid": "Olmadı",
     "generic": "Bir şeyler ters gitti, tekrar dene"
+  },
+  "links": {
+    "off": "Bağlantılar kapalı",
+    "new": "Bağlantılar katıldıktan bir dakika sonra açılır"
+  },
+  "rules": {
+    "title": "Sohbet kuralları",
+    "chat": "Sohbet",
+    "links": "Bağlantılar",
+    "slow": "Yavaş mod",
+    "slowOff": "Kapalı",
+    "seconds": "{{value}} sn"
   }
 }

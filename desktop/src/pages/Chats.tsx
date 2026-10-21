@@ -1,12 +1,15 @@
-import { memo, type ReactNode } from 'react';
+import { memo, type ReactNode, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ConversationList } from '../components/chat/list/ConversationList';
 import { ChatGate } from '../components/chat/shell/ChatGate';
 import { ChatsGlow } from '../components/chat/shell/ChatsGlow';
 import { EmptyThread } from '../components/chat/shell/EmptyThread';
+import { RoomTab } from '../components/chat/shell/RoomTab';
 import { ThreadSlot } from '../components/chat/shell/ThreadSlot';
 import { chatPath } from '../components/chat/shell/useOpenChat';
+import { ink, surface } from '../lib/chat/tone';
 import { usePerfMode } from '../lib/perf';
+import { DOCK_ROOM } from '../stores/chat/prefs';
 import { useChatRoomStore } from '../stores/chat/room';
 
 const PANEL =
@@ -27,8 +30,8 @@ function Panel({ className, children }: { className: string; children: ReactNode
           transform: 'translateZ(0)',
           background:
             blur > 0
-              ? 'linear-gradient(165deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015) 60%), rgba(14,14,18,0.42)'
-              : 'rgba(18,18,22,0.92)',
+              ? `linear-gradient(165deg, ${ink(6)}, ${ink(1.5)} 60%), ${surface(6, 42)}`
+              : surface(7, 92),
           backdropFilter: blur > 0 ? `blur(${blur}px) saturate(1.4)` : undefined,
           WebkitBackdropFilter: blur > 0 ? `blur(${blur}px) saturate(1.4)` : undefined,
         }}
@@ -44,11 +47,31 @@ export const Chats = memo(function Chats() {
   const { id } = useParams();
   const navigate = useNavigate();
   const selected = id ?? null;
+  const roomCode = useChatRoomStore((state) => state.code);
   const roomChat = useChatRoomStore((state) => state.conversationId);
+  const room = roomCode !== null && (selected === DOCK_ROOM || selected === roomChat);
   const open = (conversationId: string) => navigate(chatPath(conversationId));
 
+  useEffect(() => {
+    if (selected === DOCK_ROOM && roomCode === null) navigate('/chats', { replace: true });
+  }, [selected, roomCode, navigate]);
+
+  let thread = <EmptyThread />;
+  if (room) {
+    thread = <RoomTab conversationId={roomChat} onBack={() => navigate('/chats')} />;
+  } else if (selected && selected !== DOCK_ROOM) {
+    thread = (
+      <ThreadSlot
+        key={selected}
+        conversationId={selected}
+        variant="page"
+        onBack={() => navigate('/chats')}
+      />
+    );
+  }
+
   return (
-    <div className="relative h-full w-full">
+    <div data-ui="chat-page" className="relative h-full w-full">
       <ChatsGlow />
       <div className="@container relative z-10 mx-auto flex h-full max-w-[1480px] px-4 pt-4 md:px-5 md:pt-5">
         <ChatGate>
@@ -61,21 +84,13 @@ export const Chats = memo(function Chats() {
               <ConversationList
                 variant="page"
                 selectedId={selected}
+                roomSelected={room}
                 onOpen={open}
-                onOpenRoom={() => roomChat && open(roomChat)}
+                onOpenRoom={() => open(DOCK_ROOM)}
               />
             </Panel>
             <Panel className={`min-w-0 flex-1 ${selected ? '' : '@max-[640px]:hidden'}`}>
-              {selected ? (
-                <ThreadSlot
-                  key={selected}
-                  conversationId={selected}
-                  variant="page"
-                  onBack={() => navigate('/chats')}
-                />
-              ) : (
-                <EmptyThread />
-              )}
+              {thread}
             </Panel>
           </div>
         </ChatGate>

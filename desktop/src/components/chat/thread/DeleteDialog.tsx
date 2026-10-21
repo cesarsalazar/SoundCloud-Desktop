@@ -19,9 +19,9 @@ export const DeleteDialog = memo(function DeleteDialog({
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const { conversation } = useThread();
+  const { conversation, moderator } = useThread();
   const [busy, setBusy] = useState(false);
-  const everyone = canDeleteForEveryone(message, conversation);
+  const everyone = canDeleteForEveryone(message, conversation, moderator);
 
   const remove = async (scope: DeleteScope) => {
     setBusy(true);

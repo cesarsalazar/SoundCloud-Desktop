@@ -147,10 +147,6 @@
     "title": "Bu bağlantı açılsın mı?",
     "open": "Aç"
   },
-  "request": {
-    "accept": "Kabul et",
-    "decline": "Reddet"
-  },
   "info": {
     "close": "Kapat",
     "notifications": "Bildirimler",
@@ -163,7 +159,13 @@
     "you": "Siz",
     "makeAdmin": "Yönetici yap",
     "removeAdmin": "Yöneticilikten çıkar",
-    "removeMember": "Sohbetten çıkar"
+    "removeMember": "Sohbetten çıkar",
+    "addMembers": "Üye ekle",
+    "addPicked": "Ekle ({{n}})",
+    "inviteLink": "Davet bağlantısı",
+    "inviteCopy": "Bağlantıyı kopyala",
+    "inviteRevoke": "Bağlantıyı iptal et",
+    "add": "Ekle"
   },
   "errors": {
     "generic": "Bir şeyler ters gitti, tekrar deneyin",
@@ -182,5 +184,8 @@
     "too_young": "Bu cihaz bunun için henüz çok yeni",
     "not_found": "Mesaj bulunamadı",
     "invalid": "Mesaj kontrolden geçmedi"
+  },
+  "invite": {
+    "join": "Gruba katıl"
   }
 }

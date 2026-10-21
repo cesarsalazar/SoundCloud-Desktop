@@ -2,6 +2,7 @@ import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pin } from '../../../lib/chat/icons';
 import { messageSnippet } from '../../../lib/chat/render';
+import { ink } from '../../../lib/chat/tone';
 import type { Seq } from '../../../lib/chat/types';
 import { X } from '../../../lib/icons';
 import { useChatThreadStore } from '../../../stores/chat/thread';
@@ -15,7 +16,7 @@ const SEGMENTS_MAX = 4;
 
 export const PinnedBar = memo(function PinnedBar() {
   const { t, i18n } = useTranslation();
-  const { conversation, jumpTo } = useThread();
+  const { conversation, moderator, jumpTo } = useThread();
   const pins = useChatThreadStore((state) => state.threads[conversation.id]?.pins ?? NO_PINS);
   const [index, setIndex] = useState(pins.length - 1);
 
@@ -51,7 +52,7 @@ export const PinnedBar = memo(function PinnedBar() {
               key={i}
               className="block flex-1 rounded-full"
               style={{
-                background: i === active ? 'var(--color-accent)' : 'rgba(255,255,255,0.16)',
+                background: i === active ? 'var(--color-accent)' : ink(16),
               }}
             />
           ))}
@@ -71,7 +72,7 @@ export const PinnedBar = memo(function PinnedBar() {
           {message ? messageSnippet(message, t) : t('chat.thread.pinned.unloaded')}
         </span>
       </button>
-      {message && canPin(conversation) && (
+      {message && canPin(conversation, moderator) && (
         <button
           type="button"
           aria-label={t('chat.thread.actions.unpin')}

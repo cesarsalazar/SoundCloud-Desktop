@@ -49,7 +49,7 @@ export const MessageRow = memo(function MessageRow({
   flash,
   avatars,
 }: MessageRowProps) {
-  const { t, language, conversation, people, blocked } = useThread();
+  const { t, language, conversation, moderator, people, blocked } = useThread();
   const live = message.body.type === 'text' && message.seq !== null;
   const active = isActiveMember(conversation);
   const fail = (error: unknown) => toastError(error, t, language);
@@ -60,7 +60,7 @@ export const MessageRow = memo(function MessageRow({
   };
 
   const openMenu = (event: MouseEvent) =>
-    openContextMenu(event, messageMenu(message, conversation, t, language));
+    openContextMenu(event, messageMenu(message, conversation, moderator, t, language));
   const react = (emoji: string) =>
     void useChatThreadStore.getState().react(message, emoji).catch(fail);
   const openPicker = (event: MouseEvent<HTMLButtonElement>) => {

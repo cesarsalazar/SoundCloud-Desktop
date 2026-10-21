@@ -7,7 +7,7 @@ import { useRequestActions } from './useRequestActions';
 
 interface RequestActionsProps {
   conversation: ConversationSummary;
-  from: UserRef;
+  from: UserRef | null;
   wide: boolean;
 }
 
@@ -29,7 +29,7 @@ export const RequestActions = memo(function RequestActions({
 
   return (
     <div className="flex items-center gap-1.5">
-      {wide && direct && (
+      {wide && direct && from && (
         <button
           type="button"
           title={t('chat.list.requests.report')}
@@ -40,7 +40,7 @@ export const RequestActions = memo(function RequestActions({
           <Flag size={14} />
         </button>
       )}
-      {wide && (
+      {wide && from && (
         <button
           type="button"
           title={t('chat.list.requests.block')}

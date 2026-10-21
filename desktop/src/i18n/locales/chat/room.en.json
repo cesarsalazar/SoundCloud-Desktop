@@ -78,5 +78,17 @@
     "disabled": "Chats are off right now",
     "invalid": "That did not work",
     "generic": "Something went wrong, try again"
+  },
+  "links": {
+    "off": "Links are off",
+    "new": "Links unlock a minute after joining"
+  },
+  "rules": {
+    "title": "Chat rules",
+    "chat": "Chat",
+    "links": "Links",
+    "slow": "Slow mode",
+    "slowOff": "Off",
+    "seconds": "{{value}}s"
   }
 }

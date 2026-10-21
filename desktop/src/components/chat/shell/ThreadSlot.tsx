@@ -1,10 +1,9 @@
 import { memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { ConvId } from '../../../lib/chat/types';
-import { isRequest } from '../../../stores/chat/list';
-import { RequestBar } from '../requests/RequestBar';
-import { ThreadBody } from './ThreadBody';
-import { ThreadChrome } from './ThreadChrome';
-import { useConversation, useThreadFocus } from './useConversation';
+import { useChatPrefsStore } from '../../../stores/chat/prefs';
+import { ChatThread } from '../thread/ChatThread';
+import { DockThreadActions, PageThreadActions } from './ThreadActions';
 
 interface ThreadSlotProps {
   conversationId: ConvId;
@@ -17,19 +16,26 @@ export const ThreadSlot = memo(function ThreadSlot({
   variant,
   onBack,
 }: ThreadSlotProps) {
-  const conversation = useConversation(conversationId);
-  useThreadFocus(conversationId);
+  const navigate = useNavigate();
+  const page = variant === 'page';
+
+  const leave = () => {
+    useChatPrefsStore.getState().closeTab(conversationId);
+    if (page) navigate('/chats');
+  };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <ThreadChrome
-        conversationId={conversationId}
-        conversation={conversation}
-        variant={variant}
-        onBack={onBack}
-      />
-      {conversation && isRequest(conversation) && <RequestBar conversation={conversation} />}
-      <ThreadBody conversationId={conversationId} variant={variant} />
-    </div>
+    <ChatThread
+      conversationId={conversationId}
+      onBack={onBack}
+      onLeave={leave}
+      actions={
+        page ? (
+          <PageThreadActions conversationId={conversationId} />
+        ) : (
+          <DockThreadActions conversationId={conversationId} />
+        )
+      }
+    />
   );
 });

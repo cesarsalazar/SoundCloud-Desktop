@@ -4,6 +4,7 @@ import { DeviceAlertHost } from '../devices/DeviceAlertHost';
 import { DeleteChatDialog } from '../list/DeleteChatDialog';
 import { NewChatSheet } from '../new-chat/NewChatSheet';
 import { ReportSheet } from '../requests/ReportSheet';
+import { SharePickerHost } from '../share/SharePickerHost';
 import { ChatToastHost } from '../toasts/ChatToastHost';
 import { DockPanel } from './DockPanel';
 import { CHAT_KEYFRAMES } from './keyframes';
@@ -22,6 +23,7 @@ function ChatHosts() {
       <NewChatSheet />
       <ReportSheet />
       <DeleteChatDialog />
+      <SharePickerHost />
       <DeviceAlertHost />
     </>
   );

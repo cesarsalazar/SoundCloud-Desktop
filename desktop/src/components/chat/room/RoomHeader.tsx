@@ -1,11 +1,13 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Hourglass } from '../../../lib/chat/icons';
+import { ChevronLeft } from '../../../lib/icons';
 import type { RoomView } from '../../../lib/together/types';
 import { SyncBadge } from '../../together/SyncBadge';
 import { RoomAccessToggle } from './RoomAccessToggle';
 import { RoomCodeChip } from './RoomCodeChip';
 import { RoomLeaveButton } from './RoomLeaveButton';
+import { RoomRules } from './RoomRules';
 import { RoomSleeve } from './RoomSleeve';
 import { RoomTitle } from './RoomTitle';
 import { RoomTuning } from './RoomTuning';
@@ -24,20 +26,37 @@ function Ephemeral() {
   );
 }
 
+function BackButton({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      aria-label={t('chat.thread.back')}
+      onClick={onBack}
+      className="-ml-1 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/[0.08] hover:text-white @min-[641px]:hidden"
+    >
+      <ChevronLeft size={17} />
+    </button>
+  );
+}
+
 export const RoomHeader = memo(function RoomHeader({
   room,
   self,
   moderation,
+  onBack,
 }: {
   room: RoomView;
   self: RoomSelf;
   moderation: boolean;
+  onBack?: () => void;
 }) {
   return (
     <header className="relative shrink-0 border-b border-white/[0.05]">
       <RoomSleeve room={room} />
       <div className="relative px-3 pt-3 pb-2.5" style={{ isolation: 'isolate' }}>
         <div className="flex items-center gap-2">
+          {onBack && <BackButton onBack={onBack} />}
           <div className="flex min-w-0 flex-1">
             <RoomTitle room={room} editable={self.host && moderation} />
           </div>
@@ -49,7 +68,7 @@ export const RoomHeader = memo(function RoomHeader({
           <div className="flex min-w-0 flex-1">
             <SyncBadge className="min-w-0 max-w-full" />
           </div>
-          {!self.host && <RoomTuning />}
+          {self.host ? moderation && <RoomRules room={room} /> : <RoomTuning />}
           <RoomLeaveButton room={room} host={self.host} selfId={self.id} />
         </div>
       </div>

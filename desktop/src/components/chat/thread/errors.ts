@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
+import { chatError } from '../../../lib/chat/errors';
 import { shortDate } from '../../../lib/chat/time';
-import type { ChatError } from '../../../lib/chat/types';
 import { notifyError } from '../../../lib/notify';
 
 const KNOWN: ReadonlySet<string> = new Set([
@@ -19,13 +19,8 @@ const KNOWN: ReadonlySet<string> = new Set([
   'invalid',
 ]);
 
-function asChatError(error: unknown): ChatError | null {
-  if (typeof error !== 'object' || error === null || !('code' in error)) return null;
-  return typeof error.code === 'string' ? (error as ChatError) : null;
-}
-
 export function errorText(error: unknown, t: TFunction, language: string): string {
-  const chat = asChatError(error);
+  const chat = chatError(error);
   if (!chat) return t('chat.thread.errors.generic');
   if (chat.code === 'muted' && chat.until) {
     return t('chat.thread.errors.mutedUntil', {

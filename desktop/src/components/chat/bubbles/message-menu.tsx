@@ -30,6 +30,7 @@ export function startEdit(message: Message) {
 export function messageMenu(
   message: Message,
   conversation: ConversationSummary,
+  moderator: boolean,
   t: TFunction,
   language: string,
 ): ContextMenuEntry[] {
@@ -83,7 +84,7 @@ export function messageMenu(
       onSelect: () => startEdit(message),
     });
   }
-  if (sent && text && canPin(conversation)) {
+  if (sent && text && canPin(conversation, moderator)) {
     top.push({
       id: 'pin',
       label: t(message.pinned ? 'chat.thread.actions.unpin' : 'chat.thread.actions.pin'),

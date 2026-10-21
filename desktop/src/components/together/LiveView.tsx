@@ -1,11 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { art } from '../../lib/formatters';
 import { Check, Copy, Power } from '../../lib/icons';
-import { nextHost } from '../../lib/together/room-rules';
+import { hasModeration, nextHost } from '../../lib/together/room-rules';
 import { leaveSession } from '../../lib/together/session';
 import type { RoomView } from '../../lib/together/types';
 import { getArtistDisplay, getDisplayTitle } from '../../lib/track-display';
+import { selectChatEnabled, useChatStore } from '../../stores/chat';
 import { isRoomHost, useTogetherStore } from '../../stores/together';
+import { RoomRulesPanel } from '../chat/room/RoomRules';
 import { CrossfadeChoice } from './CrossfadeChoice';
 import { MemberList } from './MemberList';
 import { RoomVisibility } from './RoomVisibility';
@@ -84,6 +86,7 @@ export function LiveView({ room }: { room: RoomView }) {
   const { t } = useTranslation();
   const host = useTogetherStore(isRoomHost);
   const selfId = useTogetherStore((s) => s.selfId);
+  const chatOn = useChatStore(selectChatEnabled);
   const ends = host && (!selfId || !nextHost(room, selfId));
 
   return (
@@ -104,6 +107,11 @@ export function LiveView({ room }: { room: RoomView }) {
       <CodeCard code={room.code} />
       <NowShared room={room} host={host} />
       <RoomVisibility room={room} host={host} />
+      {host && chatOn && hasModeration(room) && (
+        <div className="rounded-xl bg-white/[0.035] p-1">
+          <RoomRulesPanel room={room} />
+        </div>
+      )}
       {!host && <CrossfadeChoice />}
 
       <div>

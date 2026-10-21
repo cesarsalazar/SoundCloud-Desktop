@@ -7,7 +7,7 @@ import { Check } from '../../../lib/icons';
 import { Toggle } from '../../settings/primitives';
 import { Modal, ModalContent, ModalTitle } from '../../ui/Modal';
 import { PolicyLadder, PrivacyNote } from '../settings/ModerationPolicy';
-import { chatErrorKey } from '../shell/errors';
+import { listErrorKey } from '../shell/errors';
 import { ReportReasons } from './ReportReasons';
 import { type ReportTarget, useReportStore } from './report-store';
 
@@ -57,7 +57,7 @@ function ReportBody({ target, onClose }: { target: ReportTarget; onClose: () => 
       if (alsoBlock && target.userId) await chatBridge.block(target.userId);
       setPhase('sent');
     } catch (failure) {
-      setError(t(chatErrorKey(failure)));
+      setError(t(listErrorKey(failure)));
       setPhase('idle');
     }
   };

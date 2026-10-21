@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ConvId, Member } from '../../../lib/chat/types';
 import { serverTime } from '../../../lib/together/link';
-import { canModerate, chatMembers, isHost, mutedUntil } from '../../../lib/together/room-rules';
+import {
+  canModerate,
+  chatMembers,
+  isHost,
+  linksOff,
+  linksOpenAt,
+  mutedUntil,
+} from '../../../lib/together/room-rules';
 import type { RoomView } from '../../../lib/together/types';
 import { useChatRoomStore } from '../../../stores/chat/room';
 import { useTogetherStore } from '../../../stores/together';
+
+export type RoomLinkBlock = 'off' | 'new' | null;
 
 export interface RoomSelf {
   id: string | null;
@@ -40,6 +49,13 @@ export function useMutedUntil(room: RoomView | null, userId: string | null): num
   return room ? mutedUntil(room, userId, now) : null;
 }
 
+export function useRoomModerator(conversationId: ConvId): boolean {
+  const ours = useChatRoomStore((state) => state.conversationId === conversationId);
+  const room = useRoom();
+  const self = useTogetherStore((state) => state.selfId);
+  return ours && room !== null && canModerate(room, self);
+}
+
 export function useRoomSendLock(conversationId: ConvId): number | null {
   const ours = useChatRoomStore((state) => state.conversationId === conversationId);
   const room = useRoom();
@@ -52,4 +68,27 @@ export function useRoomMembers(conversationId: ConvId): Member[] | undefined {
   const room = useRoom();
   const view = ours ? room : null;
   return useMemo(() => (view ? chatMembers(view) : undefined), [view]);
+}
+
+function useServerAfter(at: number): boolean {
+  const [passed, setPassed] = useState(() => serverTime() >= at);
+  useEffect(() => {
+    const left = at - serverTime();
+    setPassed(left <= 0);
+    if (left <= 0) return;
+    const timer = setTimeout(() => setPassed(true), left);
+    return () => clearTimeout(timer);
+  }, [at]);
+  return passed;
+}
+
+export function useRoomLinkBlock(conversationId: ConvId): RoomLinkBlock {
+  const ours = useChatRoomStore((state) => state.conversationId === conversationId);
+  const room = useRoom();
+  const self = useTogetherStore((state) => state.selfId);
+  const view = ours ? room : null;
+  const open = useServerAfter(view ? linksOpenAt(view, self) : 0);
+  if (!view) return null;
+  if (linksOff(view, self)) return 'off';
+  return open ? null : 'new';
 }

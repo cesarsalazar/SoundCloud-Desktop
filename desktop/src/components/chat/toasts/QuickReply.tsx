@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { chatBridge } from '../../../lib/chat/bridge';
 import { Send } from '../../../lib/chat/icons';
 import type { ConvId } from '../../../lib/chat/types';
-import { chatErrorKey } from '../shell/errors';
+import { listErrorKey } from '../shell/errors';
 
 const TEXT_MAX = 4096;
 
@@ -39,7 +39,7 @@ export const QuickReply = memo(function QuickReply({
       });
       onSent();
     } catch (failure) {
-      setError(t(chatErrorKey(failure)));
+      setError(t(listErrorKey(failure)));
       setBusy(false);
     }
   };

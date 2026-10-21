@@ -10,6 +10,7 @@ export interface ThreadContextValue {
   me: UserId | null;
   people: Map<UserId, UserRef>;
   blocked: ReadonlySet<UserId>;
+  moderator: boolean;
   nameOf: NameOf;
   jumpTo: (seq: Seq) => void;
 }

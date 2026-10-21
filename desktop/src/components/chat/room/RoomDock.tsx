@@ -14,9 +14,10 @@ import { useMutedUntil, useRoom, useRoomSelf } from './useRoom';
 
 export interface RoomDockProps {
   children?: ReactNode;
+  onBack?: () => void;
 }
 
-export const RoomDock = memo(function RoomDock({ children }: RoomDockProps) {
+export const RoomDock = memo(function RoomDock({ children, onBack }: RoomDockProps) {
   const room = useRoom();
   const self = useRoomSelf(room);
   const chatOn = useChatStore(selectChatEnabled);
@@ -28,7 +29,7 @@ export const RoomDock = memo(function RoomDock({ children }: RoomDockProps) {
 
   if (exit) {
     return (
-      <div className="h-full min-h-0">
+      <div data-ui="chat-room" className="h-full min-h-0">
         <style>{ROOM_KEYFRAMES}</style>
         <RoomExitCard exit={exit} code={code} />
       </div>
@@ -41,9 +42,9 @@ export const RoomDock = memo(function RoomDock({ children }: RoomDockProps) {
   const suggest = moderation && !self.host;
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col">
+    <div data-ui="chat-room" className="relative flex h-full min-h-0 flex-col">
       <style>{ROOM_KEYFRAMES}</style>
-      <RoomHeader room={room} self={self} moderation={moderation} />
+      <RoomHeader room={room} self={self} moderation={moderation} onBack={onBack} />
       <MemberStrip
         room={room}
         selfId={self.id}

@@ -1,10 +1,11 @@
 import { type ChatState, selectChatEnabled, useChatStore } from '../../stores/chat';
-import { useChatPrefsStore } from '../../stores/chat/prefs';
+import { useChatListStore } from '../../stores/chat/list';
+import { DOCK_ROOM, useChatPrefsStore } from '../../stores/chat/prefs';
 import { useChatRoomStore } from '../../stores/chat/room';
 import { useTogetherStore } from '../../stores/together';
 import { chatBridge } from '../chat/bridge';
+import { chatError } from '../chat/errors';
 import { onChatEvent } from '../chat/events';
-import { chatError } from './chat-errors';
 import {
   gone,
   moved,
@@ -46,6 +47,7 @@ async function open(code: string): Promise<void> {
   try {
     const summary = await chatBridge.roomChat(code);
     failures = 0;
+    useChatListStore.getState().upsert(summary);
     useChatRoomStore.getState().apply((state) => opened(state, code, summary.id));
   } catch (error) {
     const room = useChatRoomStore.getState();
@@ -67,7 +69,7 @@ function sync(): void {
 }
 
 export function openRoomDock(): void {
-  useChatPrefsStore.getState().setDockOpen(true);
+  useChatPrefsStore.getState().show(DOCK_ROOM);
 }
 
 export function retryRoomChat(): void {

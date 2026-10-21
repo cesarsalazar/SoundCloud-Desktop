@@ -3,8 +3,8 @@ import i18n from '../../i18n';
 import { useChatStore } from '../../stores/chat';
 import { describeError, trackedInvoke as invoke, logInfo } from '../diagnostics';
 import { chatBridge } from './bridge';
+import { chatError } from './errors';
 import type {
-  ChatError,
   ChatPhase,
   LinkClaimed,
   LinkCreated,
@@ -18,14 +18,8 @@ export type ReloginReason = 'unbound' | 'bound_other';
 
 const BOUND_OTHER_TOAST = 'chat-bound-other';
 
-export function chatErrorOf(error: unknown): ChatError | null {
-  if (typeof error !== 'object' || error === null) return null;
-  const code = (error as { code?: unknown }).code;
-  return typeof code === 'string' ? (error as ChatError) : null;
-}
-
 export function busyRetrySec(error: unknown): number | null {
-  const chat = chatErrorOf(error);
+  const chat = chatError(error);
   if (chat?.code !== 'busy') return null;
   return Math.max(1, Math.ceil((chat.retryMs ?? 1_000) / 1_000));
 }
@@ -42,7 +36,7 @@ async function sealedOrPlain<T>(what: string, call: () => Promise<T>): Promise<T
   } catch (error) {
     if (busyRetrySec(error) !== null) throw error;
     logInfo(
-      `[Auth] sealed ${what} unavailable, plain flow: ${chatErrorOf(error)?.code ?? describeError(error)}`,
+      `[Auth] sealed ${what} unavailable, plain flow: ${chatError(error)?.code ?? describeError(error)}`,
     );
     return null;
   }
@@ -84,7 +78,7 @@ export async function dropChatDevice(): Promise<void> {
   try {
     await chatBridge.logout();
   } catch (error) {
-    logInfo(`[Chat] local chat wipe failed: ${chatErrorOf(error)?.code ?? describeError(error)}`);
+    logInfo(`[Chat] local chat wipe failed: ${chatError(error)?.code ?? describeError(error)}`);
   }
 }
 

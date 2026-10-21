@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { chatBridge } from '../../../lib/chat/bridge';
+import { watchChatRelogin } from '../../../lib/chat/login';
 import { queryClient } from '../../../lib/query-client';
 import { initChatBridge, useChatStore } from '../../../stores/chat';
 import { useChatListStore } from '../../../stores/chat/list';
 import { useChatPrefsStore } from '../../../stores/chat/prefs';
+import { useChatThreadStore } from '../../../stores/chat/thread';
 import { useChatToastStore } from '../toasts/toast-store';
 
 function refetchConfig() {
@@ -16,6 +18,7 @@ function refetchConfig() {
 
 function forgetAccount() {
   useChatListStore.getState().clear();
+  useChatThreadStore.getState().clear();
   useChatToastStore.getState().clear();
   queryClient.removeQueries({ queryKey: ['chat'] });
 }
@@ -37,6 +40,7 @@ export function useChatBoot() {
         else stop = unlisten;
       })
       .catch(() => undefined);
+    const stopRelogin = watchChatRelogin();
     const stopHydration = useChatPrefsStore.persist.onFinishHydration(claimDock);
     const unsubscribe = useChatStore.subscribe((state, prev) => {
       const status = state.status;
@@ -55,6 +59,7 @@ export function useChatBoot() {
     return () => {
       stopped = true;
       stop?.();
+      stopRelogin();
       stopHydration();
       unsubscribe();
     };

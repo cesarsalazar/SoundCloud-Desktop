@@ -4,7 +4,7 @@ import type { ConversationSummary, UserRef } from '../../../lib/chat/types';
 import { Bookmark, Search } from '../../../lib/icons';
 import { useChatStore } from '../../../stores/chat';
 import { Modal, ModalContent, ModalTitle } from '../../ui/Modal';
-import { chatErrorKey } from '../shell/errors';
+import { listErrorKey } from '../shell/errors';
 import { useOpenChat } from '../shell/useOpenChat';
 import { useNewChatStore } from './new-chat-store';
 import { PeoplePicker } from './PeoplePicker';
@@ -42,7 +42,7 @@ function NewChatBody({ onDone }: { onDone: () => void }) {
       onDone();
       openChat(summary.id);
     } catch (failure) {
-      setError(t(chatErrorKey(failure)));
+      setError(t(listErrorKey(failure)));
     } finally {
       setBusy(false);
     }

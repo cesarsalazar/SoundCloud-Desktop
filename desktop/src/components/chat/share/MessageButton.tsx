@@ -1,22 +1,17 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { chatError } from '../../../lib/chat/errors';
 import { startDirectChat } from '../../../lib/chat/share';
 import { Loader2, MessageCircle } from '../../../lib/icons';
 import { usePerfMode } from '../../../lib/perf';
 import { DOWNLOAD_PAGE_URL } from '../../../lib/update-assets';
 import { selectChatEnabled, useChatStore } from '../../../stores/chat';
+import { useOpenChat } from '../shell/useOpenChat';
 
 interface MessageButtonProps {
   userUrn: string;
   name: string;
-}
-
-function errorCode(error: unknown): string | null {
-  if (typeof error !== 'object' || error === null) return null;
-  const code = (error as { code?: unknown }).code;
-  return typeof code === 'string' ? code : null;
 }
 
 async function copyInvite(text: string, done: string, failed: string) {
@@ -30,7 +25,7 @@ async function copyInvite(text: string, done: string, failed: string) {
 
 export function MessageButton({ userUrn, name }: MessageButtonProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const openChat = useOpenChat();
   const blur = usePerfMode().blur(20);
   const enabled = useChatStore(selectChatEnabled);
   const [opening, setOpening] = useState(false);
@@ -47,9 +42,9 @@ export function MessageButton({ userUrn, name }: MessageButtonProps) {
     setOpening(true);
     try {
       const id = await startDirectChat(userUrn);
-      if (id) navigate(`/chats/${encodeURIComponent(id)}`);
+      if (id) openChat(id);
     } catch (error) {
-      const unavailable = errorCode(error) === 'unavailable';
+      const unavailable = chatError(error)?.code === 'unavailable';
       toast.error(
         unavailable
           ? t('chat.embeds.message.unavailable', { name })
@@ -69,9 +64,7 @@ export function MessageButton({ userUrn, name }: MessageButtonProps) {
       disabled={opening}
       onClick={() => void open()}
       className={`inline-flex h-11 items-center gap-2 rounded-full border-[0.5px] border-white/[0.1] px-5 text-[13px] font-semibold text-white/85 transition-all duration-300 ease-[var(--ease-apple)] cursor-pointer hover:border-white/[0.18] hover:text-white active:scale-[0.97] disabled:cursor-default ${
-        blur > 0
-          ? 'bg-white/[0.06] hover:bg-white/[0.1]'
-          : 'bg-[rgba(36,36,42,0.9)] hover:bg-[rgba(48,48,56,0.92)]'
+        blur > 0 ? 'bg-white/[0.06] hover:bg-white/[0.1]' : 'bg-white/[0.1] hover:bg-white/[0.15]'
       }`}
       style={{
         backdropFilter: blur > 0 ? `blur(${blur}px)` : undefined,

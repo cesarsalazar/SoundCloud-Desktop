@@ -1,7 +1,8 @@
 import type { TFunction } from 'i18next';
-import { type MouseEvent, memo, useEffect } from 'react';
+import { type MouseEvent, memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { chatBridge } from '../../../lib/chat/bridge';
+import { UserPlus } from '../../../lib/chat/icons';
 import { senderColor } from '../../../lib/chat/render';
 import type { ConversationSummary, Member } from '../../../lib/chat/types';
 import { Crown, Ellipsis, Shield, ShieldAlert, X } from '../../../lib/icons';
@@ -11,6 +12,7 @@ import { Avatar } from '../../ui/Avatar';
 import { useThread } from '../thread/context';
 import { toastError } from '../thread/errors';
 import { canManageMembers } from '../thread/permissions';
+import { AddMembersSheet } from './AddMembersSheet';
 
 const NO_MEMBERS: Member[] = [];
 const ROLE_ORDER = { owner: 0, admin: 1, member: 2 } as const;
@@ -108,6 +110,47 @@ const MemberRow = memo(function MemberRow({ member }: { member: Member }) {
   );
 });
 
+function AddMembersRow({ members }: { members: Member[] }) {
+  const { t } = useTranslation();
+  const { conversation } = useThread();
+  const [open, setOpen] = useState(false);
+  const present = useMemo(
+    () =>
+      new Set(
+        members
+          .filter((member) => member.state === 'active' || member.state === 'invited')
+          .map((member) => member.user.id),
+      ),
+    [members],
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mb-1 flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition-colors duration-150 hover:bg-white/[0.04]"
+      >
+        <span
+          className="flex size-[34px] shrink-0 items-center justify-center rounded-full"
+          style={{ background: 'var(--color-accent-glow)', color: 'var(--color-accent-hover)' }}
+        >
+          <UserPlus size={15} />
+        </span>
+        <span className="text-[13px] font-semibold text-white/85">
+          {t('chat.thread.info.addMembers')}
+        </span>
+      </button>
+      <AddMembersSheet
+        open={open}
+        conversationId={conversation.id}
+        present={present}
+        onClose={() => setOpen(false)}
+      />
+    </>
+  );
+}
+
 export const MembersTab = memo(function MembersTab() {
   const { conversation } = useThread();
   const members = useChatThreadStore(
@@ -126,6 +169,7 @@ export const MembersTab = memo(function MembersTab() {
 
   return (
     <div className="flex flex-col gap-0.5">
+      {canManageMembers(conversation) && <AddMembersRow members={members} />}
       {sorted.map((member) => (
         <MemberRow key={member.user.id} member={member} />
       ))}

@@ -4,7 +4,6 @@
   "clear": "지우기",
   "newChat": "새 채팅",
   "saved": "저장됨",
-  "savedHint": "나에게 메모",
   "room": "방",
   "unknown": "이름 없음",
   "untitledGroup": "그룹",
@@ -16,12 +15,6 @@
   "retry": "다시 시도",
   "cancel": "취소",
   "blockedToast": "{{name}} 님을 차단했어요",
-  "members_other": "멤버 {{count}}명",
-  "ttl": {
-    "3600": "1시간 후 사라짐",
-    "86400": "하루 후 사라짐",
-    "604800": "일주일 후 사라짐"
-  },
   "filters": {
     "all": "전체",
     "direct": "개인",
@@ -72,7 +65,6 @@
     "closeTab": "탭 닫기",
     "expand": "페이지로 열기",
     "toDock": "도크에서 열기",
-    "back": "뒤로",
     "resize": "도크 너비"
   },
   "gate": {

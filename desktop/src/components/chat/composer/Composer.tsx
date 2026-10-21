@@ -12,13 +12,16 @@ import { useTranslation } from 'react-i18next';
 import { nowPlayingEmbed } from '../../../lib/chat/embed-snapshot';
 import { findChatLinks } from '../../../lib/chat/soundcloud-link';
 import { composeRich, sameRich } from '../../../lib/chat/spans';
+import { surface } from '../../../lib/chat/tone';
 import type { ConvId, Embed, Member, Message, UserRef } from '../../../lib/chat/types';
+import { hasLink } from '../../../lib/together/room-rules';
 import { useChatStore } from '../../../stores/chat';
 import { type Compose, useChatThreadStore } from '../../../stores/chat/thread';
 import { findBySeq } from '../../../stores/chat/thread-messages';
 import { startEdit } from '../bubbles/message-menu';
 import { ComposerEmbeds } from '../embeds/ComposerEmbeds';
 import { type PendingEmbed, useLinkEmbeds } from '../embeds/useLinkEmbeds';
+import { useRoomLinkBlock, useRoomMembers } from '../room/useRoom';
 import { useThread } from '../thread/context';
 import { toastError } from '../thread/errors';
 import { GlassLayer } from '../thread/GlassLayer';
@@ -26,6 +29,7 @@ import { canEdit } from '../thread/permissions';
 import { ComposerContext } from './ComposerContext';
 import { EmojiButton } from './EmojiButton';
 import { useTypingPing } from './hooks';
+import { LinkHint } from './LinkHint';
 import { MentionPopup } from './MentionPopup';
 import { NowPlayingButton } from './NowPlayingButton';
 import { SendButton } from './SendButton';
@@ -60,9 +64,11 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
     (state) => state.threads[conversationId]?.compose ?? NO_COMPOSE,
   );
   const ready = useChatThreadStore((state) => state.threads[conversationId]?.load === 'ready');
-  const members = useChatThreadStore(
+  const threadMembers = useChatThreadStore(
     (state) => state.threads[conversationId]?.members ?? NO_MEMBERS,
   );
+  const roomMembers = useRoomMembers(conversationId);
+  const members = roomMembers ?? threadMembers;
   const editing = useChatThreadStore((state) =>
     compose.edit
       ? (state.threads[conversationId]?.messages.find((m) => m.clientId === compose.edit) ?? null)
@@ -93,6 +99,7 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
     [text],
   );
   const ping = useTypingPing(conversationId);
+  const linkBlock = useRoomLinkBlock(conversationId);
 
   useEffect(() => {
     if (compose.reply !== null) inputRef.current?.focus();
@@ -113,9 +120,11 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
   const rich = composeRich(text, picks);
   const tooLong = rich.text.length > textMax;
   const empty = rich.text.length === 0 && (editing !== null || outgoing.length === 0);
+  const linkLocked = linkBlock !== null && hasLink(rich.text);
+  const blocked = paused || tooLong || empty || linkLocked;
 
   const submit = async () => {
-    if (paused || tooLong || empty) return;
+    if (blocked) return;
     const store = useChatThreadStore.getState();
     if (editing) {
       if (editing.seq === null) return;
@@ -217,7 +226,7 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
   const target = editing ?? replying;
 
   return (
-    <div className="relative shrink-0 px-3 pt-1.5 pb-3">
+    <div data-ui="chat-composer" className="relative shrink-0 px-3 pt-1.5 pb-3">
       <div className="relative mx-auto w-full max-w-[780px]">
         {mentions.candidates.length > 0 && (
           <MentionPopup
@@ -233,6 +242,7 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
             onCancel={() => setComposeState(editing ? { edit: null } : { reply: null })}
           />
         )}
+        {linkLocked && <LinkHint block={linkBlock} />}
         {!editing && pending.length > 0 && (
           <div className="mx-1 mb-1.5">
             <ComposerEmbeds items={pending} onDismiss={dismissEmbed} />
@@ -241,8 +251,8 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
         <div className="relative rounded-[22px] border border-white/[0.07] transition-colors duration-150 focus-within:border-white/[0.16]">
           <GlassLayer
             blur={30}
-            tint="rgba(255,255,255,0.045)"
-            solid="rgb(24,24,28)"
+            tint="var(--color-bg-glass)"
+            solid={surface(10)}
             className="rounded-[22px]"
           />
           <div className="relative flex items-end gap-1 p-1" style={{ isolation: 'isolate' }}>
@@ -264,7 +274,7 @@ export const Composer = memo(function Composer({ conversationId }: { conversatio
             <EmojiButton onFocusInput={() => inputRef.current?.focus()} />
             <SendButton
               editing={editing !== null}
-              disabled={paused || tooLong || empty}
+              disabled={blocked}
               onSend={() => void submit()}
             />
           </div>

@@ -27,15 +27,25 @@ export function canEdit(message: Message, now: number): boolean {
   );
 }
 
-export function canDeleteForEveryone(message: Message, conversation: ConversationSummary): boolean {
-  if (message.seq === null || message.body.type === 'deleted') return false;
-  if (message.mine) return conversation.kind !== 'self';
+function moderates(conversation: ConversationSummary, roomModerator: boolean): boolean {
+  if (conversation.kind === 'room') return roomModerator;
   return conversation.kind === 'group' && isAdmin(conversation);
 }
 
-export function canPin(conversation: ConversationSummary): boolean {
+export function canDeleteForEveryone(
+  message: Message,
+  conversation: ConversationSummary,
+  roomModerator: boolean,
+): boolean {
+  if (message.seq === null || message.body.type === 'deleted') return false;
+  if (message.mine) return conversation.kind !== 'self';
+  return moderates(conversation, roomModerator);
+}
+
+export function canPin(conversation: ConversationSummary, roomModerator: boolean): boolean {
   if (!isActiveMember(conversation)) return false;
-  return conversation.kind === 'group' ? isAdmin(conversation) : conversation.kind !== 'room';
+  if (conversation.kind === 'direct' || conversation.kind === 'self') return true;
+  return moderates(conversation, roomModerator);
 }
 
 export function canReport(message: Message): boolean {

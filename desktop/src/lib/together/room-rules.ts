@@ -3,7 +3,11 @@ import type { RoomMember, RoomView } from './types.ts';
 
 export const MAX_MODERATORS = 3;
 export const MUTE_MINUTES = [5, 15, 60] as const;
+export const SLOW_MODE_SECONDS = [0, 3, 10, 30, 60] as const;
 export const TITLE_MAX = 48;
+export const NEW_MEMBER_MS = 60_000;
+
+const LINK = /https?:\/\/\S|scd:\/\/\S|(^|[^\w.@])www\.\S/i;
 
 export type RoomExit = 'ended' | 'kicked' | 'evicted';
 
@@ -107,6 +111,20 @@ export function cleanTitle(raw: string): string {
 export function roomTitle(view: RoomView): string | null {
   const title = view.title?.trim();
   return title ? title : null;
+}
+
+export function hasLink(text: string): boolean {
+  return LINK.test(text);
+}
+
+export function linksOff(view: RoomView, userId: string | null): boolean {
+  return view.links === false && !canModerate(view, userId);
+}
+
+export function linksOpenAt(view: RoomView, userId: string | null): number {
+  if (!view.public || canModerate(view, userId)) return 0;
+  const member = view.members.find((entry) => entry.userId === userId);
+  return member ? member.joinedAt + NEW_MEMBER_MS : 0;
 }
 
 export function memberName(view: RoomView, userId: string | null): string | null {

@@ -4,7 +4,7 @@ import { chatBridge } from '../../../lib/chat/bridge';
 import type { ChatSettings, NotifyPrefs, SettingsPatch, UserId } from '../../../lib/chat/types';
 import { notifyError } from '../../../lib/notify';
 import { queryClient } from '../../../lib/query-client';
-import { chatErrorKey } from '../shell/errors';
+import { listErrorKey } from '../shell/errors';
 
 const SETTINGS_KEY = ['chat', 'settings'];
 const NOTIFY_KEY = ['chat', 'notify-prefs'];
@@ -28,7 +28,7 @@ function applyPatch(settings: ChatSettings, patch: SettingsPatch): ChatSettings 
 }
 
 function fail(error: unknown) {
-  notifyError(i18n.t(chatErrorKey(error)));
+  notifyError(i18n.t(listErrorKey(error)));
 }
 
 export function useChatSettings(enabled: boolean) {

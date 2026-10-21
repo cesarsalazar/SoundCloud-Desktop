@@ -10,6 +10,7 @@ import { DOCK_LIST, DOCK_ROOM, useChatPrefsStore } from '../../../stores/chat/pr
 import { useChatRoomStore } from '../../../stores/chat/room';
 import { ConversationAvatar } from '../list/ConversationAvatar';
 import { conversationAvatar, conversationTitle } from '../list/conversation-meta';
+import { useRoomLabel } from '../list/RoomRow';
 
 const ACTIVE_RING = {
   boxShadow: '0 0 0 2px var(--color-accent), 0 0 18px var(--color-accent-glow)',
@@ -17,7 +18,7 @@ const ACTIVE_RING = {
 
 function Dot() {
   return (
-    <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-[#121216] bg-[var(--color-accent)]" />
+    <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-chat-cutout bg-[var(--color-accent)]" />
   );
 }
 
@@ -105,12 +106,16 @@ export const DockTabs = memo(function DockTabs() {
   const show = useChatPrefsStore((state) => state.show);
   const setDockOpen = useChatPrefsStore((state) => state.setDockOpen);
   const roomCode = useChatRoomStore((state) => state.code);
+  const roomLabel = useRoomLabel();
   const roomChat = useChatRoomStore((state) => state.conversationId);
+  const roomUnread = useChatListStore(
+    (state) => roomChat !== null && (state.byId[roomChat]?.unread ?? 0) > 0,
+  );
   const unread = useChatStore((state) => state.status?.unread ?? 0);
   const requests = useChatListStore((state) => state.requests);
 
   return (
-    <div className="flex h-14 shrink-0 items-center gap-2 px-3">
+    <div data-ui="chat-dock-tabs" className="flex h-14 shrink-0 items-center gap-2 px-3">
       <Puck
         active={active === DOCK_LIST}
         label={t('chat.list.dock.list')}
@@ -119,11 +124,11 @@ export const DockTabs = memo(function DockTabs() {
       >
         <MessagesSquare size={16} />
       </Puck>
-      {roomCode && roomChat && (
+      {roomCode && (
         <Puck
           active={active === DOCK_ROOM}
-          label={t('chat.list.room')}
-          dot={false}
+          label={roomLabel}
+          dot={roomUnread}
           onClick={() => show(DOCK_ROOM)}
         >
           {animate && (

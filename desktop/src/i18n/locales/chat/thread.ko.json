@@ -144,10 +144,6 @@
     "title": "이 링크를 열까요?",
     "open": "열기"
   },
-  "request": {
-    "accept": "수락",
-    "decline": "거절"
-  },
   "info": {
     "close": "닫기",
     "notifications": "알림",
@@ -160,7 +156,13 @@
     "you": "나",
     "makeAdmin": "관리자로 지정",
     "removeAdmin": "관리자 해제",
-    "removeMember": "채팅에서 내보내기"
+    "removeMember": "채팅에서 내보내기",
+    "addMembers": "멤버 추가",
+    "addPicked": "추가 ({{n}})",
+    "inviteLink": "초대 링크",
+    "inviteCopy": "링크 복사",
+    "inviteRevoke": "링크 취소",
+    "add": "추가"
   },
   "errors": {
     "generic": "문제가 발생했습니다. 다시 시도해 주세요",
@@ -178,5 +180,8 @@
     "too_young": "이 기기는 아직 이 작업을 할 수 없습니다",
     "not_found": "메시지를 찾을 수 없습니다",
     "invalid": "메시지가 검사를 통과하지 못했습니다"
+  },
+  "invite": {
+    "join": "그룹 참여"
   }
 }

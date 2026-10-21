@@ -147,10 +147,6 @@
     "title": "Open this link?",
     "open": "Open"
   },
-  "request": {
-    "accept": "Accept",
-    "decline": "Decline"
-  },
   "info": {
     "close": "Close",
     "notifications": "Notifications",
@@ -163,7 +159,13 @@
     "you": "You",
     "makeAdmin": "Make admin",
     "removeAdmin": "Remove admin",
-    "removeMember": "Remove from chat"
+    "removeMember": "Remove from chat",
+    "addMembers": "Add members",
+    "addPicked": "Add ({{n}})",
+    "inviteLink": "Invite link",
+    "inviteCopy": "Copy link",
+    "inviteRevoke": "Revoke link",
+    "add": "Add"
   },
   "errors": {
     "generic": "Something went wrong, try again",
@@ -182,5 +184,8 @@
     "too_young": "This device is too new for that",
     "not_found": "Message not found",
     "invalid": "The message did not pass the check"
+  },
+  "invite": {
+    "join": "Join group"
   }
 }

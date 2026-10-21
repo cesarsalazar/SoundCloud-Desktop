@@ -4,10 +4,10 @@ import { chatBridge } from '../../../lib/chat/bridge';
 import type { ConversationSummary, ConvId, MyPatch, UserRef } from '../../../lib/chat/types';
 import { notifyError } from '../../../lib/notify';
 import { useChatListStore } from '../../../stores/chat/list';
-import { chatErrorKey } from '../shell/errors';
+import { listErrorKey } from '../shell/errors';
 
 function fail(error: unknown) {
-  notifyError(i18n.t(chatErrorKey(error)));
+  notifyError(i18n.t(listErrorKey(error)));
 }
 
 export async function patchMine(conversationId: ConvId, me: MyPatch) {

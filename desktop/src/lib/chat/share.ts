@@ -1,10 +1,12 @@
 import { toast } from 'sonner';
 import i18n from '../../i18n';
 import { useChatEmbedsStore } from '../../stores/chat/embeds';
+import { useChatListStore } from '../../stores/chat/list';
 import { type Track, usePlayerStore } from '../../stores/player';
 import { isRoomGuest, useTogetherStore } from '../../stores/together';
 import { idOf } from '../ids';
 import { sessionErrorKey } from '../together/errors';
+import { roomTitle } from '../together/room-rules';
 import { hostSession } from '../together/session';
 import { chatBridge } from './bridge';
 import { roomInviteEmbed, trackEmbed } from './embed-snapshot';
@@ -49,7 +51,7 @@ export function currentRoomInvite(): Embed | null {
   const room = useTogetherStore.getState().room;
   if (!room) return null;
   const host = room.members.find((member) => member.userId === room.hostId)?.name ?? '';
-  return roomInviteEmbed(room.code, null, host);
+  return roomInviteEmbed(room.code, roomTitle(room), host);
 }
 
 export function shareRoomInvite(): boolean {
@@ -76,5 +78,6 @@ export async function startDirectChat(userUrn: string): Promise<ConvId | null> {
   const userId = idOf(userUrn);
   if (!userId) return null;
   const conversation = await chatBridge.create({ kind: 'direct', members: [userId] });
+  useChatListStore.getState().upsert(conversation);
   return conversation.id;
 }

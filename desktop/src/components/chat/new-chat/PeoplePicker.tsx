@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { UserRef } from '../../../lib/chat/types';
+import type { UserId, UserRef } from '../../../lib/chat/types';
 import { useMyFollowings } from '../../../lib/hooks';
 import { MIN_SEARCH_QUERY, useScStrip } from '../../../lib/search';
 import { useChatStore } from '../../../stores/chat';
@@ -10,11 +10,13 @@ import { PersonRow } from './PersonRow';
 import { userRef } from './people';
 
 const FOLLOWINGS_LIMIT = 50;
+const NOBODY: ReadonlySet<UserId> = new Set();
 
 interface PeoplePickerProps {
   query: string;
   picked: UserRef[];
   full: boolean;
+  exclude?: ReadonlySet<UserId>;
   onToggle: (person: UserRef) => void;
 }
 
@@ -22,6 +24,7 @@ export const PeoplePicker = memo(function PeoplePicker({
   query,
   picked,
   full,
+  exclude = NOBODY,
   onToggle,
 }: PeoplePickerProps) {
   const { t } = useTranslation();
@@ -32,8 +35,9 @@ export const PeoplePicker = memo(function PeoplePicker({
   const source = searching ? results.data : followings.items;
   const myId = useChatStore((state) => state.status?.userId ?? null);
   const people = useMemo(
-    () => (source ?? []).map(userRef).filter((person) => person.id !== myId),
-    [source, myId],
+    () =>
+      (source ?? []).map(userRef).filter((person) => person.id !== myId && !exclude.has(person.id)),
+    [source, myId, exclude],
   );
   const pickedIds = useMemo(() => new Set(picked.map((person) => person.id)), [picked]);
   const loading = searching ? results.isLoading : followings.isLoading;

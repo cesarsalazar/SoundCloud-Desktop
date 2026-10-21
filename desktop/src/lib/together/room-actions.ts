@@ -5,9 +5,21 @@ import { useTogetherStore } from '../../stores/together';
 import { api } from '../api';
 import { chatBridge } from '../chat/bridge';
 import { trackEmbed } from '../chat/embed-snapshot';
+import { chatErrorKey } from '../chat/errors';
 import type { RoomModeration, RoomSettingsPatch } from '../chat/types';
-import { roomErrorKey } from './chat-errors';
 import { cleanTitle } from './room-rules';
+
+const ROOM_ERRORS: ReadonlySet<string> = new Set([
+  'muted',
+  'slow_mode',
+  'unavailable',
+  'not_member',
+  'not_found',
+  'busy',
+  'offline',
+  'disabled',
+  'invalid',
+]);
 
 async function inRoom(task: (code: string) => Promise<void>): Promise<boolean> {
   const code = useTogetherStore.getState().room?.code;
@@ -16,7 +28,7 @@ async function inRoom(task: (code: string) => Promise<void>): Promise<boolean> {
     await task(code);
     return true;
   } catch (error) {
-    toast.error(i18n.t(roomErrorKey(error)));
+    toast.error(i18n.t(chatErrorKey(error, 'room', ROOM_ERRORS)));
     return false;
   }
 }
@@ -51,6 +63,18 @@ export function setModerator(userId: string, on: boolean): Promise<boolean> {
 
 export function renameRoom(title: string): Promise<boolean> {
   return configure({ title: cleanTitle(title) });
+}
+
+export function setRoomChat(on: boolean): Promise<boolean> {
+  return configure({ chatEnabled: on });
+}
+
+export function setRoomLinks(on: boolean): Promise<boolean> {
+  return configure({ links: on });
+}
+
+export function setSlowMode(seconds: number): Promise<boolean> {
+  return configure({ slowModeS: seconds });
 }
 
 export async function suggestTrack(track: Track): Promise<boolean> {

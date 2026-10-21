@@ -78,5 +78,17 @@
     "disabled": "지금은 채팅이 꺼져 있어요",
     "invalid": "실패했어요",
     "generic": "문제가 생겼어요, 다시 시도해 주세요"
+  },
+  "links": {
+    "off": "링크 꺼짐",
+    "new": "링크는 입장 1분 후 가능"
+  },
+  "rules": {
+    "title": "채팅 규칙",
+    "chat": "채팅",
+    "links": "링크",
+    "slow": "슬로우 모드",
+    "slowOff": "끔",
+    "seconds": "{{value}}초"
   }
 }

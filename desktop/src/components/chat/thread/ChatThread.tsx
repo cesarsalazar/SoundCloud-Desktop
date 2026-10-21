@@ -6,6 +6,7 @@ import { useChatListStore } from '../../../stores/chat/list';
 import { useChatThreadStore } from '../../../stores/chat/thread';
 import { ComposerGate } from '../composer/ComposerGate';
 import { InfoSheet } from '../info/InfoSheet';
+import { useRoomMembers, useRoomModerator } from '../room/useRoom';
 import { ThreadContext, type ThreadContextValue } from './context';
 import { focusThread } from './focus';
 import { HistorySlot } from './HistorySlot';
@@ -38,7 +39,10 @@ export const ChatThread = memo(function ChatThread({
   const listed = useChatListStore((state) => state.byId[conversationId]);
   const conversation = useStableConversation(opened ? (listed ?? opened) : null);
   const load = useChatThreadStore((state) => state.threads[conversationId]?.load ?? 'idle');
-  const members = useChatThreadStore((state) => state.threads[conversationId]?.members);
+  const threadMembers = useChatThreadStore((state) => state.threads[conversationId]?.members);
+  const roomMembers = useRoomMembers(conversationId);
+  const members = roomMembers ?? threadMembers;
+  const moderator = useRoomModerator(conversationId);
   const empty = useChatThreadStore(
     (state) => (state.threads[conversationId]?.messages.length ?? 0) === 0,
   );
@@ -84,9 +88,19 @@ export const ChatThread = memo(function ChatThread({
   const context = useMemo<ThreadContextValue | null>(
     () =>
       conversation
-        ? { t, language: i18n.language, conversation, me, people, blocked, nameOf, jumpTo }
+        ? {
+            t,
+            language: i18n.language,
+            conversation,
+            me,
+            people,
+            blocked,
+            moderator,
+            nameOf,
+            jumpTo,
+          }
         : null,
-    [t, i18n.language, conversation, me, people, blocked, nameOf, jumpTo],
+    [t, i18n.language, conversation, me, people, blocked, moderator, nameOf, jumpTo],
   );
 
   if (!context) {
@@ -104,6 +118,8 @@ export const ChatThread = memo(function ChatThread({
       <style>{THREAD_KEYFRAMES}</style>
       <section
         key={conversationId}
+        data-ui="chat-thread"
+        data-kind={context.conversation.kind}
         className="relative flex h-full min-h-0 flex-col overflow-hidden"
       >
         {!bare && <ThreadHeader onBack={onBack} onInfo={openInfo} actions={actions} />}
@@ -114,7 +130,7 @@ export const ChatThread = memo(function ChatThread({
         ) : (
           <Timeline ref={timeline} conversationId={conversationId} />
         )}
-        <ComposerGate conversationId={conversationId} onLeave={onLeave} />
+        <ComposerGate conversationId={conversationId} />
         {info && <InfoSheet onClose={closeInfo} onJump={jumpFromInfo} />}
         <ThreadDialogs conversationId={conversationId} />
       </section>

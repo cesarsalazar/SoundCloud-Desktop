@@ -64,6 +64,7 @@ import {
     usePlayerStore,
 } from '../../stores/player';
 import {useSettingsStore} from '../../stores/settings';
+import {useChatDockWidth} from '../chat/shell/useChatDockWidth';
 import {AlbumLinkButton} from '../music/AlbumLinkButton';
 import {AltUploadMark} from '../music/AltUploadMark';
 import {ArtistNameLinks} from '../music/ArtistNameLinks';
@@ -1109,9 +1110,10 @@ export const NowPlayingBar = React.memo(
     const sidebarCollapsed = useSettingsStore((s) => s.sidebarCollapsed);
     const perf = usePerfMode();
     const windowWidth = useSyncExternalStore(subscribeResize, readWindowWidth);
+    const right = useChatDockWidth();
     const sidebar = sidebarWidth(sidebarCollapsed);
-    const left = windowWidth - sidebar < MIN_DOCK_AREA ? 0 : sidebar;
-    const area = windowWidth - left;
+    const left = windowWidth - right - sidebar < MIN_DOCK_AREA ? 0 : sidebar;
+    const area = windowWidth - left - right;
 
     return (
       <div
@@ -1122,6 +1124,7 @@ export const NowPlayingBar = React.memo(
         data-mini={area < MINI_DOCK_AREA ? '' : undefined}
         style={{
           left,
+          right,
           transitionDuration: perf.mode === 'light' ? '0ms' : undefined,
         }}
       >

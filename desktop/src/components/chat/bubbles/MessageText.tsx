@@ -1,11 +1,13 @@
 import { Fragment, memo, type ReactNode, useMemo, useState } from 'react';
+import { inviteToken } from '../../../lib/chat/invite-link';
 import { type Segment, safeUrl, segments } from '../../../lib/chat/spans';
 import type { RichText } from '../../../lib/chat/types';
 import { useThread } from '../thread/context';
 import { isRequest } from '../thread/permissions';
+import { InviteLink } from './InviteLink';
 import { useChatLinks } from './useChatLinks';
 
-const URL_PATTERN = /https?:\/\/[^\s<>"'`]+/gi;
+const URL_PATTERN = /https?:\/\/[^\s<>"'`]+|scd:\/\/invite\?token=[A-Za-z0-9%_-]+/gi;
 const URL_TRAILING = /[).,!?»;:\]}…*'"]+$/;
 const LINK_LABEL_MAX = 56;
 
@@ -83,20 +85,28 @@ function Spoiler({ text, children }: { text: string; children: ReactNode }) {
   );
 }
 
+function linkNode(raw: string, key: number): ReactNode {
+  const token = inviteToken(raw);
+  if (token) return <InviteLink key={key} token={token} />;
+  const url = safeUrl(raw);
+  if (!url) return null;
+  return (
+    <LinkText key={key} url={url}>
+      {linkLabel(raw)}
+    </LinkText>
+  );
+}
+
 function autoLinks(text: string): ReactNode {
   const parts: ReactNode[] = [];
   let cursor = 0;
   for (const match of text.matchAll(URL_PATTERN)) {
     const raw = match[0].replace(URL_TRAILING, '');
-    const url = safeUrl(raw);
     const start = match.index ?? 0;
-    if (!url) continue;
+    const node = linkNode(raw, start);
+    if (!node) continue;
     if (start > cursor) parts.push(text.slice(cursor, start));
-    parts.push(
-      <LinkText key={start} url={url}>
-        {linkLabel(raw)}
-      </LinkText>,
-    );
+    parts.push(node);
     cursor = start + raw.length;
   }
   if (parts.length === 0) return text;

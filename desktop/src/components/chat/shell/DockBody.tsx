@@ -22,12 +22,13 @@ function DockList() {
 export const DockBody = memo(function DockBody() {
   const active = useChatPrefsStore((state) => state.active);
   const tabs = useChatPrefsStore((state) => state.tabs);
+  const roomCode = useChatRoomStore((state) => state.code);
   const roomChat = useChatRoomStore((state) => state.conversationId);
 
   let content = <DockList />;
-  if (active === DOCK_ROOM && roomChat) {
+  if (active === DOCK_ROOM && roomCode) {
     content = <RoomTab conversationId={roomChat} />;
-  } else if (active !== DOCK_LIST && tabs.includes(active)) {
+  } else if (active !== DOCK_LIST && active !== DOCK_ROOM && tabs.includes(active)) {
     content = <ThreadSlot key={active} conversationId={active} variant="dock" />;
   }
 

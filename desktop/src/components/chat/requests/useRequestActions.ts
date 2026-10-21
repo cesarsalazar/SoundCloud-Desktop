@@ -7,13 +7,13 @@ import { notifyError } from '../../../lib/notify';
 import { useChatListStore } from '../../../stores/chat/list';
 import { useChatPrefsStore } from '../../../stores/chat/prefs';
 import { blockUser } from '../list/row-actions';
-import { chatErrorKey } from '../shell/errors';
+import { listErrorKey } from '../shell/errors';
 import { openReport } from './report-store';
 
 const REPORT_RANGE = 50;
 
 function fail(error: unknown) {
-  notifyError(i18n.t(chatErrorKey(error)));
+  notifyError(i18n.t(listErrorKey(error)));
 }
 
 export function useRequestActions() {

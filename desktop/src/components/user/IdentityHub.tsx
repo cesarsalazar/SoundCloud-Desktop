@@ -1,10 +1,12 @@
 import {useMemo} from 'react';
 import {useTranslation} from 'react-i18next';
 import {type Aura, auraRgb, auraRgba} from '../../lib/aura';
+import {userEmbed} from '../../lib/chat/embed-snapshot';
 import {Calendar, Globe, Sparkles} from '../../lib/icons';
 import {likedTracksCount} from '../../lib/likes';
 import {usePerfMode} from '../../lib/perf';
 import {MessageButton} from '../chat/share/MessageButton';
+import {ShareButton} from '../chat/share/ShareButton';
 import {BlockArtistButton} from '../music/blocklist/BlockArtistButton';
 import {userTarget} from '../music/blocklist/targets';
 import {CopyLinkButton} from '../ui/CopyLinkButton';
@@ -162,6 +164,11 @@ export function IdentityHub({
             )}
             {isOwnProfile && <UploadTrackButton aura={aura} />}
             {user.permalink_url && <CopyLinkButton url={user.permalink_url} />}
+            <ShareButton
+              embed={userEmbed(user)}
+              size={15}
+              className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full border-[0.5px] border-white/[0.08] bg-white/[0.04] text-white/50 transition-all duration-300 ease-[var(--ease-apple)] hover:border-white/[0.14] hover:bg-white/[0.08] hover:text-white/80"
+            />
             {!isOwnProfile && <BlockArtistButton target={blockTarget} />}
             {hasStar && isOwnProfile && (
               <AuraPicker
