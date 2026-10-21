@@ -20,6 +20,8 @@ pub enum Kind {
     Staging,
     Old,
     ForgetsOnce,
+    RefusesOpen,
+    Vanishes,
 }
 
 #[derive(Deserialize)]
@@ -217,6 +219,9 @@ where
     if kind == Kind::Old {
         return empty(404);
     }
+    if kind == Kind::Vanishes {
+        relay.lock().unwrap().stages.clear();
+    }
     relay.lock().unwrap().parts += 1;
     let mut at: usize = query.get("at").and_then(|at| at.parse().ok()).unwrap_or(0);
     let mut body = std::pin::pin!(body);
@@ -248,6 +253,9 @@ fn status(relay: &Shared, id: &str) -> Response<Body> {
 fn open(relay: &Shared, kind: Kind, asked: Opening) -> Response<Body> {
     let mut relay = relay.lock().unwrap();
     relay.opens += 1;
+    if kind == Kind::RefusesOpen && asked.body_stage.is_some() {
+        return empty(429);
+    }
     let stage = asked.body_stage.filter(|_| kind != Kind::Old);
     let body = match (asked.body, stage) {
         (Some(_), Some(_)) => return empty(400),

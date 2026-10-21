@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use futures_util::StreamExt;
 
 use super::fake_relay::{self, Kind};
@@ -114,6 +116,28 @@ async fn a_stage_the_relay_finds_incomplete_is_topped_up_before_it_opens() {
     assert_eq!(answered(&relay.url, body.clone()).await.unwrap(), body);
     assert_eq!(relay.delivered(), [body]);
     assert_eq!(relay.opens(), 2);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_stage_the_relay_refuses_to_open_is_deleted() {
+    let relay = fake_relay::serve(Kind::RefusesOpen);
+    assert!(answered(&relay.url, sealed(SEALED)).await.is_err());
+    for _ in 0..40 {
+        if relay.stages_left() == 0 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert_eq!(relay.stages_left(), 0);
+    assert!(relay.delivered().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_stage_that_vanishes_mid_upload_fails_without_an_inline_resend() {
+    let relay = fake_relay::serve(Kind::Vanishes);
+    assert!(answered(&relay.url, sealed(SEALED)).await.is_err());
+    assert_eq!(relay.opens(), 0);
+    assert!(relay.delivered().is_empty());
 }
 
 #[test]
