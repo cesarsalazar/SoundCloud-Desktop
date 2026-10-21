@@ -4,6 +4,7 @@ import { initChatBridge, useChatStore } from '../../../stores/chat';
 import { useChatListStore } from '../../../stores/chat/list';
 
 function refetchConfig() {
+  if (useChatStore.getState().config !== null) return;
   chatBridge
     .config()
     .then((config) => useChatStore.getState().setConfig(config))
@@ -21,14 +22,13 @@ export function useChatBoot() {
       })
       .catch(() => undefined);
     const unsubscribe = useChatStore.subscribe((state, prev) => {
-      const phase = state.status?.phase;
-      if (phase === prev.status?.phase) {
-        if (state.status && state.status.requests !== prev.status?.requests) {
-          useChatListStore.getState().setRequests(state.status.requests);
-        }
-        return;
+      const status = state.status;
+      if (status && status.requests !== prev.status?.requests) {
+        useChatListStore.getState().setRequests(status.requests);
       }
-      if (state.config === null && phase && phase !== 'off') refetchConfig();
+      const phase = status?.phase;
+      if (phase === prev.status?.phase) return;
+      if (state.config === null && phase && phase !== 'off') queueMicrotask(refetchConfig);
       if (phase === 'ready') void useChatListStore.getState().refresh();
     });
     return () => {
