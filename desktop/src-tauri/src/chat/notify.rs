@@ -1,5 +1,8 @@
 mod alert;
 mod history;
+#[cfg(any(target_os = "linux", test))]
+mod markup;
+mod prefs_file;
 mod rules;
 mod screen;
 mod settings;
@@ -9,7 +12,7 @@ mod strings;
 mod tests;
 
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, Once, RwLock};
 
 use chat_core::store::Store;
 use chat_core::{
@@ -31,6 +34,7 @@ struct Source {
 
 pub struct Notifier {
     prefs: RwLock<NotifyPrefs>,
+    restored: Once,
     source: RwLock<Option<Arc<Source>>>,
     history: Mutex<History>,
     since: AtomicI64,
@@ -41,6 +45,7 @@ impl Default for Notifier {
     fn default() -> Self {
         Self {
             prefs: RwLock::default(),
+            restored: Once::new(),
             source: RwLock::default(),
             history: Mutex::default(),
             since: AtomicI64::new(now_ms()),
@@ -51,10 +56,27 @@ impl Default for Notifier {
 
 impl Notifier {
     pub fn prefs(&self, update: Option<NotifyPrefs>) -> NotifyPrefs {
-        if let (Some(update), Ok(mut prefs)) = (update, self.prefs.write()) {
-            *prefs = update;
+        self.restored.call_once(|| self.restore());
+        if let Some(update) = update {
+            self.store_prefs(update);
         }
         self.prefs.read().map(|prefs| *prefs).unwrap_or_default()
+    }
+
+    fn store_prefs(&self, update: NotifyPrefs) {
+        if let Ok(mut prefs) = self.prefs.write() {
+            *prefs = update;
+        }
+        if let Some(path) = prefs_file::path() {
+            prefs_file::write(&path, &update);
+        }
+    }
+
+    fn restore(&self) {
+        let saved = prefs_file::path().and_then(|path| prefs_file::read(&path));
+        if let (Some(saved), Ok(mut prefs)) = (saved, self.prefs.write()) {
+            *prefs = saved;
+        }
     }
 
     pub fn attach(&self, store: Arc<Store>, me: UserId) {

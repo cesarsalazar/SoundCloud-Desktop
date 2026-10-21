@@ -33,14 +33,15 @@ pub fn chat(
 }
 
 pub fn device(device: &Device, strings: &Strings) -> Alert {
-    let name = [device.name.trim(), device.platform.trim()]
+    let name = [device.name.as_str(), device.platform.as_str()]
         .into_iter()
+        .map(one_line)
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join(", ");
     Alert {
         title: Some(strings.device_title.clone()),
-        body: strings.device_body.replace("{{device}}", &name),
+        body: clip(&strings.device_body.replace("{{device}}", &name)),
     }
 }
 
@@ -139,7 +140,10 @@ fn embed_line(embed: &Embed, strings: &Strings) -> String {
 }
 
 fn one_line(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
+    text.split(|ch: char| ch.is_whitespace() || ch.is_control())
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn clip(line: &str) -> String {

@@ -251,3 +251,26 @@ fn an_empty_title_falls_back_to_the_peer_and_names_stay_on_one_line() {
     assert_eq!(shown.title.as_deref(), Some("Late night crew"));
     assert_eq!(shown.body, "Ann B: x");
 }
+
+#[test]
+fn control_characters_never_reach_the_notification() {
+    let shown = alert(
+        &chat(ConversationKind::Direct),
+        &text(1, "a\u{0}b\u{7}c\u{1b}[31md"),
+        Reason::Post,
+        None,
+        PreviewMode::Full,
+        en(),
+    );
+    assert_eq!(shown.body, "a b c [31md");
+}
+
+#[test]
+fn a_device_name_is_one_short_line() {
+    let long = "x".repeat(400);
+    let shown = device(&new_device(&format!("Rig\n{long}"), "win\u{0}dows"), en());
+    assert_eq!(shown.body.chars().count(), 180);
+    assert!(!shown.body.chars().any(char::is_control));
+    let shown = device(&new_device("Rig", "win\u{0}dows"), en());
+    assert_eq!(shown.body, "Rig, win dows. Was it you?");
+}

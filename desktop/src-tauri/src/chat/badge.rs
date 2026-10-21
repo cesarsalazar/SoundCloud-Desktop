@@ -23,16 +23,16 @@ static WATCHING: Once = Once::new();
 
 pub fn apply(app: &AppHandle, status: &ChatStatus) {
     let badge = Badge::from_status(status);
+    let Ok(mut applied) = APPLIED.lock() else {
+        return;
+    };
+    if applied.unwrap_or_default() == badge {
+        return;
+    }
     let Some(window) = app.get_webview_window(MAIN_WINDOW) else {
         return;
     };
     WATCHING.call_once(|| reshow_on_focus(app, &window));
-    let Ok(mut applied) = APPLIED.lock() else {
-        return;
-    };
-    if *applied == Some(badge) {
-        return;
-    }
     *applied = Some(badge);
     let _ = window.set_title(&badge.title(&base_title(app)));
     show(app, &window, badge);
