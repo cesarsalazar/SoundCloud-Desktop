@@ -8,7 +8,6 @@ use chat_core::{
 };
 
 use super::reads::blocking;
-use super::remote::{self, NO_BODY, POST};
 use crate::chat::runtime::Core;
 use crate::chat::state::ChatState;
 
@@ -112,25 +111,23 @@ pub async fn delete(
 }
 
 pub async fn mark_read(state: &ChatState, conversation_id: ConvId, seq: Seq) -> ChatResult<()> {
-    state.core()?.sync.queue_read(conversation_id, seq);
-    state.runtime.read_soon();
-    Ok(())
+    let core = state.core()?;
+    state
+        .rt
+        .spawn_blocking(move || core.sync.queue_read(conversation_id, seq))
+        .await
+        .map_err(|_| ChatError::Internal)
 }
 
 pub async fn typing(state: &ChatState, conversation_id: ConvId) -> ChatResult<()> {
     if !state.runtime.may_type(conversation_id) {
         return Ok(());
     }
-    let path = format!("{}/typing", remote::conversation(conversation_id));
-    remote::done(state, POST, &path, "", NO_BODY).await
+    state.api.typing(conversation_id).await
 }
 
 pub async fn focus(state: &ChatState, conversation_id: Option<ConvId>) -> ChatResult<()> {
-    let core = state.core()?;
-    if core.sync.focus() != conversation_id {
-        core.sync.set_focus(conversation_id);
-        state.runtime.kick();
-    }
+    state.core()?.sync.set_focus(conversation_id);
     Ok(())
 }
 
@@ -153,7 +150,7 @@ pub async fn queue(
         next_at: now,
     };
     let message = blocking(state, move |core| core.outbox.push(item)).await?;
-    state.runtime.outbox_filled();
+    state.runtime.kick();
     Ok(message)
 }
 

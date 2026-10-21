@@ -31,3 +31,7 @@ pub fn jitter(max_ms: u64) -> u64 {
         .unwrap_or(0);
     roll % (max_ms + 1)
 }
+
+pub fn spread(pause_ms: u64, roll_ms: u64) -> u64 {
+    pause_ms - pause_ms / 5 + roll_ms.min(pause_ms * 2 / 5)
+}

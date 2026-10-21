@@ -8,7 +8,7 @@ use chat_core::{ChatResult, ChatStatus, Clock, Events, KeyStore, Transport};
 use super::events::TauriEvents;
 use super::keychain::Keychain;
 use super::notify::Notifier;
-use super::runtime::{Core, Parts, Runtime, SystemClock, Tap};
+use super::runtime::{Core, Parts, Runtime, StatusCell, SystemClock, Tap};
 use super::transport::{EdgeTransport, Route};
 use crate::rt::AppHandle;
 
@@ -33,7 +33,9 @@ impl ChatState {
     pub fn new(app: AppHandle, rt: tokio::runtime::Handle, dir: PathBuf) -> Self {
         let service = format!("{}{KEYCHAIN_SUFFIX}", app.config().identifier);
         let keychain = Arc::new(Keychain::new(&service, &dir));
-        let tap = Arc::new(Tap::new(Arc::new(TauriEvents::new(app.clone()))));
+        let raw: Arc<dyn Events> = Arc::new(TauriEvents::new(app.clone()));
+        let status = Arc::new(StatusCell::new(raw.clone()));
+        let tap = Arc::new(Tap::new(raw, status.clone()));
         let clock: Arc<dyn Clock> = Arc::new(SystemClock);
         let transport: Arc<dyn Transport> = Arc::new(EdgeTransport::new(Route::from_env()));
         let channel = Arc::new(Channel::new(clock.clone()));
@@ -46,6 +48,7 @@ impl ChatState {
             api: api.clone(),
             clock: clock.clone(),
             events: tap.clone(),
+            status,
         }));
         Self {
             app,

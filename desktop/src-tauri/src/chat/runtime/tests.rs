@@ -1,75 +1,59 @@
-use std::time::{Duration, Instant};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-use chat_core::api::wire::{ConfigView, DeviceView, LimitsView};
-use chat_core::sync::{PollPlan, SyncOutcome};
-use chat_core::{
-    Access, ChatError, ChatPhase, ConversationKind, ConversationSummary, DeviceStatus, MemberRole,
-    MemberState, NotifyLevel, Tier,
-};
+use chat_core::api::wire::{ConfigView, LimitsView};
+use chat_core::{Access, ChatPhase, ChatStatus, CoreEvent, Events, HistoryGate, Tier, TypingEvent};
 use uuid::Uuid;
 
-use super::bringup::{backoff, clock_retry, config_of, history_gate};
-use super::counts::quiet;
-use super::drive::{Next, capped, next_of};
-use super::expiry::until;
-use super::ladder::{Ladder, spread};
+use super::bringup::{backoff, clock_retry, config_of};
+use super::clock::spread;
+use super::drive::hold_cap;
+use super::expiry::nap_of;
 use super::lifecycle::{AuthMove, auth_move};
-use super::sender::retry_in;
 use super::signals::Signals;
+use super::status::{StatusCell, take_engine_part};
+use super::tap::Tap;
 use super::wake::WakeWatch;
 
-const TIERS: [Tier; 3] = [Tier::Direct, Tier::Relay, Tier::Pro];
+#[derive(Default)]
+struct Seen(Mutex<Vec<CoreEvent>>);
 
-#[test]
-fn a_lost_tier_moves_on_at_once_and_a_lost_round_backs_off() {
-    let now = Instant::now();
-    let mut ladder = Ladder::new(TIERS.to_vec());
-    assert_eq!(ladder.tier(), Tier::Direct);
-    assert_eq!(ladder.missed(now), Duration::ZERO);
-    assert_eq!(ladder.tier(), Tier::Relay);
-    assert_eq!(ladder.missed(now), Duration::ZERO);
-    assert_eq!(ladder.tier(), Tier::Pro);
-    let first = ladder.missed(now);
-    assert!((800..=1_200).contains(&first.as_millis()), "{first:?}");
-    assert_eq!(ladder.tier(), Tier::Direct);
-    for _ in 0..12 {
-        ladder.missed(now);
+impl Events for Seen {
+    fn emit(&self, event: CoreEvent) {
+        if let Ok(mut seen) = self.0.lock() {
+            seen.push(event);
+        }
     }
-    let round = ladder.missed(now) + ladder.missed(now) + ladder.missed(now);
-    assert!(round.as_millis() <= 18_000, "{round:?}");
 }
 
-#[test]
-fn a_working_fallback_stays_until_the_revisit() {
-    let now = Instant::now();
-    let mut ladder = Ladder::new(TIERS.to_vec());
-    ladder.missed(now);
-    ladder.answered(now + Duration::from_secs(60));
-    assert_eq!(ladder.tier(), Tier::Relay);
-    ladder.answered(now + Duration::from_secs(601));
-    assert_eq!(ladder.tier(), Tier::Direct);
-}
-
-#[test]
-fn an_answer_resets_the_backoff() {
-    let now = Instant::now();
-    let mut ladder = Ladder::new(vec![Tier::Direct]);
-    for _ in 0..6 {
-        ladder.missed(now);
+impl Seen {
+    fn statuses(&self) -> Vec<ChatStatus> {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|event| match event {
+                CoreEvent::Status(status) => Some(status.clone()),
+                _ => None,
+            })
+            .collect()
     }
-    ladder.answered(now);
-    assert!(ladder.missed(now).as_millis() <= 1_200);
 }
 
-#[test]
-fn a_new_edge_order_starts_from_its_first_tier() {
-    let now = Instant::now();
-    let mut ladder = Ladder::new(TIERS.to_vec());
-    ladder.missed(now);
-    ladder.follow(TIERS.to_vec());
-    assert_eq!(ladder.tier(), Tier::Relay);
-    ladder.follow(vec![Tier::Pro, Tier::Direct, Tier::Relay]);
-    assert_eq!(ladder.tier(), Tier::Pro);
+fn engine_status() -> ChatStatus {
+    ChatStatus {
+        online: true,
+        tier: Some(Tier::Relay),
+        visible: true,
+        history: HistoryGate {
+            locked: true,
+            unlocks_at: Some(9),
+        },
+        unread: 4,
+        mentions: 1,
+        requests: 2,
+        ..ChatStatus::off()
+    }
 }
 
 #[test]
@@ -88,11 +72,17 @@ fn backoff_grows_and_caps_at_a_minute() {
 }
 
 #[test]
-fn the_expiry_timer_wakes_for_the_next_message_but_looks_again_soon() {
-    assert_eq!(until(None, 0), Duration::from_secs(15));
-    assert_eq!(until(Some(4_000), 1_000), Duration::from_secs(3));
-    assert_eq!(until(Some(900_000), 0), Duration::from_secs(15));
-    assert_eq!(until(Some(10), 1_000), Duration::from_secs(1));
+fn a_repeated_clock_answer_backs_off() {
+    assert_eq!(clock_retry(1), Duration::ZERO);
+    assert!(clock_retry(2) >= Duration::from_millis(3_200));
+    assert!(clock_retry(9) <= Duration::from_secs(72));
+}
+
+#[test]
+fn the_expiry_sweep_naps_between_a_second_and_its_cap() {
+    assert_eq!(nap_of(0), Duration::from_secs(1));
+    assert_eq!(nap_of(3_000), Duration::from_secs(3));
+    assert_eq!(nap_of(900_000), Duration::from_secs(15));
 }
 
 #[test]
@@ -106,112 +96,24 @@ fn a_late_tick_means_the_machine_slept() {
 }
 
 #[test]
-fn sync_results_map_to_the_next_move() {
-    assert_eq!(next_of(&Ok(SyncOutcome::Changed)), Next::Go);
-    assert_eq!(next_of(&Ok(SyncOutcome::Idle)), Next::Go);
-    assert_eq!(next_of(&Ok(SyncOutcome::Reset)), Next::Go);
-    assert_eq!(
-        next_of(&Ok(SyncOutcome::Retry { after_ms: 4_000 })),
-        Next::Wait(Duration::from_secs(4))
-    );
-    assert_eq!(next_of(&Err(ChatError::Offline)), Next::Fallback);
-    assert_eq!(next_of(&Err(ChatError::Protocol)), Next::Fallback);
-    assert_eq!(
-        next_of(&Err(ChatError::Busy { retry_ms: 10 })),
-        Next::Wait(Duration::from_secs(1))
-    );
-    assert_eq!(
-        next_of(&Err(ChatError::ReloginRequired)),
-        Next::Stop(ChatPhase::Unbound)
-    );
-    assert_eq!(
-        next_of(&Err(ChatError::SessionBoundOther)),
-        Next::Stop(ChatPhase::BoundOther)
-    );
-    assert_eq!(
-        next_of(&Err(ChatError::DeviceRevoked)),
-        Next::Stop(ChatPhase::Revoked)
-    );
-    assert_eq!(
-        next_of(&Err(ChatError::Disabled)),
-        Next::Stop(ChatPhase::Off)
-    );
-    assert_eq!(
-        next_of(&Err(ChatError::Unimplemented)),
-        Next::Wait(Duration::from_secs(60))
-    );
+fn the_server_hold_caps_the_poll_unless_it_is_zero() {
+    assert_eq!(hold_cap(15_000), Some(15_000));
+    assert_eq!(hold_cap(0), None);
 }
 
 #[test]
-fn the_server_caps_how_long_a_poll_may_park() {
-    let plan = PollPlan {
-        tier: Tier::Direct,
-        hold_ms: 20_000,
-        delay_ms: 0,
-    };
-    assert_eq!(capped(plan, Some(12_000)).hold_ms, 12_000);
-    assert_eq!(capped(plan, Some(30_000)).hold_ms, 20_000);
-    assert_eq!(capped(plan, None).hold_ms, 20_000);
-    assert_eq!(capped(plan, Some(0)).hold_ms, 20_000);
-    let hidden = PollPlan {
-        hold_ms: 0,
-        delay_ms: 60_000,
-        ..plan
-    };
-    assert_eq!(capped(hidden, Some(12_000)), hidden);
-}
-
-#[test]
-fn sends_retry_unless_the_server_refused_for_good() {
-    assert_eq!(retry_in(&ChatError::NotMember, 0), None);
-    assert_eq!(retry_in(&ChatError::Muted { until: 1 }, 0), None);
-    assert_eq!(retry_in(&ChatError::Invalid, 3), None);
-    assert_eq!(
-        retry_in(&ChatError::SlowMode { retry_ms: 5_000 }, 0),
-        Some(Duration::from_secs(5))
-    );
-    assert_eq!(
-        retry_in(&ChatError::EpochStale, 0),
-        Some(Duration::from_secs(1))
-    );
-    assert_eq!(
-        retry_in(&ChatError::Offline, 0),
-        Some(Duration::from_secs(2))
-    );
-    assert_eq!(
-        retry_in(&ChatError::Offline, 3),
-        Some(Duration::from_secs(16))
-    );
-    assert_eq!(
-        retry_in(&ChatError::Offline, 30),
-        Some(Duration::from_secs(300))
-    );
-    assert_eq!(
-        retry_in(&ChatError::SendPaused, 0),
-        Some(Duration::from_secs(60))
-    );
-}
-
-#[tokio::test]
-async fn showing_the_window_kicks_the_loop_and_hiding_does_not() {
+fn only_a_change_of_visibility_counts() {
     let signals = Signals::new();
     assert!(!signals.visible());
     assert!(signals.set_visible(true));
-    tokio::time::timeout(Duration::from_millis(100), signals.kicked())
-        .await
-        .expect("a show must kick");
     assert!(!signals.set_visible(true));
+    assert!(signals.visible());
     assert!(signals.set_visible(false));
-    assert!(
-        tokio::time::timeout(Duration::from_millis(50), signals.kicked())
-            .await
-            .is_err()
-    );
 }
 
 #[tokio::test]
 async fn a_restart_reaches_every_waiter() {
-    let signals = std::sync::Arc::new(Signals::new());
+    let signals = Arc::new(Signals::new());
     let generation = signals.generation();
     let waiter = {
         let signals = signals.clone();
@@ -226,144 +128,53 @@ async fn a_restart_reaches_every_waiter() {
 }
 
 #[test]
-fn a_new_device_waits_three_days_for_old_history() {
-    let device = DeviceView {
-        id: Uuid::new_v4(),
-        platform: "linux".into(),
-        name: "Linux".into(),
-        app_version: "8.6.0".into(),
-        tier: "direct".into(),
-        status: DeviceStatus::Active,
-        created_at: 1_000,
-        last_seen_at: 1_000,
-        history_unlocked: false,
-        current: true,
-    };
-    let gate = history_gate(&device);
-    assert!(gate.locked);
-    assert_eq!(gate.unlocks_at, Some(1_000 + 72 * 3_600_000));
-    let unlocked = history_gate(&DeviceView {
-        history_unlocked: true,
-        ..device
-    });
-    assert!(!unlocked.locked);
-    assert_eq!(unlocked.unlocks_at, None);
-}
-
-#[test]
-fn server_config_maps_to_the_client_config() {
-    let config = config_of(ConfigView {
-        enabled: true,
-        access: "all".into(),
-        send_paused: false,
-        hold_max_ms: 20_000,
-        server_now: 42,
-        incarnation: Uuid::nil(),
-        ock_current: 1,
-        limits: LimitsView {
-            text_max: 4096,
-            embeds_max: 3,
-            group_members_max: 200,
-            devices_max: 10,
-            envelope_max: 65_536,
-            disappearing_ttls: vec![3_600, 86_400, 604_800],
-        },
-    });
-    assert_eq!(config.access, Access::All);
-    assert_eq!(config.limits.group_members_max, 200);
-    let beta = config_of(sample_config());
-    assert_eq!(beta.access, Access::Beta);
-    assert!(beta.send_paused);
-    assert_eq!(beta.ock_current, 2);
-}
-
-#[test]
-fn requests_rooms_and_muted_chats_stay_out_of_the_badge() {
-    let open = summary();
-    assert!(!quiet(&open, 1_000));
-    assert!(quiet(
-        &ConversationSummary {
-            accepted: false,
-            ..summary()
-        },
-        1_000
-    ));
-    assert!(quiet(
-        &ConversationSummary {
-            kind: ConversationKind::Room,
-            ..summary()
-        },
-        1_000
-    ));
-    assert!(quiet(
-        &ConversationSummary {
-            muted_until: Some(2_000),
-            ..summary()
-        },
-        1_000
-    ));
-    assert!(!quiet(
-        &ConversationSummary {
-            muted_until: Some(500),
-            ..summary()
-        },
-        1_000
-    ));
-    assert!(quiet(
-        &ConversationSummary {
-            notify: NotifyLevel::None,
-            ..summary()
-        },
-        1_000
-    ));
-}
-
-fn sample_config() -> ConfigView {
-    ConfigView {
-        enabled: false,
-        access: "beta".into(),
+fn the_engine_owns_delivery_and_counts_and_the_runtime_owns_the_rest() {
+    let device = Uuid::new_v4();
+    let mut status = ChatStatus {
+        phase: ChatPhase::Ready,
+        device_id: Some(device),
         send_paused: true,
-        hold_max_ms: 15_000,
-        server_now: 7,
-        incarnation: Uuid::nil(),
-        ock_current: 2,
-        limits: LimitsView {
-            text_max: 1,
-            embeds_max: 1,
-            group_members_max: 1,
-            devices_max: 1,
-            envelope_max: 1,
-            disappearing_ttls: Vec::new(),
-        },
-    }
+        ..ChatStatus::off()
+    };
+    take_engine_part(&mut status, &engine_status());
+    assert_eq!(status.phase, ChatPhase::Ready);
+    assert_eq!(status.device_id, Some(device));
+    assert!(status.send_paused);
+    assert!(status.online && status.visible && status.history.locked);
+    assert_eq!(status.tier, Some(Tier::Relay));
+    assert_eq!((status.unread, status.mentions, status.requests), (4, 1, 2));
 }
 
-fn summary() -> ConversationSummary {
-    ConversationSummary {
-        id: Uuid::nil(),
-        kind: ConversationKind::Direct,
-        title: None,
-        avatar_url: None,
-        peer: None,
-        role: MemberRole::Member,
-        state: MemberState::Active,
-        accepted: true,
-        member_count: 2,
-        last_seq: 5,
-        last_at: 900,
-        last_read_seq: 3,
-        unread: 2,
-        mentions: 0,
-        preview: None,
-        muted_until: None,
-        notify: NotifyLevel::All,
-        pinned_at: None,
-        archived: false,
-        ttl_s: None,
-        room_code: None,
-        history_locked: false,
-        has_draft: false,
-    }
+#[test]
+fn engine_statuses_reach_the_webview_only_through_the_runtime_status() {
+    let seen = Arc::new(Seen::default());
+    let status = Arc::new(StatusCell::new(seen.clone()));
+    status.update(|status| status.phase = ChatPhase::Ready);
+    let tap = Tap::new(seen.clone(), status.clone());
+    tap.emit(CoreEvent::Status(engine_status()));
+    tap.emit(CoreEvent::Status(engine_status()));
+    let statuses = seen.statuses();
+    assert_eq!(statuses.len(), 2);
+    assert!(
+        statuses
+            .iter()
+            .all(|status| status.phase == ChatPhase::Ready)
+    );
+    assert_eq!(statuses[1].unread, 4);
+    assert_eq!(status.get().phase, ChatPhase::Ready);
+}
+
+#[test]
+fn typing_is_remembered_for_an_open_thread() {
+    let seen = Arc::new(Seen::default());
+    let tap = Tap::new(seen.clone(), Arc::new(StatusCell::new(seen.clone())));
+    let conversation_id = Uuid::new_v4();
+    tap.emit(CoreEvent::Typing(TypingEvent {
+        conversation_id,
+        users: vec!["7".into()],
+    }));
+    assert_eq!(tap.typing(conversation_id), ["7"]);
+    assert!(tap.typing(Uuid::new_v4()).is_empty());
 }
 
 #[test]
@@ -407,8 +218,44 @@ fn a_new_session_or_a_relogin_from_a_stuck_phase_restarts() {
 }
 
 #[test]
-fn a_repeated_clock_answer_backs_off() {
-    assert_eq!(clock_retry(1), Duration::ZERO);
-    assert!(clock_retry(2) >= Duration::from_millis(3_200));
-    assert!(clock_retry(9) <= Duration::from_secs(72));
+fn server_config_maps_to_the_client_config() {
+    let config = config_of(ConfigView {
+        enabled: true,
+        access: "all".into(),
+        send_paused: false,
+        hold_max_ms: 20_000,
+        server_now: 42,
+        incarnation: Uuid::nil(),
+        ock_current: 1,
+        limits: LimitsView {
+            text_max: 4096,
+            embeds_max: 3,
+            group_members_max: 200,
+            devices_max: 10,
+            envelope_max: 65_536,
+            disappearing_ttls: vec![3_600, 86_400, 604_800],
+        },
+    });
+    assert_eq!(config.access, Access::All);
+    assert_eq!(config.limits.group_members_max, 200);
+    let beta = config_of(ConfigView {
+        enabled: false,
+        access: "beta".into(),
+        send_paused: true,
+        hold_max_ms: 15_000,
+        server_now: 7,
+        incarnation: Uuid::nil(),
+        ock_current: 2,
+        limits: LimitsView {
+            text_max: 1,
+            embeds_max: 1,
+            group_members_max: 1,
+            devices_max: 1,
+            envelope_max: 1,
+            disappearing_ttls: Vec::new(),
+        },
+    });
+    assert_eq!(beta.access, Access::Beta);
+    assert!(beta.send_paused);
+    assert_eq!(beta.ock_current, 2);
 }

@@ -80,10 +80,22 @@ pub async fn history(
         limit: query.limit.clamp(1, HISTORY_MAX),
         ..query
     };
-    blocking(state, move |core| {
+    let local = blocking(state, move |core| {
         core.store.messages(conversation_id, &query)
     })
-    .await
+    .await?;
+    if !reaches_back(&query, &local) {
+        return Ok(local);
+    }
+    let core = state.core()?;
+    match core.sync.fetch_history(conversation_id, &query).await {
+        Ok(page) => Ok(page),
+        Err(_) => Ok(local),
+    }
+}
+
+pub fn reaches_back(query: &HistoryQuery, local: &HistoryPage) -> bool {
+    query.after.is_none() && local.messages.len() < query.limit as usize
 }
 
 pub async fn save_draft(

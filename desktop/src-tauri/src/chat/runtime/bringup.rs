@@ -2,11 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chat_core::api::Identity;
-use chat_core::api::wire::{ConfigView, DeviceView, RegisterDevice};
-use chat_core::{
-    Access, ChatConfig, ChatError, ChatLimits, ChatPhase, ChatResult, DEVICE_AGE_RULE_MS,
-    HistoryGate, KeyStore,
-};
+use chat_core::api::wire::{ConfigView, RegisterDevice};
+use chat_core::{Access, ChatConfig, ChatError, ChatLimits, ChatPhase, ChatResult, KeyStore};
 
 use super::Runtime;
 use super::local::{self, Core};
@@ -55,7 +52,7 @@ impl Runtime {
             .register_device(&registration(&self.app))
             .await
             .map_err(|error| self.fail(&error, failures))?;
-        self.adopt_device(&device);
+        self.adopt_device(device.id);
         self.status.update(|status| {
             status.phase = ChatPhase::Ready;
             status.key_storage = self.keychain.storage();
@@ -125,7 +122,7 @@ impl Runtime {
         self.halt(error, *failures)
     }
 
-    fn halt(&self, error: &ChatError, failures: u32) -> Halt {
+    pub(super) fn halt(&self, error: &ChatError, failures: u32) -> Halt {
         match error {
             ChatError::ReloginRequired => Halt::Phase(ChatPhase::Unbound),
             ChatError::SessionBoundOther => Halt::Phase(ChatPhase::BoundOther),
@@ -176,18 +173,11 @@ pub fn config_of(view: ConfigView) -> ChatConfig {
     }
 }
 
-pub fn history_gate(device: &DeviceView) -> HistoryGate {
-    HistoryGate {
-        locked: !device.history_unlocked,
-        unlocks_at: (!device.history_unlocked).then(|| device.created_at + DEVICE_AGE_RULE_MS),
-    }
-}
-
 pub fn backoff(failures: u32) -> Duration {
     let exponent = failures.saturating_sub(1).min(5);
     let pause = RETRY_MIN.saturating_mul(1 << exponent).min(RETRY_MAX);
     let pause_ms = u64::try_from(pause.as_millis()).unwrap_or(u64::MAX);
-    Duration::from_millis(super::ladder::spread(
+    Duration::from_millis(super::clock::spread(
         pause_ms,
         super::clock::jitter(pause_ms * 2 / 5),
     ))

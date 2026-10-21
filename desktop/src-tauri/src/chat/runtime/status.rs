@@ -35,4 +35,18 @@ impl StatusCell {
             self.events.emit(CoreEvent::Status(status));
         }
     }
+
+    pub fn absorb(&self, engine: &ChatStatus) {
+        self.update(|status| take_engine_part(status, engine));
+    }
+}
+
+pub fn take_engine_part(status: &mut ChatStatus, engine: &ChatStatus) {
+    status.online = engine.online;
+    status.tier = engine.tier;
+    status.visible = engine.visible;
+    status.history = engine.history.clone();
+    status.unread = engine.unread;
+    status.mentions = engine.mentions;
+    status.requests = engine.requests;
 }

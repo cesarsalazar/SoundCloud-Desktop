@@ -4,10 +4,8 @@ mod convert;
 mod devices;
 mod members;
 mod reads;
-mod remote;
 mod rooms;
 mod safety;
-mod views;
 
 use chat_core::{
     ChatConfig, ChatError, ChatRequest, ChatSettings, ChatStatus, ConvId, ConversationPage,

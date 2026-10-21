@@ -1,14 +1,10 @@
 mod activity;
 mod bringup;
 mod clock;
-mod counts;
 mod drive;
 mod expiry;
-mod keys;
-mod ladder;
 mod lifecycle;
 mod local;
-mod sender;
 mod session;
 mod signals;
 mod status;
@@ -18,26 +14,23 @@ mod wake;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
 use chat_core::api::Api;
-use chat_core::api::wire::DeviceView;
-use chat_core::{ChatConfig, ChatError, ChatResult, ChatStatus, Clock, ConvId, UserId};
+use chat_core::{ChatConfig, ChatError, ChatResult, ChatStatus, Clock, ConvId, DeviceId, UserId};
 use tauri::Listener;
 
 use super::keychain::Keychain;
 use super::state::ChatState;
 use crate::rt::AppHandle;
-use keys::Epochs;
 use session::Session;
 use signals::Signals;
-use status::StatusCell;
 
 pub use bringup::config_of;
 pub use clock::SystemClock;
 pub use local::{Core, database_path};
+pub use status::StatusCell;
 pub use tap::Tap;
 
 const AUTH_CHANGED: &str = "auth:changed";
@@ -56,10 +49,7 @@ pub struct Runtime {
     lifecycle: tokio::sync::Mutex<()>,
     core: RwLock<Option<Arc<Core>>>,
     config: RwLock<Option<ChatConfig>>,
-    epochs: Epochs,
     session: Session,
-    woke: AtomicBool,
-    read_pending: AtomicBool,
     typing_sent: Mutex<HashMap<ConvId, Instant>>,
 }
 
@@ -71,6 +61,7 @@ pub struct Parts {
     pub api: Arc<Api>,
     pub clock: Arc<dyn Clock>,
     pub events: Arc<Tap>,
+    pub status: Arc<StatusCell>,
 }
 
 pub fn start(state: &ChatState) {
@@ -94,7 +85,6 @@ pub fn start(state: &ChatState) {
 impl Runtime {
     pub fn new(parts: Parts) -> Self {
         Self {
-            status: Arc::new(StatusCell::new(parts.events.clone())),
             app: parts.app,
             rt: parts.rt,
             dir: parts.dir,
@@ -102,14 +92,12 @@ impl Runtime {
             api: parts.api,
             clock: parts.clock,
             events: parts.events,
+            status: parts.status,
             signals: Signals::new(),
             lifecycle: tokio::sync::Mutex::new(()),
             core: RwLock::new(None),
             config: RwLock::new(None),
-            epochs: Epochs::default(),
             session: Session::default(),
-            woke: AtomicBool::new(false),
-            read_pending: AtomicBool::new(false),
             typing_sent: Mutex::new(HashMap::new()),
         }
     }
@@ -143,37 +131,34 @@ impl Runtime {
     }
 
     pub fn kick(&self) {
-        self.signals.kick();
-    }
-
-    pub fn outbox_filled(&self) {
-        self.signals.outbox();
+        if let Some(core) = self.core() {
+            core.sync.kick();
+        }
     }
 
     pub fn restart(&self) {
         self.signals.restart();
     }
 
-    pub fn adopt_device(&self, device: &DeviceView) {
-        self.status.update(|status| {
-            status.device_id = Some(device.id);
-            status.history = bringup::history_gate(device);
-        });
+    pub fn adopt_device(&self, device_id: DeviceId) {
+        self.status
+            .update(|status| status.device_id = Some(device_id));
     }
 
     pub fn set_visible(&self, visible: bool) {
-        if self.signals.set_visible(visible) {
-            self.status.update(|status| status.visible = visible);
+        if !self.signals.set_visible(visible) {
+            return;
+        }
+        self.status.update(|status| status.visible = visible);
+        if let Some(core) = self.core() {
+            core.sync.set_visible(visible);
         }
     }
 
     pub fn woke_up(&self) {
-        self.woke.store(true, Ordering::Relaxed);
-        self.signals.wake();
-    }
-
-    fn take_wake(&self) -> bool {
-        self.woke.swap(false, Ordering::Relaxed)
+        if let Some(core) = self.core() {
+            core.sync.reset_network();
+        }
     }
 }
 

@@ -1,49 +1,28 @@
-use serde::Serialize;
-
+use chat_core::api::wire::{MyChange, NewConversation};
 use chat_core::envelope::Content;
 use chat_core::{
     ChatError, ChatResult, ConvId, ConversationKind, ConversationMeta, ConversationPatch,
-    ConversationSummary, CoreEvent, CreateConversation, DeleteScope, GoneEvent, Mute, MyPatch,
-    NotifyLevel, UserId, is_disappearing_ttl,
+    ConversationSummary, CoreEvent, CreateConversation, DeleteScope, GoneEvent,
+    is_disappearing_ttl,
 };
 
 use super::compose::queue;
-use super::convert;
 use super::reads::blocking;
-use super::remote::{self, DELETE, GET, NO_BODY, POST, PUT};
-use super::views::ConversationView;
 use crate::chat::state::ChatState;
-
-const MUTE_FOREVER_MS: i64 = 253_402_300_799_000;
-
-#[derive(Serialize)]
-struct CreateBody {
-    kind: ConversationKind,
-    members: Vec<UserId>,
-}
-
-#[derive(Serialize)]
-pub struct MyPatchBody {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    muted_until: Option<Option<i64>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    notify: Option<NotifyLevel>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pinned: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    archived: Option<bool>,
-}
 
 pub async fn create(
     state: &ChatState,
     input: CreateConversation,
 ) -> ChatResult<ConversationSummary> {
-    let body = CreateBody {
+    let core = state.core()?;
+    let body = NewConversation {
         kind: input.kind,
         members: input.members,
+        meta_ct: None,
+        meta_epoch: None,
     };
-    let view: ConversationView =
-        remote::json(state, POST, "/chat/conversations", "", Some(&body)).await?;
+    let view = state.api.create_conversation(&body).await?;
+    let summary = core.sync.adopt(&view).await?;
     let title = input.title.filter(|title| !title.trim().is_empty());
     if let (ConversationKind::Group, Some(title)) = (input.kind, title) {
         let meta = ConversationMeta {
@@ -53,7 +32,7 @@ pub async fn create(
         };
         queue(state, view.id, None, Content::Meta(meta)).await?;
     }
-    adopt(state, view).await
+    Ok(summary)
 }
 
 pub async fn update(
@@ -73,14 +52,16 @@ pub async fn update(
         };
         queue(state, conversation_id, None, Content::Meta(meta)).await?;
     }
-    let view = match patch.me {
+    match patch.me {
         Some(mine) => {
-            let path = format!("{}/me", remote::conversation(conversation_id));
-            remote::json(state, PUT, &path, "", Some(&my_patch(mine))).await?
+            let view = state
+                .api
+                .update_me(conversation_id, &MyChange::from(&mine))
+                .await?;
+            state.core()?.sync.adopt(&view).await
         }
-        None => fetch(state, conversation_id).await?,
-    };
-    adopt(state, view).await
+        None => refreshed(state, conversation_id).await,
+    }
 }
 
 pub async fn delete(
@@ -88,18 +69,10 @@ pub async fn delete(
     conversation_id: ConvId,
     scope: DeleteScope,
 ) -> ChatResult<()> {
-    let scope = match scope {
-        DeleteScope::Me => "for=me",
-        DeleteScope::Everyone => "for=everyone",
-    };
-    remote::done(
-        state,
-        DELETE,
-        &remote::conversation(conversation_id),
-        scope,
-        NO_BODY,
-    )
-    .await?;
+    state
+        .api
+        .delete_conversation(conversation_id, scope)
+        .await?;
     forget(state, conversation_id).await
 }
 
@@ -112,18 +85,17 @@ pub async fn set_ttl(
         return Err(ChatError::Invalid);
     }
     state.api.set_ttl(conversation_id, ttl_s).await?;
+    state.runtime.kick();
     refreshed(state, conversation_id).await
 }
 
 pub async fn accept(state: &ChatState, conversation_id: ConvId) -> ChatResult<ConversationSummary> {
-    let path = format!("{}/accept", remote::conversation(conversation_id));
-    remote::done(state, POST, &path, "", NO_BODY).await?;
+    state.api.accept(conversation_id).await?;
     refreshed(state, conversation_id).await
 }
 
 pub async fn decline(state: &ChatState, conversation_id: ConvId) -> ChatResult<()> {
-    let path = format!("{}/decline", remote::conversation(conversation_id));
-    remote::done(state, POST, &path, "", NO_BODY).await?;
+    state.api.decline(conversation_id).await?;
     forget(state, conversation_id).await
 }
 
@@ -131,41 +103,17 @@ pub async fn refreshed(
     state: &ChatState,
     conversation_id: ConvId,
 ) -> ChatResult<ConversationSummary> {
-    let view = fetch(state, conversation_id).await?;
-    adopt(state, view).await
-}
-
-async fn fetch(state: &ChatState, conversation_id: ConvId) -> ChatResult<ConversationView> {
-    remote::json(
-        state,
-        GET,
-        &remote::conversation(conversation_id),
-        "",
-        NO_BODY,
-    )
-    .await
-}
-
-async fn adopt(state: &ChatState, view: ConversationView) -> ChatResult<ConversationSummary> {
-    state.runtime.kick();
-    blocking(state, move |core| {
-        let peer = view.peer.as_ref().and_then(|peer| {
-            convert::people(&core.store, std::slice::from_ref(peer))
-                .into_iter()
-                .next()
-        });
-        let stored = core.store.conversation(view.id)?;
-        let summary = convert::merged(convert::summary(&view, peer), stored);
-        core.store
-            .put_conversations(std::slice::from_ref(&summary))?;
-        Ok(summary)
-    })
-    .await
+    state
+        .core()?
+        .sync
+        .refresh_conversation(conversation_id)
+        .await
 }
 
 async fn forget(state: &ChatState, conversation_id: ConvId) -> ChatResult<()> {
     blocking(state, move |core| {
-        core.store.purge_conversations(&[conversation_id])
+        core.store.purge_conversations(&[conversation_id])?;
+        core.sync.load_tally()
     })
     .await?;
     state.events.emit(CoreEvent::Gone(GoneEvent {
@@ -173,17 +121,4 @@ async fn forget(state: &ChatState, conversation_id: ConvId) -> ChatResult<()> {
         messages: Vec::new(),
     }));
     Ok(())
-}
-
-pub fn my_patch(mine: MyPatch) -> MyPatchBody {
-    MyPatchBody {
-        muted_until: mine.mute.map(|mute| match mute {
-            Mute::Off => None,
-            Mute::Until { at } => Some(at),
-            Mute::Forever => Some(MUTE_FOREVER_MS),
-        }),
-        notify: mine.notify,
-        pinned: mine.pinned,
-        archived: mine.archived,
-    }
 }

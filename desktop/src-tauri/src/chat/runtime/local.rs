@@ -9,8 +9,6 @@ use chat_core::store::Store;
 use chat_core::sync::SyncEngine;
 use chat_core::{ChatError, ChatResult, DeviceId, Events, KeyStore};
 
-use super::Runtime;
-
 const DATABASE: &str = "chat.db";
 
 pub struct Core {
@@ -40,20 +38,6 @@ impl Core {
             sync: SyncEngine::new(api, store.clone(), events),
             store,
         })
-    }
-}
-
-impl Runtime {
-    pub(super) async fn on_store<T, F>(&self, core: &Arc<Core>, work: F) -> ChatResult<T>
-    where
-        T: Send + 'static,
-        F: FnOnce(&Core) -> ChatResult<T> + Send + 'static,
-    {
-        let core = core.clone();
-        self.rt
-            .spawn_blocking(move || work(&core))
-            .await
-            .map_err(|_| ChatError::Internal)?
     }
 }
 
