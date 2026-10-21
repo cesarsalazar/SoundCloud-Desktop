@@ -9,8 +9,8 @@
   },
   "tier": {
     "direct": "doğrudan",
-    "relay": "röle üzerinden",
-    "pro": "pro üzerinden"
+    "relay": "yedek yoldan",
+    "pro": "ikinci yedek yoldan"
   },
   "version": "v{{version}}",
   "alert": {

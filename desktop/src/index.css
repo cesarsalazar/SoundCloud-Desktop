@@ -16,6 +16,7 @@
   --color-accent-selection: rgba(255, 85, 0, 0.3);
   --color-accent-contrast: #ffffff;
   --color-chat-cutout: color-mix(in srgb, var(--color-white) 7%, var(--color-black));
+  --color-chat-tint: color-mix(in srgb, var(--color-accent) 20%, transparent);
   --color-superlike-from: #ffd166;
   --color-superlike-via: #ff7a59;
   --color-superlike-to: #ff3d81;

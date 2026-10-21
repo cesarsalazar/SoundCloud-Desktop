@@ -51,7 +51,7 @@ export const HoverActions = memo(function HoverActions({
   const { t } = useThread();
   return (
     <div
-      className={`chat-thread-motion absolute -top-[26px] z-10 flex items-center gap-px rounded-full border border-white/[0.09] p-[2px] shadow-[0_6px_18px_rgba(0,0,0,0.45)] ${
+      className={`chat-thread-motion absolute -top-5 z-10 flex items-center gap-px rounded-full border border-white/[0.09] p-[2px] shadow-[0_6px_18px_rgba(0,0,0,0.45)] ${
         mine ? 'left-2' : 'right-2'
       }`}
       style={{ background: surface(11), animation: 'chat-thread-rise 120ms ease-out' }}

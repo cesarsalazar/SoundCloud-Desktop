@@ -25,13 +25,15 @@ const LADDER: Array<{ id: string; Icon: IconCmp; tone: string }> = [
 export const ForbiddenGrid = memo(function ForbiddenGrid() {
   const { t } = useTranslation();
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
+    <div className="flex flex-wrap gap-2">
       {FORBIDDEN.map((id) => {
         const Icon = REASON_ICONS[id];
         return (
           <div
             key={id}
-            className="flex items-center gap-2.5 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5"
+            className={`flex min-w-[150px] flex-1 items-center gap-2.5 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 ${
+              id === 'illegal' ? 'basis-full' : 'basis-[150px]'
+            }`}
           >
             <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-300">
               <Icon size={14} />

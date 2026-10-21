@@ -21,7 +21,9 @@
     "groups": "Группы",
     "unread": "Непрочитанные",
     "requests": "Запросы",
-    "archived": "Архив"
+    "archived": "Архив",
+    "back": "Назад",
+    "more": "Ещё"
   },
   "preview": {
     "embed": "Музыка",

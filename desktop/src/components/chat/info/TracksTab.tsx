@@ -1,9 +1,10 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
+import type { TFunction } from 'i18next';
 import { memo, type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { chatBridge } from '../../../lib/chat/bridge';
 import { senderColor } from '../../../lib/chat/render';
-import { shortDate } from '../../../lib/chat/time';
+import { DAY_MS, sameDay, shortDate } from '../../../lib/chat/time';
 import type { EmbedHit, EmbedKind, Seq } from '../../../lib/chat/types';
 import { Loader2, Music, RotateCcw } from '../../../lib/icons';
 import { EmbedCard } from '../embeds/EmbedCard';
@@ -12,6 +13,11 @@ import { useThread } from '../thread/context';
 const KINDS: EmbedKind[] = ['track', 'playlist'];
 const PAGE = 30;
 const LOAD_AHEAD = 5;
+
+function hitDate(ts: number, now: number, t: TFunction, language: string): string {
+  if (sameDay(ts, now - DAY_MS)) return t('chat.thread.day.yesterday');
+  return shortDate(ts, now, language);
+}
 
 type Load = 'loading' | 'ready' | 'failed';
 
@@ -56,7 +62,7 @@ export const TracksTab = memo(function TracksTab({
   scrollRef: RefObject<HTMLDivElement | null>;
   onJump: (seq: Seq) => void;
 }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { conversation, nameOf } = useThread();
   const [items, setItems] = useState<EmbedHit[]>([]);
   const [more, setMore] = useState(false);
@@ -135,7 +141,7 @@ export const TracksTab = memo(function TracksTab({
                 {nameOf(hit.sender)}
               </span>
               <span className="shrink-0 tabular-nums">
-                {shortDate(hit.ts, Date.now(), i18n.language)}
+                {hitDate(hit.ts, Date.now(), t, i18n.language)}
               </span>
             </button>
             <EmbedCard embed={hit.embed} compact />

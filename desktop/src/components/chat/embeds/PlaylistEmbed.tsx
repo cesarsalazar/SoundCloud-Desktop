@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { openShare } from '../../../lib/chat/share';
 import type { Embed } from '../../../lib/chat/types';
-import { durLong } from '../../../lib/formatters';
 import { Bookmark, Pause, Play, Send, Shuffle } from '../../../lib/icons';
 import { usePerfMode } from '../../../lib/perf';
 import { linkRoute } from '../../../lib/soundcloudLink';
 import { useIsPlayingFrom } from '../../../lib/useTrackPlay';
 import { usePlayerStore } from '../../../stores/player';
+import { spanText } from '../devices/time';
 import { EmbedAction } from './EmbedAction';
 import { EmbedShell } from './EmbedShell';
 import { listTrack } from './embed-track';
@@ -49,7 +49,7 @@ export const PlaylistEmbed = memo(function PlaylistEmbed({
   const tint = useCoverTint(covers[0] ?? null, visible && perf.bloom && !compact);
   const { saved, toggle: toggleSaved } = usePlaylistSaved(embed.urn, visible && !compact);
   const route = linkRoute(embed.urn);
-  const meta = [embed.artist, embed.durationMs ? durLong(embed.durationMs) : null]
+  const meta = [embed.artist, embed.durationMs ? spanText(t, embed.durationMs) : null]
     .filter(Boolean)
     .join(' · ');
 

@@ -25,8 +25,8 @@ const THEIRS: CSSProperties = {
 };
 
 const MINE: CSSProperties = {
-  background: 'var(--color-accent-glow)',
-  border: '1px solid var(--color-accent-glow)',
+  background: 'var(--color-chat-tint)',
+  border: '1px solid var(--color-chat-tint)',
 };
 
 const FAILED: CSSProperties = {

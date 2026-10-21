@@ -47,6 +47,7 @@ Tailwind class names change from release to release. These attributes do not:
 | `[data-ui="chat-dock"]` | Chat panel at the right edge |
 | `[data-ui="chat-dock-tabs"]` | Tab row of the chat panel |
 | `[data-ui="chat-list"]` | Chat list |
+| `[data-ui="chat-filter"]` | Filter above the chat list. `[data-kind]` is `all`, `direct`, `groups`, `unread`, `requests` or `archived`, the chosen one has `[aria-pressed="true"]` |
 | `[data-ui="chat-row"]` | A chat in the list. `[data-kind]` is `direct`, `group`, `self` or `room`, the open one has `[aria-current]` |
 | `[data-ui="chat-thread"]` | Open chat with its messages, `[data-kind]` as above |
 | `[data-ui="chat-thread-header"]` | Header of the open chat |
@@ -62,7 +63,7 @@ Tailwind class names change from release to release. These attributes do not:
 | `[data-ui="chat-device-alert"]` | New device alert |
 | `[data-ui="chat-relogin"]` | Chat sign-in card |
 
-Other chat windows (new chat, report, delete) are `[data-ui="modal"]`. Chat colors come from `--color-white` (text and lines), `--color-black` (surfaces), `--color-bg-glass*` and `--color-border-glass*`, so a light theme that redefines them restyles chats too.
+Other chat windows (new chat, report, delete) are `[data-ui="modal"]`. Chat colors come from `--color-white` (text and lines), `--color-black` (surfaces), `--color-bg-glass*` and `--color-border-glass*`, so a light theme that redefines them restyles chats too. Your messages, the open chat and the chosen filter are tinted with `--color-chat-tint`.
 
 ## Variables
 
