@@ -53,20 +53,21 @@ impl<L: Local> SyncEngine<L> {
             self.note_view(view);
             let existing = self.store.conversation(view.id)?;
             let mut summary = self.summary_of(view, existing.as_ref()).await?;
+            let mut messages = Vec::new();
             if summary.last_seq < view.last_seq && budget > 0 {
                 budget -= 1;
-                let messages = self.catch_up(view.id, summary.last_seq).await?;
+                messages = self.catch_up(view.id, summary.last_seq).await?;
                 summary::absorb(&mut summary, &messages);
-                if !messages.is_empty() {
-                    self.events.emit(CoreEvent::Messages(MessagesEvent {
-                        conversation_id: view.id,
-                        origin: MessagesOrigin::Sync,
-                        messages,
-                    }));
-                }
             }
             self.recount(&mut summary)?;
             self.save(std::slice::from_ref(&summary))?;
+            if !messages.is_empty() {
+                self.events.emit(CoreEvent::Messages(MessagesEvent {
+                    conversation_id: view.id,
+                    origin: MessagesOrigin::Sync,
+                    messages,
+                }));
+            }
             conversations.push(summary);
         }
         let requests = self.with(|state| state.status.requests);

@@ -377,6 +377,59 @@ async fn role_delete_moderator_and_suggest_rows_keep_their_kind() {
     );
 }
 
+struct SavedProbe {
+    local: std::sync::Arc<sync_support::MemoryLocal>,
+    saved: std::sync::Mutex<Vec<bool>>,
+}
+
+impl chat_core::Events for SavedProbe {
+    fn emit(&self, event: chat_core::CoreEvent) {
+        if let chat_core::CoreEvent::Messages(shown) = event {
+            let saved = self.local.summary(shown.conversation_id).is_some();
+            self.saved.lock().unwrap().push(saved);
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_reset_shows_messages_of_a_new_chat_only_after_the_chat_is_saved() {
+    let rig = rig();
+    let probe = std::sync::Arc::new(SavedProbe {
+        local: rig.local.clone(),
+        saved: std::sync::Mutex::default(),
+    });
+    let engine = chat_core::sync::SyncEngine::with_parts(
+        rig.engine.api().clone(),
+        rig.local.clone(),
+        probe.clone(),
+        std::sync::Arc::new(sync_support::TestCipher),
+    );
+    rig.server
+        .json("POST", "/chat/sync", answer(5, INC, vec![]));
+    assert_eq!(engine.step(plan(&rig)).await, Ok(SyncOutcome::Reset));
+    rig.server.json(
+        "GET",
+        "/chat/conversations",
+        json!({"items": [view(A, 1)], "next_cursor": null}),
+    );
+    rig.server
+        .json("GET", "/chat/users/200/card", card(PEER, "peer"));
+    rig.server.json(
+        "GET",
+        &format!("/chat/conversations/{A}/messages"),
+        json!({"messages": [post(A, 1, 1, "one")], "more": false}),
+    );
+    rig.server.json(
+        "GET",
+        &format!("/chat/conversations/{A}/keys"),
+        keys(A, &[1]),
+    );
+
+    engine.reconcile().await.unwrap();
+
+    assert_eq!(*probe.saved.lock().unwrap(), [true]);
+}
+
 #[tokio::test]
 async fn read_marks_ride_the_next_sync_once() {
     let rig = rig();
