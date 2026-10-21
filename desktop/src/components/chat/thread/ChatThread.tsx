@@ -2,6 +2,7 @@ import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState
 import { useTranslation } from 'react-i18next';
 import type { ConvId, Seq } from '../../../lib/chat/types';
 import { useChatStore } from '../../../stores/chat';
+import { useChatListStore } from '../../../stores/chat/list';
 import { useChatThreadStore } from '../../../stores/chat/thread';
 import { ComposerGate } from '../composer/ComposerGate';
 import { InfoSheet } from '../info/InfoSheet';
@@ -16,6 +17,7 @@ import { ThreadEmpty, ThreadFailed, ThreadGone, ThreadSkeleton } from './ThreadS
 import { Timeline, type TimelineHandle } from './Timeline';
 import { useBlocked } from './useBlocked';
 import { usePeople } from './usePeople';
+import { useStableConversation } from './useStableConversation';
 
 export interface ChatThreadProps {
   conversationId: ConvId;
@@ -32,9 +34,9 @@ export const ChatThread = memo(function ChatThread({
   actions,
   bare = false,
 }: ChatThreadProps) {
-  const conversation = useChatThreadStore(
-    (state) => state.threads[conversationId]?.conversation ?? null,
-  );
+  const opened = useChatThreadStore((state) => state.threads[conversationId]?.conversation ?? null);
+  const listed = useChatListStore((state) => state.byId[conversationId]);
+  const conversation = useStableConversation(opened ? (listed ?? opened) : null);
   const load = useChatThreadStore((state) => state.threads[conversationId]?.load ?? 'idle');
   const members = useChatThreadStore((state) => state.threads[conversationId]?.members);
   const empty = useChatThreadStore(

@@ -17,6 +17,7 @@ import type {
   TypingEvent,
   UserId,
 } from '../../lib/chat/types';
+import { useChatListStore } from './list';
 import {
   expiredSeqs,
   goneByConversation,
@@ -87,6 +88,7 @@ export interface ChatThreadState {
   applyMarks: (marks: ConversationMarks[]) => void;
   applyGone: (event: GoneEvent) => void;
   purgeExpired: (now: number) => void;
+  clear: () => void;
 }
 
 const NO_COMPOSE: Compose = { reply: null, edit: null };
@@ -212,6 +214,7 @@ export const useChatThreadStore = create<ChatThreadState>()((set, get) => {
           load: 'ready',
           openedAt: Date.now(),
         }));
+        useChatListStore.getState().upsert(snapshot.conversation);
         if (snapshot.conversation.kind === 'group' || snapshot.conversation.kind === 'room') {
           void get().loadMembers(id);
         }
@@ -246,7 +249,10 @@ export const useChatThreadStore = create<ChatThreadState>()((set, get) => {
     setCompose: (id, compose) =>
       patch(id, (current) => ({ compose: { ...current.compose, ...compose } })),
 
-    setConversation: (summary) => patch(summary.id, () => ({ conversation: summary })),
+    setConversation: (summary) => {
+      patch(summary.id, () => ({ conversation: summary }));
+      useChatListStore.getState().upsert(summary);
+    },
 
     send: async (id, text, embeds) => {
       const reply = thread(id).compose.reply;
@@ -329,8 +335,7 @@ export const useChatThreadStore = create<ChatThreadState>()((set, get) => {
     },
 
     setTtl: async (id, ttlS) => {
-      const summary = await chatBridge.setTtl(id, ttlS);
-      patch(id, () => ({ conversation: summary }));
+      get().setConversation(await chatBridge.setTtl(id, ttlS));
     },
 
     applyMessages: (event) => {
@@ -373,6 +378,12 @@ export const useChatThreadStore = create<ChatThreadState>()((set, get) => {
         return { threads };
       });
       scheduleExpiry();
+    },
+
+    clear: () => {
+      if (expiryTimer) clearTimeout(expiryTimer);
+      expiryTimer = null;
+      set({ openId: null, threads: {} });
     },
 
     purgeExpired: (now) => {
