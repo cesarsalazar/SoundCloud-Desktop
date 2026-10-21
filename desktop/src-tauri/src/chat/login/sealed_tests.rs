@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 use super::exchange::{Call, Signer};
 use super::lane::Lane;
-use super::{LOGIN, LOGIN_STATUS, get, wire};
+use super::{LINK_CLAIM, LOGIN, LOGIN_STATUS, claim_call, get, wire};
 
 const NOW: Millis = 1_760_958_000_000;
 const SESSION: &str = "0192e5c4-7b7e-7a3c-9d55-2b8f3c1e4a10";
@@ -299,4 +299,36 @@ async fn two_flows_at_first_start_share_one_device() {
     let (stored_id, stored) = DeviceKeys::load_or_create(store.as_ref()).unwrap();
     assert_eq!(stored_id, login.device_id);
     assert_eq!(stored.box_public(), login.keys.box_public());
+}
+
+#[tokio::test]
+async fn a_pull_claim_from_the_source_is_sealed_with_its_session() {
+    let claimed = json!({ "sessionId": SESSION, "mode": "pull" });
+    let origin = Origin::new(
+        vec![Tier::Direct],
+        vec![Reply::Answer(200, claimed.to_string())],
+    );
+    let signer = signer();
+    let answer = origin
+        .lane()
+        .send(
+            &origin,
+            &signer,
+            &claim_call("claim-7", Some(SESSION.to_owned())),
+        )
+        .await
+        .unwrap();
+    let claimed: chat_core::LinkClaimed = wire::decode(&answer).unwrap();
+    assert_eq!(claimed.mode, chat_core::LinkMode::Pull);
+
+    origin.seen(|seen| {
+        let inner = &seen[0].inner;
+        let bind = inner.bind.as_ref().unwrap();
+        verify_request(&bind.auth_pub, inner, &seen[0].enc).unwrap();
+        assert_eq!(inner.method, "POST");
+        assert_eq!(inner.path, LINK_CLAIM);
+        assert_eq!(inner.session_id.as_deref(), Some(SESSION));
+        let body: serde_json::Value = serde_json::from_slice(&inner.body).unwrap();
+        assert_eq!(body["claimToken"], "claim-7");
+    });
 }

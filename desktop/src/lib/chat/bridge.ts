@@ -55,6 +55,8 @@ export const chatBridge = {
   linkCreatePull: () => invoke<LinkCreated>('chat_link_create_pull'),
   linkClaimPush: (claimToken: string) =>
     invoke<LinkClaimed>('chat_link_claim_push', { claimToken }),
+  linkClaimPull: (claimToken: string) =>
+    invoke<LinkClaimed>('chat_link_claim_pull', { claimToken }),
   linkPoll: (linkRequestId: string) => invoke<LinkPoll>('chat_link_poll', { linkRequestId }),
 
   list: (query: ListQuery) => invoke<ConversationPage>('chat_list', { query }),

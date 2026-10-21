@@ -1,5 +1,6 @@
 import { fetchWithAuthFallback } from './api-client';
 import {
+  sealedLinkClaimPull,
   sealedLinkClaimPush,
   sealedLinkCreatePull,
   sealedLinkCreatePush,
@@ -62,7 +63,9 @@ export async function claimLinkRequest(
   claimToken: string,
   mode: LinkMode,
 ): Promise<ClaimLinkResponse> {
-  const sealed = mode === 'push' ? await sealedLinkClaimPush(claimToken) : null;
+  const sealed = await (mode === 'push'
+    ? sealedLinkClaimPush(claimToken)
+    : sealedLinkClaimPull(claimToken));
   if (sealed) return sealed;
   return fetchWithAuthFallback<ClaimLinkResponse>('/auth/link/claim', {
     method: 'POST',
