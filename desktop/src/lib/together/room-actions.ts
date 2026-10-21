@@ -4,10 +4,10 @@ import { type Track, usePlayerStore } from '../../stores/player';
 import { useTogetherStore } from '../../stores/together';
 import { api } from '../api';
 import { chatBridge } from '../chat/bridge';
+import { trackEmbed } from '../chat/embed-snapshot';
 import type { RoomModeration, RoomSettingsPatch } from '../chat/types';
 import { roomErrorKey } from './chat-errors';
 import { cleanTitle } from './room-rules';
-import { suggestion } from './suggest';
 
 async function inRoom(task: (code: string) => Promise<void>): Promise<boolean> {
   const code = useTogetherStore.getState().room?.code;
@@ -53,8 +53,11 @@ export function renameRoom(title: string): Promise<boolean> {
   return configure({ title: cleanTitle(title) });
 }
 
-export function suggestTrack(track: Track): Promise<boolean> {
-  return inRoom((code) => chatBridge.roomSuggest(code, suggestion(track)));
+export async function suggestTrack(track: Track): Promise<boolean> {
+  const embed = trackEmbed(track);
+  if (embed) return inRoom((code) => chatBridge.roomSuggest(code, embed));
+  toast.error(i18n.t('chat.room.errors.invalid'));
+  return false;
 }
 
 export async function queueSuggestion(urn: string): Promise<boolean> {
