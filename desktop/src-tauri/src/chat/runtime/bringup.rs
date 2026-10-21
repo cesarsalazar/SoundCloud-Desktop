@@ -129,9 +129,7 @@ impl Runtime {
             ChatError::DeviceRevoked => Halt::Phase(ChatPhase::Revoked),
             ChatError::Disabled => Halt::Phase(ChatPhase::Off),
             ChatError::Unimplemented => Halt::Retry(STUB_RETRY),
-            ChatError::Busy { retry_ms } => {
-                Halt::Retry(Duration::from_millis(*retry_ms).max(RETRY_MIN))
-            }
+            ChatError::Busy { retry_ms } => Halt::Retry(busy_retry(*retry_ms)),
             ChatError::Clock { server_now } => {
                 self.api.channel().note_server_now(*server_now);
                 Halt::Retry(clock_retry(failures))
@@ -139,6 +137,15 @@ impl Runtime {
             _ => Halt::Retry(backoff(failures)),
         }
     }
+}
+
+pub fn busy_retry(retry_ms: u64) -> Duration {
+    let floor = u64::try_from(RETRY_MIN.as_millis()).unwrap_or(u64::MAX);
+    let base = retry_ms.max(floor);
+    Duration::from_millis(super::clock::spread(
+        base,
+        super::clock::jitter(base * 2 / 5),
+    ))
 }
 
 pub fn clock_retry(failures: u32) -> Duration {

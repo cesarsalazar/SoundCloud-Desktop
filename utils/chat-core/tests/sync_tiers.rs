@@ -151,7 +151,27 @@ async fn busy_answers_wait_the_given_time_or_up_to_ten_seconds() {
         Step::Json(429, json!({"error": "chat_busy", "retry_ms": 2500})),
     );
     assert!(retry(step(&rig).await.2) <= 10_000);
-    assert_eq!(retry(step(&rig).await.2), 2_500);
+    let spread = retry(step(&rig).await.2);
+    assert!((1_250..=2_500).contains(&spread), "{spread}");
+}
+
+#[tokio::test]
+async fn busy_retries_spread_so_clients_do_not_come_back_together() {
+    let rig = rig();
+    synced(&rig);
+    for _ in 0..40 {
+        rig.server.on(
+            "POST",
+            "/chat/sync",
+            Step::Json(429, json!({"error": "chat_busy", "retry_ms": 1000})),
+        );
+    }
+    let mut waits = std::collections::HashSet::new();
+    for _ in 0..40 {
+        waits.insert(retry(step(&rig).await.2));
+    }
+    assert!(waits.len() > 10, "{waits:?}");
+    assert!(waits.iter().all(|wait| (500..=1_000).contains(wait)));
 }
 
 #[tokio::test]
@@ -182,6 +202,37 @@ async fn hidden_syncs_short_once_a_minute_and_showing_syncs_at_once() {
     assert_eq!(syncs[1].timeout_ms, 35_000);
     assert_eq!(syncs[1].body["max_bytes"], json!(256 * 1024));
     assert!(rig.clock.slept().contains(&60_000));
+}
+
+#[tokio::test]
+async fn stop_ends_the_wait_before_a_reset_at_once() {
+    let rig = rig();
+    rig.clock.block_sleeps_from(1);
+    rig.server.json("GET", "/chat/devices", json!([]));
+    let mut reset = sync_support::fixtures::answer(9, INC, vec![]);
+    reset["reset"] = json!(true);
+    rig.server.json("POST", "/chat/sync", reset);
+    rig.server.json(
+        "GET",
+        "/chat/conversations",
+        json!({"items": [], "next_cursor": null}),
+    );
+    let stopper = async {
+        while rig.server.calls_to("POST", "/chat/sync").is_empty() {
+            tokio::task::yield_now().await;
+        }
+        for _ in 0..10 {
+            tokio::task::yield_now().await;
+        }
+        rig.engine.stop();
+    };
+    let ran = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        tokio::join!(rig.engine.run(rig.clock.as_ref()), stopper).0
+    })
+    .await;
+
+    assert_eq!(ran, Ok(Ok(())));
+    assert!(rig.server.calls_to("GET", "/chat/conversations").is_empty());
 }
 
 #[tokio::test]
@@ -229,6 +280,20 @@ async fn the_server_hold_cap_wins_over_the_tier_hold() {
     rig.engine.set_visible(true);
     rig.engine.set_hold_cap(10_000);
     assert_eq!(rig.engine.plan(Tier::Direct).hold_ms, 10_000);
+}
+
+#[tokio::test]
+async fn a_zero_hold_cap_polls_with_a_gap_instead_of_back_to_back() {
+    let rig = rig();
+    rig.engine.set_visible(true);
+    rig.engine.set_hold_cap(0);
+    let plan = rig.engine.plan(Tier::Direct);
+    assert_eq!(
+        (plan.hold_ms, plan.delay_ms),
+        (0, chat_core::sync::SHORT_POLL_GAP_MS)
+    );
+    rig.engine.set_hold_cap(10_000);
+    assert_eq!(rig.engine.plan(Tier::Direct).delay_ms, 0);
 }
 
 #[tokio::test]
