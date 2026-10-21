@@ -102,7 +102,8 @@ desktop/
                          server (общий cors + регистрация портов),
                          image_cache (постоянный кеш картинок в app_data_dir/images),
                          fetch (`net_fetch`: wreq + h2-пинги), edge (прямой → relay → pro),
-                         pro (relay-pro: ответ кусками под обрыв по объёму), audio_route,
+                         pro (relay-pro: ответ кусками под обрыв по объёму, тело больше 8 КБ уходит
+                         staged: POST /stage, PUT /stage/{id}?at=N, POST /open с body_stage), audio_route,
                          system_proxy (системный прокси на каждом клиенте),
                          netcheck + health (проверка сети, поиск zapret/WinDivert, вердикт),
                          call (call-client agent, флаг enabled в `call_enabled.json`)
