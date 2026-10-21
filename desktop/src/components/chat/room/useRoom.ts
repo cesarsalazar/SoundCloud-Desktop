@@ -49,25 +49,26 @@ export function useMutedUntil(room: RoomView | null, userId: string | null): num
   return room ? mutedUntil(room, userId, now) : null;
 }
 
-export function useRoomModerator(conversationId: ConvId): boolean {
+function useOurRoom(conversationId: ConvId): RoomView | null {
   const ours = useChatRoomStore((state) => state.conversationId === conversationId);
-  const room = useRoom();
+  return useTogetherStore((state) => (ours ? state.room : null));
+}
+
+export function useRoomModerator(conversationId: ConvId): boolean {
+  const room = useOurRoom(conversationId);
   const self = useTogetherStore((state) => state.selfId);
-  return ours && room !== null && canModerate(room, self);
+  return room !== null && canModerate(room, self);
 }
 
 export function useRoomSendLock(conversationId: ConvId): number | null {
-  const ours = useChatRoomStore((state) => state.conversationId === conversationId);
-  const room = useRoom();
+  const room = useOurRoom(conversationId);
   const self = useTogetherStore((state) => state.selfId);
-  return useMutedUntil(ours ? room : null, self);
+  return useMutedUntil(room, self);
 }
 
 export function useRoomMembers(conversationId: ConvId): Member[] | undefined {
-  const ours = useChatRoomStore((state) => state.conversationId === conversationId);
-  const room = useRoom();
-  const view = ours ? room : null;
-  return useMemo(() => (view ? chatMembers(view) : undefined), [view]);
+  const room = useOurRoom(conversationId);
+  return useMemo(() => (room ? chatMembers(room) : undefined), [room]);
 }
 
 function useServerAfter(at: number): boolean {
@@ -83,12 +84,10 @@ function useServerAfter(at: number): boolean {
 }
 
 export function useRoomLinkBlock(conversationId: ConvId): RoomLinkBlock {
-  const ours = useChatRoomStore((state) => state.conversationId === conversationId);
-  const room = useRoom();
+  const room = useOurRoom(conversationId);
   const self = useTogetherStore((state) => state.selfId);
-  const view = ours ? room : null;
-  const open = useServerAfter(view ? linksOpenAt(view, self) : 0);
-  if (!view) return null;
-  if (linksOff(view, self)) return 'off';
+  const open = useServerAfter(room ? linksOpenAt(room, self) : 0);
+  if (!room) return null;
+  if (linksOff(room, self)) return 'off';
   return open ? null : 'new';
 }
