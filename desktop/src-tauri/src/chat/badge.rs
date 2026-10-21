@@ -36,6 +36,7 @@ pub fn apply(app: &AppHandle, status: &ChatStatus) {
     *applied = Some(badge);
     let _ = window.set_title(&badge.title(&base_title(app)));
     show(app, &window, badge);
+    crate::app::tray::set_unread(app, badge.count > 0);
 }
 
 fn reshow_on_focus(app: &AppHandle, window: &WebviewWindow) {

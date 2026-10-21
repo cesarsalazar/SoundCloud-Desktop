@@ -13,6 +13,7 @@ pub mod restart;
 pub mod storage;
 pub mod themes;
 pub mod tray;
+mod tray_dot;
 pub mod tray_labels;
 pub mod updater;
 pub mod visibility;
