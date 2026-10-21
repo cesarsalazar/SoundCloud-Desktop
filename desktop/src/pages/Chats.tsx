@@ -13,12 +13,15 @@ const PANEL =
   'relative flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-white/[0.08]';
 
 function Panel({ className, children }: { className: string; children: ReactNode }) {
-  const blur = usePerfMode().blur(40);
+  const perf = usePerfMode();
+  const blur = perf.blur(40);
   return (
     <section
       className={`${PANEL} ${className}`}
       style={{
-        boxShadow: '0 24px 70px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06)',
+        boxShadow: perf.bloom
+          ? '0 24px 70px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.06)',
       }}
     >
       <div
