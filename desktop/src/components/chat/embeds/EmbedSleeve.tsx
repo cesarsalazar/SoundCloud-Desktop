@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { ink } from '../../../lib/chat/tone';
 import { art } from '../../../lib/formatters';
 import { Music, Pause, Play } from '../../../lib/icons';
 import { usePerfMode } from '../../../lib/perf';
@@ -87,7 +88,7 @@ export const EmbedSleeve = memo(function EmbedSleeve({
           <span
             className="flex h-full w-full items-center justify-center text-white/30"
             style={{
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
+              background: `linear-gradient(145deg, ${ink(8)}, ${ink(2)})`,
             }}
           >
             <Music size={Math.round(size * 0.34)} />

@@ -1,5 +1,6 @@
 import { type MouseEvent, memo, type ReactNode } from 'react';
 import { Reply, Smile } from '../../../lib/chat/icons';
+import { surface } from '../../../lib/chat/tone';
 import { Ellipsis } from '../../../lib/icons';
 import { useThread } from '../thread/context';
 
@@ -53,7 +54,7 @@ export const HoverActions = memo(function HoverActions({
       className={`chat-thread-motion absolute -top-[26px] z-10 flex items-center gap-px rounded-full border border-white/[0.09] p-[2px] shadow-[0_6px_18px_rgba(0,0,0,0.45)] ${
         mine ? 'left-2' : 'right-2'
       }`}
-      style={{ background: 'rgb(28,28,33)', animation: 'chat-thread-rise 120ms ease-out' }}
+      style={{ background: surface(11), animation: 'chat-thread-rise 120ms ease-out' }}
     >
       {canReact && (
         <>

@@ -44,12 +44,21 @@ export const SystemRow = memo(function SystemRow({ message }: { message: Message
   const { t, i18n } = useTranslation();
   const { nameOf, conversation } = useThread();
   if (message.body.type !== 'system') return null;
-  if (conversation.kind === 'room' && roomRowKind(message.body)) {
-    return <RoomSystemRow event={message.body} nameOf={nameOf} />;
+  const roomKind = conversation.kind === 'room' ? roomRowKind(message.body) : null;
+  if (roomKind) {
+    return (
+      <div data-ui="chat-system-row" data-kind={roomKind}>
+        <RoomSystemRow event={message.body} nameOf={nameOf} />
+      </div>
+    );
   }
   const timer = message.body.kind === 'ttl';
   return (
-    <div className="flex justify-center px-6 pt-2.5 pb-0.5">
+    <div
+      data-ui="chat-system-row"
+      data-kind={message.body.kind}
+      className="flex justify-center px-6 pt-2.5 pb-0.5"
+    >
       <span
         className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1 text-center text-[11.5px] ${
           timer ? 'bg-white/[0.06] text-white/70' : 'text-white/45'

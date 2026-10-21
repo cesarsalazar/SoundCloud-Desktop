@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { ink } from '../../../lib/chat/tone';
 import type { ConversationKind } from '../../../lib/chat/types';
 import { art } from '../../../lib/formatters';
 import { Bookmark, Check, Headphones, User, Users } from '../../../lib/icons';
@@ -46,7 +47,7 @@ export const ShareTile = memo(function ShareTile({
           style={{
             boxShadow: selected
               ? '0 0 0 2px var(--color-accent), 0 0 18px var(--color-accent-glow)'
-              : 'inset 0 0 0 0.5px rgba(255,255,255,0.1)',
+              : `inset 0 0 0 0.5px ${ink(10)}`,
           }}
         >
           {src ? (
@@ -66,7 +67,7 @@ export const ShareTile = memo(function ShareTile({
           className={`absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-contrast transition-all duration-300 ease-[var(--ease-apple)] ${
             selected ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
           }`}
-          style={{ boxShadow: '0 0 0 2px rgba(16,16,20,0.95)' }}
+          style={{ boxShadow: '0 0 0 2px var(--color-chat-cutout)' }}
         >
           <Check size={12} strokeWidth={3} />
         </span>

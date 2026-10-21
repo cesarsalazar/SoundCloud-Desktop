@@ -18,7 +18,7 @@ const RECENT_SCAN = 50;
 
 const SELECTED = {
   background:
-    'linear-gradient(180deg, var(--color-accent-glow), transparent), rgba(255,255,255,0.06)',
+    'linear-gradient(180deg, var(--color-accent-glow), transparent), var(--color-bg-glass-hover)',
   boxShadow: 'inset 0 0.5px 0 rgba(255,255,255,0.14)',
 };
 
@@ -73,6 +73,8 @@ export const ConversationRow = memo(function ConversationRow({
       role="button"
       tabIndex={0}
       data-ui="chat-row"
+      data-kind={conversation.kind}
+      aria-current={selected ? 'true' : undefined}
       onClick={() => onOpen(conversation.id)}
       onKeyDown={onKeyDown}
       onContextMenu={(event) => onMenu(event, conversation)}

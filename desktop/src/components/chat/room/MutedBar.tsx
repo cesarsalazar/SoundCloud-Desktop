@@ -26,7 +26,7 @@ function Ring({ share }: { share: number }) {
         cy={RING / 2}
         r={RADIUS}
         fill="none"
-        stroke="rgba(253,164,175,0.18)"
+        className="stroke-rose-300/20"
         strokeWidth={STROKE}
       />
       <circle
@@ -34,7 +34,7 @@ function Ring({ share }: { share: number }) {
         cy={RING / 2}
         r={RADIUS}
         fill="none"
-        stroke="rgb(253,164,175)"
+        className="stroke-rose-300"
         strokeWidth={STROKE}
         strokeLinecap="round"
         strokeDasharray={CIRCUMFERENCE}

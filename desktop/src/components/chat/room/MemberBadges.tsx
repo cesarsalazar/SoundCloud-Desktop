@@ -2,7 +2,7 @@ import { Crown, Shield } from '../../../lib/icons';
 import { MicOff } from './icons';
 
 const BADGE =
-  'absolute flex size-[17px] items-center justify-center rounded-full border-2 border-[#121216]';
+  'absolute flex size-[17px] items-center justify-center rounded-full border-2 border-chat-cutout';
 
 export function RoleBadge({ host, moderator }: { host: boolean; moderator: boolean }) {
   if (host) {

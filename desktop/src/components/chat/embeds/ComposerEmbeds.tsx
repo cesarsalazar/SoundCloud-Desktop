@@ -15,8 +15,8 @@ function Placeholder() {
     <div
       className="flex w-full max-w-[320px] items-center gap-3 rounded-[14px] p-2"
       style={{
-        background: 'rgba(255,255,255,0.035)',
-        border: '0.5px solid rgba(255,255,255,0.08)',
+        background: 'var(--color-bg-glass)',
+        border: '0.5px solid var(--color-border-glass)',
       }}
     >
       <Skeleton className="h-10 w-10 shrink-0" rounded="md" />

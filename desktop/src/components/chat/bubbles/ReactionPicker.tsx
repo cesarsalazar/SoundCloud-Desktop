@@ -1,6 +1,7 @@
 import * as Popover from '@radix-ui/react-popover';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { surface } from '../../../lib/chat/tone';
 import type { ConvId, Message } from '../../../lib/chat/types';
 import { usePerfMode } from '../../../lib/perf';
 import { useChatThreadStore } from '../../../stores/chat/thread';
@@ -58,7 +59,7 @@ export const ReactionPicker = memo(function ReactionPicker({
             onCloseAutoFocus={(event) => event.preventDefault()}
             className="z-[300] flex items-center gap-0.5 rounded-full border border-white/[0.09] p-1 outline-none"
             style={{
-              background: blur > 0 ? 'rgba(20,20,24,0.88)' : 'rgb(22,22,26)',
+              background: blur > 0 ? surface(8, 88) : surface(9),
               backdropFilter: blur > 0 ? `blur(${blur}px) saturate(1.6)` : undefined,
               WebkitBackdropFilter: blur > 0 ? `blur(${blur}px) saturate(1.6)` : undefined,
               boxShadow: '0 14px 40px rgba(0,0,0,0.5)',

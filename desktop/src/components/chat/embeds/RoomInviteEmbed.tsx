@@ -2,6 +2,7 @@ import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { receivedEmbed } from '../../../lib/chat/embed-snapshot';
+import { ink } from '../../../lib/chat/tone';
 import type { Embed, RoomInvite } from '../../../lib/chat/types';
 import { art } from '../../../lib/formatters';
 import { ArrowRight, Headphones, Loader2, Lock } from '../../../lib/icons';
@@ -37,8 +38,7 @@ function Perforation({ edge }: { edge: number }) {
       <span
         className="absolute inset-y-1 left-0 w-px"
         style={{
-          backgroundImage:
-            'linear-gradient(to bottom, rgba(255,255,255,0.22) 50%, transparent 50%)',
+          backgroundImage: `linear-gradient(to bottom, ${ink(22)} 50%, transparent 50%)`,
           backgroundSize: '1px 6px',
         }}
       />
@@ -113,7 +113,7 @@ export const RoomInviteEmbed = memo(function RoomInviteEmbed({
   const cover = art(track?.artworkUrl, 't200x200');
 
   return (
-    <EmbedShell ref={ref} mine={mine} dim={!live} compact={compact} label={title}>
+    <EmbedShell kind={embed.kind} ref={ref} mine={mine} dim={!live} compact={compact} label={title}>
       <div className="flex min-w-0 items-stretch">
         <div className="flex shrink-0 flex-col justify-between gap-2 py-0.5">
           <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">

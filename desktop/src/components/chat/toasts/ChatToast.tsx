@@ -1,6 +1,7 @@
 import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MessageCircle } from '../../../lib/chat/icons';
+import { surface } from '../../../lib/chat/tone';
 import type { NotifyPrefs, PreviewMode } from '../../../lib/chat/types';
 import { X } from '../../../lib/icons';
 import { usePerfMode } from '../../../lib/perf';
@@ -54,6 +55,7 @@ export const ChatToast = memo(function ChatToast({ item, prefs, onOpen }: ChatTo
 
   return (
     <div
+      data-ui="chat-toast"
       role="status"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -69,7 +71,7 @@ export const ChatToast = memo(function ChatToast({ item, prefs, onOpen }: ChatTo
         style={{
           contain: 'strict',
           transform: 'translateZ(0)',
-          background: blur > 0 ? 'rgba(22,22,28,0.78)' : 'rgba(22,22,28,0.97)',
+          background: blur > 0 ? surface(9, 78) : surface(9, 97),
           backdropFilter: blur > 0 ? `blur(${blur}px) saturate(1.5)` : undefined,
           WebkitBackdropFilter: blur > 0 ? `blur(${blur}px) saturate(1.5)` : undefined,
         }}

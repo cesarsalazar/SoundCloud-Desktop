@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BellOff } from '../../../lib/chat/icons';
+import { ink } from '../../../lib/chat/tone';
 import { Bell } from '../../../lib/icons';
 import { useThread } from '../thread/context';
 import { toastError } from '../thread/errors';
@@ -27,8 +28,7 @@ export const MuteRow = memo(function MuteRow() {
   return (
     <button
       type="button"
-      role="switch"
-      aria-checked={!muted}
+      aria-pressed={!muted}
       disabled={busy}
       onClick={() => void toggle()}
       className="flex w-full cursor-pointer items-center gap-2.5 rounded-2xl border border-white/[0.06] bg-white/[0.025] px-3 py-2.5 text-left transition-colors duration-150 hover:bg-white/[0.045] disabled:opacity-60"
@@ -42,7 +42,7 @@ export const MuteRow = memo(function MuteRow() {
       <span
         aria-hidden
         className="relative h-5 w-9 rounded-full transition-colors duration-200"
-        style={{ background: muted ? 'rgba(255,255,255,0.12)' : 'var(--color-accent)' }}
+        style={{ background: muted ? ink(12) : 'var(--color-accent)' }}
       >
         <span
           className="absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow transition-transform duration-200"

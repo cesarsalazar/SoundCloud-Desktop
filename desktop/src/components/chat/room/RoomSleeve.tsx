@@ -27,7 +27,7 @@ export const RoomSleeve = memo(function RoomSleeve({ room }: { room: RoomView })
         className="absolute inset-0"
         style={{ background: 'linear-gradient(160deg, var(--color-accent-glow), transparent 70%)' }}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/25 to-[#121216]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/25 to-chat-cutout" />
     </div>
   );
 });

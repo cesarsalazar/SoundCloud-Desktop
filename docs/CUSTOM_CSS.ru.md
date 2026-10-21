@@ -39,6 +39,31 @@
 | `[data-ui="tray"]` | Мини-плеер в трее |
 | `html[data-perf="beauty"]`, `"medium"`, `"light"` | Режим производительности: «Красота», «Средний», «Лайт» |
 
+### Чаты
+
+| Селектор | Элемент |
+|---|---|
+| `[data-ui="chat-page"]` | Страница «Чаты» |
+| `[data-ui="chat-dock"]` | Панель чатов у правого края |
+| `[data-ui="chat-dock-tabs"]` | Ряд вкладок панели чатов |
+| `[data-ui="chat-list"]` | Список чатов |
+| `[data-ui="chat-row"]` | Чат в списке. `[data-kind]`: `direct`, `group`, `self` или `room`, у открытого есть `[aria-current]` |
+| `[data-ui="chat-thread"]` | Открытый чат с сообщениями, `[data-kind]` как выше |
+| `[data-ui="chat-thread-header"]` | Шапка открытого чата |
+| `[data-ui="chat-bubble"]` | Сообщение. У ваших есть `[data-mine]`, у неотправленных `[data-failed]` |
+| `[data-ui="chat-system-row"]` | Служебная строка между сообщениями, `[data-kind]` называет событие |
+| `[data-ui="chat-composer"]` | Поле ввода сообщения |
+| `[data-ui="chat-embed"]` | Карточка в сообщении. `[data-kind]`: `track`, `playlist`, `user` или `room_invite` |
+| `[data-ui="chat-info"]` | Панель «О чате» |
+| `[data-ui="chat-requests"]` | Запросы на переписку: список и полоса в чате |
+| `[data-ui="chat-room"]` | Вкладка комнаты совместного прослушивания |
+| `[data-ui="chat-toast"]` | Всплывающее новое сообщение |
+| `[data-ui="chat-share"]` | Окно «Отправить» |
+| `[data-ui="chat-device-alert"]` | Окно о новом устройстве |
+| `[data-ui="chat-relogin"]` | Карточка входа в чаты |
+
+Остальные окна чатов (новый чат, жалоба, удаление) это `[data-ui="modal"]`. Цвета чатов берутся из `--color-white` (текст и линии), `--color-black` (подложки), `--color-bg-glass*` и `--color-border-glass*`, поэтому светлая тема, которая их переопределяет, меняет и чаты.
+
 ## Переменные
 
 | Переменная | Значение |

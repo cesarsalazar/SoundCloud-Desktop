@@ -35,7 +35,7 @@ export const MemberPuck = forwardRef<HTMLButtonElement, MemberPuckProps>(functio
         className="relative rounded-full transition-transform duration-200 group-enabled:group-hover:scale-[1.05]"
         style={
           state.self
-            ? { boxShadow: '0 0 0 2px #121216, 0 0 0 3.5px var(--color-accent)' }
+            ? { boxShadow: '0 0 0 2px var(--color-chat-cutout), 0 0 0 3.5px var(--color-accent)' }
             : undefined
         }
       >

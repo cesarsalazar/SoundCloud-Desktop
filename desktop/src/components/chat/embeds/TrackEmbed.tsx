@@ -85,7 +85,15 @@ export const TrackEmbed = memo(function TrackEmbed({ embed, mine, compact }: Tra
   );
 
   return (
-    <EmbedShell ref={ref} tint={tint} mine={mine} dim={unavailable} compact={compact} label={title}>
+    <EmbedShell
+      kind={embed.kind}
+      ref={ref}
+      tint={tint}
+      mine={mine}
+      dim={unavailable}
+      compact={compact}
+      label={title}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <EmbedSleeve
           artworkUrl={track.artwork_url}

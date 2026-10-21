@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { api } from '../../../lib/api';
 import { UserPlus } from '../../../lib/chat/icons';
 import { openShare } from '../../../lib/chat/share';
+import { ink } from '../../../lib/chat/tone';
 import type { Embed } from '../../../lib/chat/types';
 import { fc } from '../../../lib/formatters';
 import type { UserProfile } from '../../../lib/hooks';
@@ -59,7 +60,14 @@ export const UserEmbed = memo(function UserEmbed({ embed, mine, compact }: UserE
   };
 
   return (
-    <EmbedShell ref={ref} tint={tint} mine={mine} compact={compact} label={embed.title}>
+    <EmbedShell
+      kind={embed.kind}
+      ref={ref}
+      tint={tint}
+      mine={mine}
+      compact={compact}
+      label={embed.title}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"
@@ -67,7 +75,7 @@ export const UserEmbed = memo(function UserEmbed({ embed, mine, compact }: UserE
           onClick={() => route && navigate(route)}
           aria-label={t('chat.embeds.open')}
           className="relative shrink-0 rounded-full cursor-pointer disabled:cursor-default"
-          style={{ boxShadow: '0 0 0 2px rgba(255,255,255,0.08), 0 8px 20px rgba(0,0,0,0.4)' }}
+          style={{ boxShadow: `0 0 0 2px ${ink(8)}, 0 8px 20px rgba(0,0,0,0.4)` }}
         >
           <Avatar src={avatar} size={compact ? 40 : 52} />
         </button>
@@ -118,7 +126,7 @@ export const UserEmbed = memo(function UserEmbed({ embed, mine, compact }: UserE
             disabled={starting}
             onClick={() => void playTop()}
             className="inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[11.5px] font-semibold text-white/80 transition-colors duration-200 cursor-pointer hover:bg-white/[0.1] hover:text-white disabled:cursor-default"
-            style={{ background: 'rgba(255,255,255,0.06)' }}
+            style={{ background: 'var(--color-bg-glass-hover)' }}
           >
             {starting ? (
               <Loader2 size={11} className="animate-spin" />

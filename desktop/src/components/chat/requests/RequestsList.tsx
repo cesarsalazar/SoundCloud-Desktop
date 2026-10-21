@@ -21,7 +21,7 @@ export const RequestsList = memo(function RequestsList({ selectedId, onOpen }: R
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
+    <div data-ui="chat-requests" className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
       {items.map((request) => (
         <RequestRow
           key={request.conversation.id}

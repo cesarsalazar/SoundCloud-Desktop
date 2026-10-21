@@ -1,4 +1,5 @@
 import { memo, type ReactNode } from 'react';
+import { ink } from '../../../lib/chat/tone';
 import type { ConversationKind } from '../../../lib/chat/types';
 import { Bookmark, Radio } from '../../../lib/icons';
 import { Avatar } from '../../ui/Avatar';
@@ -34,11 +35,11 @@ function GlyphTile({
       style={{
         width: size,
         height: size,
-        color: accent ? 'var(--color-accent-contrast)' : 'rgba(255,255,255,0.75)',
+        color: accent ? 'var(--color-accent-contrast)' : ink(75),
         background: accent
           ? 'linear-gradient(145deg, var(--color-accent-hover), var(--color-accent))'
-          : 'linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04))',
-        border: '0.5px solid rgba(255,255,255,0.12)',
+          : `linear-gradient(145deg, ${ink(14)}, ${ink(4)})`,
+        border: '0.5px solid var(--color-border-glass-hi)',
       }}
     >
       {children}
@@ -88,8 +89,8 @@ export const ConversationAvatar = memo(function ConversationAvatar({
         height: size,
         fontSize: Math.round(size * 0.36),
         background:
-          'linear-gradient(150deg, var(--color-accent-glow), rgba(255,255,255,0.05) 70%), rgba(255,255,255,0.04)',
-        border: '0.5px solid rgba(255,255,255,0.1)',
+          'linear-gradient(150deg, var(--color-accent-glow), transparent 70%), var(--color-bg-glass-hover)',
+        border: '0.5px solid var(--color-border-glass-hi)',
       }}
     >
       {initials(name)}

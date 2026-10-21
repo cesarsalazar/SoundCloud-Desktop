@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { surface } from '../../../lib/chat/tone';
 import { ChevronDown, Loader2 } from '../../../lib/icons';
 import { dayText } from './Separators';
 
@@ -17,7 +18,7 @@ export const JumpButton = memo(function JumpButton({
       aria-label={t('chat.thread.toBottom')}
       onClick={onClick}
       className="chat-thread-motion absolute right-4 bottom-3 z-10 flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/[0.09] text-white/75 shadow-[0_10px_28px_rgba(0,0,0,0.5)] transition-colors duration-150 hover:text-white"
-      style={{ background: 'rgb(30,30,35)', animation: 'chat-thread-rise 180ms ease-out' }}
+      style={{ background: surface(12), animation: 'chat-thread-rise 180ms ease-out' }}
     >
       <ChevronDown size={18} />
       {count > 0 && (
@@ -38,7 +39,7 @@ export const FloatingDay = memo(function FloatingDay({ ts }: { ts: number }) {
     <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center">
       <span
         className="rounded-full border border-white/[0.07] px-3 py-1 text-[11px] font-semibold text-white/70 shadow-[0_6px_18px_rgba(0,0,0,0.35)]"
-        style={{ background: 'rgb(26,26,31)' }}
+        style={{ background: surface(10) }}
       >
         {dayText(ts, t, i18n.language)}
       </span>

@@ -1,7 +1,10 @@
 import type { ReactNode, Ref } from 'react';
+import { surface } from '../../../lib/chat/tone';
+import type { EmbedKind } from '../../../lib/chat/types';
 import type { Rgb } from '../../../lib/cover-palette';
 
 interface EmbedShellProps {
+  kind: EmbedKind;
   children: ReactNode;
   ref?: Ref<HTMLDivElement>;
   tint?: Rgb | null;
@@ -12,13 +15,14 @@ interface EmbedShellProps {
 }
 
 function background(tint: Rgb | null, mine: boolean): string {
-  const base = mine ? 'rgba(8,8,11,0.32)' : 'rgba(255,255,255,0.035)';
+  const base = mine ? surface(3, 32) : 'var(--color-bg-glass)';
   if (!tint) return base;
   const [r, g, b] = tint;
   return `linear-gradient(128deg, rgba(${r},${g},${b},0.22) 0%, rgba(${r},${g},${b},0.07) 46%, transparent 100%), ${base}`;
 }
 
 export function EmbedShell({
+  kind,
   children,
   ref,
   tint = null,
@@ -30,6 +34,8 @@ export function EmbedShell({
   return (
     <div
       ref={ref}
+      data-ui="chat-embed"
+      data-kind={kind}
       role="group"
       aria-label={label}
       className={`@container relative w-full min-w-0 overflow-hidden ${
@@ -37,7 +43,7 @@ export function EmbedShell({
       }`}
       style={{
         background: background(dim ? null : tint, mine),
-        border: '0.5px solid rgba(255,255,255,0.08)',
+        border: '0.5px solid var(--color-border-glass)',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 24px rgba(0,0,0,0.18)',
         filter: dim ? 'grayscale(1)' : undefined,
         opacity: dim ? 0.62 : undefined,

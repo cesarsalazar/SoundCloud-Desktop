@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Timer } from '../../../lib/chat/icons';
 import { ttlShort } from '../../../lib/chat/render';
+import { ink } from '../../../lib/chat/tone';
 import { DISAPPEARING_TTLS } from '../../../lib/chat/types';
 import { Lock } from '../../../lib/icons';
 import { useThread } from '../thread/context';
@@ -25,7 +26,7 @@ export const TimerPicker = memo(function TimerPicker() {
           style={
             current
               ? { background: 'var(--color-accent-glow)', color: 'var(--color-accent-hover)' }
-              : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }
+              : { background: ink(6), color: ink(50) }
           }
         >
           <Timer size={14} />
@@ -58,7 +59,7 @@ export const TimerPicker = memo(function TimerPicker() {
               style={
                 active
                   ? {
-                      background: ttlS ? 'var(--color-accent)' : 'rgba(255,255,255,0.12)',
+                      background: ttlS ? 'var(--color-accent)' : ink(12),
                       color: ttlS ? 'var(--color-accent-contrast)' : undefined,
                     }
                   : undefined

@@ -1,6 +1,7 @@
 import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Smile } from '../../../lib/chat/icons';
+import { surface } from '../../../lib/chat/tone';
 import { KeyCaps } from '../../ui/KeyCap';
 import { emojiKeys } from './emoji-keys';
 
@@ -37,7 +38,7 @@ export const EmojiButton = memo(function EmojiButton({
         <div
           role="status"
           className="chat-thread-motion absolute right-0 bottom-full z-20 mb-2 flex items-center gap-2 whitespace-nowrap rounded-xl border border-white/[0.08] px-2.5 py-2 text-[12px] text-white/70 shadow-[0_12px_30px_rgba(0,0,0,0.5)]"
-          style={{ background: 'rgb(26,26,31)', animation: 'chat-thread-rise 140ms ease-out' }}
+          style={{ background: surface(10), animation: 'chat-thread-rise 140ms ease-out' }}
         >
           <Smile size={14} className="text-white/45" />
           <KeyCaps labels={emojiKeys()} size="sm" />

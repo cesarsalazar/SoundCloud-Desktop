@@ -61,7 +61,14 @@ export const PlaylistEmbed = memo(function PlaylistEmbed({
   };
 
   return (
-    <EmbedShell ref={ref} tint={tint} mine={mine} compact={compact} label={embed.title}>
+    <EmbedShell
+      kind={embed.kind}
+      ref={ref}
+      tint={tint}
+      mine={mine}
+      compact={compact}
+      label={embed.title}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <PlaylistMosaic covers={covers} size={compact ? 40 : 60} stacked={!compact} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">

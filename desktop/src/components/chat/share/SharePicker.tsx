@@ -66,7 +66,7 @@ function PickerBody({ embed, onClose, onSent }: PickerBodyProps) {
   };
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <div data-ui="chat-share" className="flex min-h-0 flex-col">
       <div className="px-6 pt-6 pb-3">
         <ModalTitle>{t('chat.embeds.share.title')}</ModalTitle>
       </div>

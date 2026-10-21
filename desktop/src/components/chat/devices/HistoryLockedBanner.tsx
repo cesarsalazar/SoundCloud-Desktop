@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { surface } from '../../../lib/chat/tone';
 import type { Device, Millis } from '../../../lib/chat/types';
 import { useChatStore } from '../../../stores/chat';
 import { AGE_RULE_MS } from '../../../stores/chat/devices';
@@ -29,7 +30,8 @@ function Confirmers({ devices }: { devices: Device[] }) {
           <span
             key={device.id}
             title={device.name}
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-[rgb(28,27,34)] text-white/70"
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 text-white/70"
+            style={{ background: surface(11) }}
           >
             <Icon size={12} strokeWidth={1.8} />
           </span>

@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { messageSnippet, senderColor } from '../../../lib/chat/render';
+import { ink } from '../../../lib/chat/tone';
 import type { Message, Seq } from '../../../lib/chat/types';
 import { useThread } from '../thread/context';
 
@@ -11,7 +12,7 @@ export const ReplyQuote = memo(function ReplyQuote({
   message: Message | null;
 }) {
   const { t, nameOf, jumpTo } = useThread();
-  const color = message ? senderColor(message.sender) : 'rgba(255,255,255,0.35)';
+  const color = message ? senderColor(message.sender) : ink(35);
 
   return (
     <button

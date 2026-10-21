@@ -39,6 +39,31 @@ Tailwind class names change from release to release. These attributes do not:
 | `[data-ui="tray"]` | Tray mini player |
 | `html[data-perf="beauty"]`, `"medium"`, `"light"` | Performance mode |
 
+### Chats
+
+| Selector | Element |
+|---|---|
+| `[data-ui="chat-page"]` | Chats page |
+| `[data-ui="chat-dock"]` | Chat panel at the right edge |
+| `[data-ui="chat-dock-tabs"]` | Tab row of the chat panel |
+| `[data-ui="chat-list"]` | Chat list |
+| `[data-ui="chat-row"]` | A chat in the list. `[data-kind]` is `direct`, `group`, `self` or `room`, the open one has `[aria-current]` |
+| `[data-ui="chat-thread"]` | Open chat with its messages, `[data-kind]` as above |
+| `[data-ui="chat-thread-header"]` | Header of the open chat |
+| `[data-ui="chat-bubble"]` | A message. Yours have `[data-mine]`, unsent ones `[data-failed]` |
+| `[data-ui="chat-system-row"]` | Service line between messages, `[data-kind]` names the event |
+| `[data-ui="chat-composer"]` | Message input |
+| `[data-ui="chat-embed"]` | Card in a message. `[data-kind]` is `track`, `playlist`, `user` or `room_invite` |
+| `[data-ui="chat-info"]` | Chat info panel |
+| `[data-ui="chat-requests"]` | Message requests: the list and the bar in a chat |
+| `[data-ui="chat-room"]` | Listening room tab |
+| `[data-ui="chat-toast"]` | New message popup |
+| `[data-ui="chat-share"]` | "Send" window |
+| `[data-ui="chat-device-alert"]` | New device alert |
+| `[data-ui="chat-relogin"]` | Chat sign-in card |
+
+Other chat windows (new chat, report, delete) are `[data-ui="modal"]`. Chat colors come from `--color-white` (text and lines), `--color-black` (surfaces), `--color-bg-glass*` and `--color-border-glass*`, so a light theme that redefines them restyles chats too.
+
 ## Variables
 
 | Variable | Meaning |

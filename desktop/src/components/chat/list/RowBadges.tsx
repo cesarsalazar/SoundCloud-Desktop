@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { ink } from '../../../lib/chat/tone';
 import type { ConversationSummary } from '../../../lib/chat/types';
 import { Pin } from '../../../lib/icons';
 import { usePerfMode } from '../../../lib/perf';
@@ -16,7 +17,7 @@ function Pill({ children, dim }: { children: string; dim: boolean }) {
       className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums leading-none"
       style={
         dim
-          ? { background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.7)' }
+          ? { background: ink(14), color: ink(70) }
           : {
               background: 'var(--color-accent)',
               color: 'var(--color-accent-contrast)',

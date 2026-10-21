@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { senderColor } from '../../../lib/chat/render';
+import { surface } from '../../../lib/chat/tone';
 import type { UserRef } from '../../../lib/chat/types';
 import { Avatar } from '../../ui/Avatar';
 
@@ -16,7 +17,7 @@ export const MentionPopup = memo(function MentionPopup({
     <div
       role="listbox"
       className="chat-thread-motion absolute inset-x-3 bottom-full z-20 mb-2 overflow-hidden rounded-2xl border border-white/[0.08] p-1 shadow-[0_16px_40px_rgba(0,0,0,0.5)]"
-      style={{ background: 'rgb(24,24,29)', animation: 'chat-thread-rise 140ms ease-out' }}
+      style={{ background: surface(10), animation: 'chat-thread-rise 140ms ease-out' }}
     >
       {people.map((user, index) => (
         <button

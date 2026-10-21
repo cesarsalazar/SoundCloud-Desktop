@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Send } from '../../../lib/chat/icons';
+import { ink } from '../../../lib/chat/tone';
 import { Check } from '../../../lib/icons';
 
 export const SendButton = memo(function SendButton({
@@ -23,8 +24,8 @@ export const SendButton = memo(function SendButton({
       onClick={onSend}
       className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-[transform,opacity,background-color] duration-150 enabled:hover:scale-105 disabled:cursor-default disabled:opacity-35"
       style={{
-        background: disabled ? 'rgba(255,255,255,0.08)' : 'var(--color-accent)',
-        color: disabled ? 'rgba(255,255,255,0.6)' : 'var(--color-accent-contrast)',
+        background: disabled ? ink(8) : 'var(--color-accent)',
+        color: disabled ? ink(60) : 'var(--color-accent-contrast)',
       }}
     >
       {editing ? (

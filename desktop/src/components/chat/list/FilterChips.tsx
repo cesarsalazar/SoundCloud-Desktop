@@ -10,9 +10,9 @@ const FILTERS: ListFilter[] = ['all', 'direct', 'groups', 'unread', 'requests'];
 
 const ACTIVE = {
   background:
-    'linear-gradient(180deg, var(--color-accent-glow), transparent), rgba(255,255,255,0.07)',
+    'linear-gradient(180deg, var(--color-accent-glow), transparent), var(--color-bg-glass-hover)',
   borderColor: 'var(--color-accent-glow)',
-  color: '#fff',
+  color: 'var(--color-white)',
 };
 
 function Chip({

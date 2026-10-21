@@ -20,8 +20,8 @@ function corners(mine: boolean, first: boolean, last: boolean): string {
 }
 
 const THEIRS: CSSProperties = {
-  background: 'rgba(255,255,255,0.065)',
-  border: '1px solid rgba(255,255,255,0.045)',
+  background: 'var(--color-bg-glass-hover)',
+  border: '1px solid var(--color-border-glass)',
 };
 
 const MINE: CSSProperties = {
@@ -30,8 +30,8 @@ const MINE: CSSProperties = {
 };
 
 const FAILED: CSSProperties = {
-  background: 'rgba(244,63,94,0.08)',
-  border: '1px solid rgba(251,113,133,0.35)',
+  background: 'color-mix(in srgb, var(--color-rose-500) 8%, transparent)',
+  border: '1px solid color-mix(in srgb, var(--color-rose-400) 35%, transparent)',
 };
 
 const TOMBSTONE_ICONS = { deleted: Ban, locked: Lock, unknown: Sparkles } as const;
@@ -42,6 +42,9 @@ function Tombstone({ message, radius }: { message: Message; radius: string }) {
   const Icon = TOMBSTONE_ICONS[kind];
   return (
     <div
+      data-ui="chat-bubble"
+      data-mine={message.mine ? '' : undefined}
+      data-kind={kind}
       className="flex items-center gap-1.5 border border-dashed border-white/[0.09] px-3 py-[7px] text-[12.5px] italic text-white/40"
       style={{ borderRadius: radius }}
     >
@@ -96,6 +99,9 @@ export const Bubble = memo(function Bubble({
 
   return (
     <div
+      data-ui="chat-bubble"
+      data-mine={message.mine ? '' : undefined}
+      data-failed={tick === 'failed' ? '' : undefined}
       className="chat-thread-motion relative min-w-0 max-w-full px-3 py-[7px] text-[13.5px] leading-[1.45] text-white/90"
       style={{
         ...tone,
@@ -120,7 +126,7 @@ export const Bubble = memo(function Bubble({
         </div>
       )}
       {message.embeds.length > 0 && (
-        <div className={`flex flex-col gap-1.5 ${hasText ? 'mt-1.5' : ''}`}>
+        <div className={`flex w-[360px] max-w-full flex-col gap-1.5 ${hasText ? 'mt-1.5' : ''}`}>
           {message.embeds.map((embed, index) => (
             <EmbedCard key={`${embed.urn}:${index}`} embed={embed} mine={message.mine} />
           ))}

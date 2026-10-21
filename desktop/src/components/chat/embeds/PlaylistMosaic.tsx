@@ -34,7 +34,7 @@ function Layer({ size, offset, alpha }: { size: number; offset: number; alpha: n
         left: offset,
         top: -offset,
         background: `rgba(255,255,255,${alpha})`,
-        border: '0.5px solid rgba(255,255,255,0.08)',
+        border: '0.5px solid var(--color-border-glass)',
       }}
     />
   );

@@ -87,7 +87,10 @@ export function DeviceAlertModal({ device, open, queued, onHold, onClose }: Devi
   return (
     <ModalContent size="sm" showClose={outcome === null} zClass="z-[95]">
       <style>{DEVICE_KEYFRAMES}</style>
-      <div className="relative flex flex-col items-center px-7 pb-7 pt-9 text-center">
+      <div
+        data-ui="chat-device-alert"
+        className="relative flex flex-col items-center px-7 pb-7 pt-9 text-center"
+      >
         {queued > 1 && (
           <span className="absolute left-5 top-5 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold tabular-nums text-white/45">
             {t('chat.devices.alert.queue', { count: queued - 1 })}

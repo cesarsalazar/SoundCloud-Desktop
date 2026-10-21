@@ -25,7 +25,7 @@ const LOOK = {
   bound_other: {
     Icon: ShieldAlert,
     title: 'chat.relogin.boundOtherTitle',
-    glow: 'rgba(251,191,36,0.16)',
+    glow: 'color-mix(in srgb, var(--color-amber-400) 16%, transparent)',
     tint: 'text-amber-300',
   },
 } as const;
@@ -46,7 +46,11 @@ export const ReloginCard = memo(function ReloginCard({ reason, onDone }: Relogin
       : null;
 
   return (
-    <GlassCard padding={false} className="relative mx-auto w-full max-w-[380px] overflow-hidden">
+    <GlassCard
+      data-ui="chat-relogin"
+      padding={false}
+      className="relative mx-auto w-full max-w-[380px] overflow-hidden"
+    >
       {perf.bloom && (
         <div
           aria-hidden
