@@ -1,9 +1,40 @@
+mod apply;
+pub mod cipher;
+mod conversations;
+pub mod devices;
+mod gate;
+mod history;
+mod incoming;
+mod jitter;
+mod keys;
+pub mod local;
+mod marks;
+mod outbox;
+mod reconcile;
+mod rows;
+mod run;
+mod signal;
+mod state;
+mod status;
+pub mod summary;
+mod system;
+mod tiers;
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+pub use cipher::{Cipher, DeviceCipher};
+pub use local::{Local, LocalStore};
+pub use marks::MarkBatch;
+pub use tiers::{BACKOFF_MAX_MS, MID_HOLD_MIN_MS};
+
 use crate::api::Api;
-use crate::contracts::{ChatError, ChatResult, ConvId, Events, HIDDEN_SYNC_EVERY_MS, Seq, Tier};
+use crate::contracts::{
+    ChatError, ChatResult, ConvId, Events, HIDDEN_SYNC_EVERY_MS, Millis, Seq, Tier, UserId,
+};
 use crate::store::Store;
+use signal::Signal;
+use state::State;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PollPlan {
@@ -20,22 +51,44 @@ pub enum SyncOutcome {
     Retry { after_ms: u64 },
 }
 
-pub struct SyncEngine {
+pub struct SyncEngine<L: Local = LocalStore> {
     api: Arc<Api>,
-    store: Arc<Store>,
+    store: Arc<L>,
     events: Arc<dyn Events>,
+    cipher: Arc<dyn Cipher>,
     visible: AtomicBool,
-    focus: Mutex<Option<ConvId>>,
+    stopped: AtomicBool,
+    wake: Signal,
+    state: Mutex<State>,
 }
 
-impl SyncEngine {
+impl SyncEngine<LocalStore> {
     pub fn new(api: Arc<Api>, store: Arc<Store>, events: Arc<dyn Events>) -> Self {
+        let cipher = Arc::new(DeviceCipher::new(api.clone()));
+        Self::with_parts(api, Arc::new(LocalStore::new(store)), events, cipher)
+    }
+
+    pub fn store(&self) -> &Arc<Store> {
+        self.store.store()
+    }
+}
+
+impl<L: Local> SyncEngine<L> {
+    pub fn with_parts(
+        api: Arc<Api>,
+        store: Arc<L>,
+        events: Arc<dyn Events>,
+        cipher: Arc<dyn Cipher>,
+    ) -> Self {
         Self {
             api,
             store,
             events,
+            cipher,
             visible: AtomicBool::new(false),
-            focus: Mutex::new(None),
+            stopped: AtomicBool::new(false),
+            wake: Signal::default(),
+            state: Mutex::new(State::default()),
         }
     }
 
@@ -43,7 +96,7 @@ impl SyncEngine {
         &self.api
     }
 
-    pub fn store(&self) -> &Arc<Store> {
+    pub fn local(&self) -> &Arc<L> {
         &self.store
     }
 
@@ -57,38 +110,120 @@ impl SyncEngine {
 
     pub fn set_visible(&self, visible: bool) -> bool {
         let was = self.visible.swap(visible, Ordering::Relaxed);
-        visible && !was
+        self.update_status(|status| status.visible = visible);
+        let shown = visible && !was;
+        if shown {
+            self.wake.raise();
+        }
+        shown
     }
 
     pub fn focus(&self) -> Option<ConvId> {
-        self.focus.lock().ok().and_then(|focus| *focus)
+        self.with(|state| state.focus)
     }
 
     pub fn set_focus(&self, conversation_id: Option<ConvId>) {
-        if let Ok(mut focus) = self.focus.lock() {
-            *focus = conversation_id;
+        let changed = self.with(|state| {
+            let changed = state.focus != conversation_id;
+            state.focus = conversation_id;
+            changed
+        });
+        if changed {
+            self.wake.raise();
         }
+    }
+
+    pub fn set_user(&self, user_id: Option<UserId>) {
+        self.with(|state| state.user = user_id);
+    }
+
+    pub fn set_hold_cap(&self, hold_max_ms: u64) {
+        self.with(|state| state.hold_cap = hold_max_ms);
+    }
+
+    pub fn kick(&self) {
+        self.wake.raise();
+    }
+
+    pub fn stop(&self) {
+        self.stopped.store(true, Ordering::Relaxed);
+        self.wake.raise();
+    }
+
+    pub fn stopped(&self) -> bool {
+        self.stopped.load(Ordering::Relaxed)
+    }
+
+    pub fn reset_network(&self) {
+        self.with(|state| state.tiers.reset());
+        self.wake.raise();
     }
 
     pub fn plan(&self, tier: Tier) -> PollPlan {
-        if self.visible() {
-            PollPlan {
+        let visible = self.visible();
+        self.with(|state| match (state.more, visible) {
+            (true, _) => PollPlan {
                 tier,
-                hold_ms: tier.hold_max_ms(),
+                hold_ms: 0,
                 delay_ms: 0,
-            }
-        } else {
-            PollPlan {
+            },
+            (false, true) => PollPlan {
+                tier,
+                hold_ms: state.tiers.hold(tier).min(state.hold_cap),
+                delay_ms: 0,
+            },
+            (false, false) => PollPlan {
                 tier,
                 hold_ms: 0,
                 delay_ms: HIDDEN_SYNC_EVERY_MS,
-            }
+            },
+        })
+    }
+
+    pub fn next_plan(&self) -> ChatResult<PollPlan> {
+        let order = self.api.transport().tiers();
+        let now = self.now();
+        let tier = self
+            .with(|state| state.tiers.pick(&order, now))
+            .ok_or(ChatError::Offline)?;
+        Ok(self.plan(tier))
+    }
+
+    pub fn queue_read(&self, conversation_id: ConvId, seq: Seq) {
+        if self.with(|state| state.marks.read(conversation_id, seq)) {
+            self.read_locally(conversation_id, seq);
+            self.wake.raise();
         }
     }
 
-    pub fn queue_read(&self, _conversation_id: ConvId, _seq: Seq) {}
-
-    pub async fn step(&self, _plan: PollPlan) -> ChatResult<SyncOutcome> {
-        Err(ChatError::Unimplemented)
+    pub(crate) fn now(&self) -> Millis {
+        self.api.channel().now_ms()
     }
+
+    pub(crate) fn with<R>(&self, change: impl FnOnce(&mut State) -> R) -> R {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        change(&mut state)
+    }
+}
+
+pub(crate) fn fatal(error: &ChatError) -> bool {
+    matches!(
+        error,
+        ChatError::DeviceRevoked
+            | ChatError::ReloginRequired
+            | ChatError::SessionBoundOther
+            | ChatError::Disabled
+            | ChatError::NotReady
+    )
+}
+
+pub(crate) fn transient(error: &ChatError) -> bool {
+    fatal(error)
+        || matches!(
+            error,
+            ChatError::Offline | ChatError::Busy { .. } | ChatError::Internal | ChatError::Store
+        )
 }
