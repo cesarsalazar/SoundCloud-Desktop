@@ -74,6 +74,19 @@ impl Stack {
         ));
     }
 
+    pub fn oauth_app(&self) {
+        self.sql(
+            "INSERT INTO oauth_apps (id, name, client_id, client_secret, redirect_uri) VALUES (gen_random_uuid(), 'chat-it', 'chat-it', 'chat-it', 'http://127.0.0.1/auth/callback') ON CONFLICT DO NOTHING",
+        );
+    }
+
+    pub fn age_device(&self, person: &Person, hours: u32) {
+        self.sql(&format!(
+            "UPDATE chat.devices SET created_at = created_at - interval '{hours} hours' WHERE id = '{}'",
+            person.device_id
+        ));
+    }
+
     pub fn age_session(&self, person: &Person, hours: u32) {
         self.sql(&format!(
             "UPDATE sessions SET created_at = created_at - interval '{hours} hours' WHERE id = '{}'",

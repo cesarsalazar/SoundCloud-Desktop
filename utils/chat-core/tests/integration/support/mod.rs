@@ -17,8 +17,28 @@ const PLAIN_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub struct Stack {
     pub origin: String,
+    pub relay: String,
     psql: Vec<String>,
+    redis: Vec<String>,
     admin_token: String,
+}
+
+fn words(command: &str) -> Vec<String> {
+    command.split_whitespace().map(str::to_owned).collect()
+}
+
+fn run(command: &[String], args: &[&str]) -> String {
+    let output = Command::new(&command[0])
+        .args(&command[1..])
+        .args(args)
+        .output()
+        .expect("the stack command runs");
+    assert!(
+        output.status.success(),
+        "{args:?}: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8_lossy(&output.stdout).trim().to_owned()
 }
 
 impl Stack {
@@ -35,10 +55,9 @@ impl Stack {
         );
         Self {
             origin: need("CHAT_IT_ORIGIN"),
-            psql: need("CHAT_IT_PSQL")
-                .split_whitespace()
-                .map(str::to_owned)
-                .collect(),
+            relay: need("CHAT_IT_RELAY"),
+            psql: words(&need("CHAT_IT_PSQL")),
+            redis: words(&need("CHAT_IT_REDIS_RT")),
             admin_token: std::fs::read_to_string(token_file)
                 .expect("the admin token file is readable")
                 .trim()
@@ -47,17 +66,20 @@ impl Stack {
     }
 
     pub fn sql(&self, statement: &str) -> String {
-        let output = Command::new(&self.psql[0])
-            .args(&self.psql[1..])
-            .args(["-v", "ON_ERROR_STOP=1", "-qAt", "-c", statement])
-            .output()
-            .expect("psql runs");
-        assert!(
-            output.status.success(),
-            "{statement}: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        String::from_utf8_lossy(&output.stdout).trim().to_owned()
+        run(
+            &self.psql,
+            &["-v", "ON_ERROR_STOP=1", "-qAt", "-c", statement],
+        )
+    }
+
+    pub fn redis(&self, args: &[&str]) -> String {
+        run(&self.redis, args)
+    }
+
+    pub fn count(&self, statement: &str) -> i64 {
+        self.sql(statement)
+            .parse()
+            .expect("the query answers a number")
     }
 
     pub async fn admin(&self, method: &str, path: &str, body: Option<Value>) -> Reply {
@@ -107,16 +129,27 @@ impl Stack {
     }
 }
 
-pub async fn eventually<F, Fut>(what: &str, mut check: F)
+pub const SOON: Duration = Duration::from_secs(10);
+
+pub async fn eventually<F, Fut>(what: &str, check: F)
 where
     F: FnMut() -> Fut,
     Fut: Future<Output = bool>,
 {
-    for _ in 0..40 {
+    within(what, SOON, check).await;
+}
+
+pub async fn within<F, Fut>(what: &str, limit: Duration, mut check: F)
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = bool>,
+{
+    let deadline = tokio::time::Instant::now() + limit;
+    while tokio::time::Instant::now() < deadline {
         if check().await {
             return;
         }
         tokio::time::sleep(Duration::from_millis(250)).await;
     }
-    panic!("{what} did not happen within 10 s");
+    panic!("{what} did not happen within {} s", limit.as_secs());
 }

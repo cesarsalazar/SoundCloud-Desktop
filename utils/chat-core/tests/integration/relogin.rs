@@ -3,7 +3,7 @@ use std::sync::Arc;
 use chat_core::api::wire::LinkStart;
 use chat_core::api::{BindSigner, Signer};
 use chat_core::crypto::DeviceKeys;
-use chat_core::{ChatError, LinkClaimed, LinkCreated, LinkMode, LinkState};
+use chat_core::{ChatError, LinkClaimed, LinkCreated, LinkMode, LinkState, LoginState};
 use uuid::Uuid;
 
 use crate::support::{Client, Person, Stack};
@@ -130,4 +130,55 @@ async fn a_push_link_from_the_signed_in_device_binds_the_new_one() {
 
     let new_device = Client::up(&stack, &linked(&source.person, &fresh, &claimed.session_id)).await;
     assert_eq!(new_device.engine.devices().await.unwrap().len(), 2);
+}
+
+#[tokio::test]
+#[ignore]
+async fn a_sealed_relogin_of_the_current_session_stores_its_bind_and_shows_the_result_only_to_that_device()
+ {
+    let stack = Stack::from_env();
+    stack.oauth_app();
+    let owner = stack.person("back");
+    let current = stack.unbound_session(&owner);
+    let client = Client::on(
+        vec![(chat_core::Tier::Direct, stack.origin.clone())],
+        &Person {
+            session_id: current,
+            ..owner
+        },
+    );
+    let device = BindSigner {
+        target_session: Some(current.to_string()),
+        ..fresh_device()
+    };
+    let begun = client.api.login_begin(&device).await.unwrap();
+    assert!(begun.url.starts_with("https://"));
+    let stored = stack.sql(&format!(
+        "SELECT target_session_id::text || ' ' || (chat_bind IS NOT NULL)::text FROM login_requests WHERE id = '{}'",
+        begun.login_request_id
+    ));
+    assert_eq!(stored, format!("{current} true"));
+    let polled = client
+        .api
+        .login_status(&device, &begun.login_request_id)
+        .await
+        .unwrap();
+    assert_eq!(polled.status, LoginState::Pending);
+
+    stack.sql(&format!(
+        "UPDATE login_requests SET status = 'completed', result_session_id = target_session_id WHERE id = '{}'",
+        begun.login_request_id
+    ));
+    let stranger = client
+        .api
+        .login_status(&fresh_device(), &begun.login_request_id)
+        .await
+        .unwrap();
+    assert_eq!(stranger.session_id, None);
+    let mine = client
+        .api
+        .login_status(&device, &begun.login_request_id)
+        .await
+        .unwrap();
+    assert_eq!(mine.session_id, Some(current.to_string()));
 }

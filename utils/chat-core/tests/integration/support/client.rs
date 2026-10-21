@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -10,14 +11,14 @@ use chat_core::outbox::{Outbox, OutboxItem};
 use chat_core::store::Store;
 use chat_core::sync::{SyncEngine, SyncOutcome};
 use chat_core::{
-    ChatResult, Clock, ConvId, ConversationSummary, CoreEvent, Events, HistoryQuery, Message,
-    MessageBody, Millis, RichText, Tier, async_trait,
+    ChatResult, Clock, ConvId, ConversationSummary, CoreEvent, Events, GoneMessage, HistoryQuery,
+    Message, MessageBody, Millis, RichText, SystemEvent, SystemKind, Tier, async_trait,
 };
 use uuid::Uuid;
 
 use super::people::Person;
 use super::transport::HttpTransport;
-use super::{Stack, eventually};
+use super::{SOON, Stack, within};
 
 pub struct WallClock;
 
@@ -54,6 +55,19 @@ impl Recorder {
             .flatten()
             .collect()
     }
+
+    pub fn gone_messages(&self) -> Vec<GoneMessage> {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|event| match event {
+                CoreEvent::Gone(gone) => Some(gone.messages.clone()),
+                _ => None,
+            })
+            .flatten()
+            .collect()
+    }
 }
 
 pub struct Client {
@@ -80,6 +94,22 @@ impl Client {
     }
 
     pub fn on(routes: Vec<(Tier, String)>, person: &Person) -> Self {
+        let master: [u8; 32] = chat_core::chat_wire::random_bytes().unwrap();
+        let store = Arc::new(Store::open_in_memory(&master).unwrap());
+        Self::with_store(routes, person, store)
+    }
+
+    pub fn on_disk(
+        routes: Vec<(Tier, String)>,
+        person: &Person,
+        path: &Path,
+        master: &[u8; 32],
+    ) -> Self {
+        let store = Arc::new(Store::open(path, master).unwrap());
+        Self::with_store(routes, person, store)
+    }
+
+    pub fn with_store(routes: Vec<(Tier, String)>, person: &Person, store: Arc<Store>) -> Self {
         let transport = Arc::new(HttpTransport::new(routes));
         let channel = Arc::new(Channel::new(Arc::new(WallClock)));
         let api = Arc::new(Api::new(channel, transport.clone()));
@@ -88,8 +118,6 @@ impl Client {
             device_id: person.device_id,
             keys: person.keys.clone(),
         }));
-        let master: [u8; 32] = chat_core::chat_wire::random_bytes().unwrap();
-        let store = Arc::new(Store::open_in_memory(&master).unwrap());
         store.set_me(&person.user_id).unwrap();
         let events = Arc::new(Recorder::default());
         let engine = SyncEngine::new(api.clone(), store.clone(), events.clone());
@@ -129,7 +157,11 @@ impl Client {
     }
 
     pub async fn sync_until(&self, what: &str, done: impl Fn(&Self) -> bool) {
-        eventually(what, || async {
+        self.sync_within(what, SOON, done).await;
+    }
+
+    pub async fn sync_within(&self, what: &str, limit: Duration, done: impl Fn(&Self) -> bool) {
+        within(what, limit, || async {
             self.sync().await.expect("sync answers");
             done(self)
         })
@@ -137,6 +169,11 @@ impl Client {
     }
 
     pub async fn send(&self, conversation_id: ConvId, text: &str) -> ChatResult<usize> {
+        self.queue(conversation_id, text)?;
+        self.engine.flush_outbox().await
+    }
+
+    pub fn queue(&self, conversation_id: ConvId, text: &str) -> ChatResult<Uuid> {
         let content = Content::Post(Post {
             text: RichText {
                 text: text.to_owned(),
@@ -148,8 +185,9 @@ impl Client {
             forwarded_from: None,
         });
         let now = self.api.channel().now_ms();
+        let client_id = Uuid::new_v4();
         self.outbox.push(OutboxItem {
-            client_id: Uuid::new_v4(),
+            client_id,
             conversation_id,
             class: content.class(),
             target_seq: content.target(),
@@ -158,15 +196,25 @@ impl Client {
             attempts: 0,
             next_at: now,
         })?;
-        self.engine.flush_outbox().await
+        Ok(client_id)
     }
 
     pub async fn raw_post(&self, conversation_id: ConvId) -> ChatResult<SendAnswer> {
         let view = self.api.conversation(conversation_id).await?;
+        self.raw_post_at(conversation_id, view.key_epoch).await
+    }
+
+    pub async fn raw_room_post(&self, conversation_id: ConvId) -> ChatResult<SendAnswer> {
+        let keys = self.api.keys(conversation_id, None).await?;
+        let epoch = keys.iter().map(|key| key.epoch).max().unwrap_or_default();
+        self.raw_post_at(conversation_id, epoch).await
+    }
+
+    async fn raw_post_at(&self, conversation_id: ConvId, epoch: i32) -> ChatResult<SendAnswer> {
         let message = SendMessage {
             client_id: Uuid::new_v4(),
             class: "post".into(),
-            epoch: view.key_epoch,
+            epoch,
             target_seq: None,
             body: vec![7; 64],
         };
@@ -196,6 +244,28 @@ impl Client {
                 MessageBody::Unknown => Some("<unknown>".into()),
             })
             .collect()
+    }
+
+    pub fn systems(&self, conversation_id: ConvId) -> Vec<SystemEvent> {
+        self.messages(conversation_id)
+            .into_iter()
+            .filter_map(|message| match message.body {
+                MessageBody::System(event) => Some(event),
+                _ => None,
+            })
+            .collect()
+    }
+
+    pub fn has_system(&self, conversation_id: ConvId, kind: SystemKind, target: &str) -> bool {
+        self.systems(conversation_id)
+            .iter()
+            .any(|event| event.kind == kind && event.target.as_deref() == Some(target))
+    }
+
+    pub fn message(&self, conversation_id: ConvId, text: &str) -> Option<Message> {
+        self.messages(conversation_id)
+            .into_iter()
+            .find(|message| matches!(&message.body, MessageBody::Text(rich) if rich.text == text))
     }
 
     pub fn conversation(&self, conversation_id: ConvId) -> Option<ConversationSummary> {

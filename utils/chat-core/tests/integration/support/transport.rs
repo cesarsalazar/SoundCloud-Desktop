@@ -1,5 +1,6 @@
 use std::io::ErrorKind;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use chat_core::channel::CHANNEL_PATH;
@@ -12,6 +13,7 @@ use super::http::{self, Request};
 pub struct HttpTransport {
     routes: Vec<(Tier, String)>,
     sent: Mutex<Vec<(Tier, Vec<u8>)>>,
+    losing: AtomicBool,
 }
 
 impl HttpTransport {
@@ -19,7 +21,12 @@ impl HttpTransport {
         Self {
             routes,
             sent: Mutex::new(Vec::new()),
+            losing: AtomicBool::new(false),
         }
+    }
+
+    pub fn lose_answers(&self, losing: bool) {
+        self.losing.store(losing, Ordering::Relaxed);
     }
 
     pub fn sent(&self) -> Vec<(Tier, Vec<u8>)> {
@@ -59,6 +66,7 @@ impl Transport for HttpTransport {
         )
         .await;
         let reply = match sent {
+            Ok(_) if self.losing.load(Ordering::Relaxed) => return Err(TransportError::Timeout),
             Ok(reply) => reply,
             Err(error) if error.kind() == ErrorKind::TimedOut => {
                 return Err(TransportError::Timeout);

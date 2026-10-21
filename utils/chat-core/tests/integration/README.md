@@ -1,46 +1,48 @@
 # Integration scenarios (1.T)
 
-Real chat-core clients against a dev chat-api. Every test is `#[ignore]`, plain `cargo test` skips them.
-The tests write sessions straight into the database, so point them only at a throwaway dev stack.
+Real chat-core clients against a dev chat-api, through the sealed channel. Every test is `#[ignore]`, plain `cargo test` skips them.
+The tests write sessions straight into the database and age rows by hand, so point them only at a throwaway stack.
 
 ## Stack
 
-- Postgres with the Backend migrations applied (the `scd-pg` podman container works) and Redis in podman.
-- Keys dir: `ock-1` holds the 32 raw bytes of `ock_secret` from Backend `utils/chat-wire/vectors/request.json`,
-  `kek-1` and `reports-kek-1` hold 32 random bytes, `chat-admin-token` any token.
-- chat-api from Backend `api`:
+Backend `scripts/chat-it.sh` builds it in podman and on the host:
+
+- a fresh database (`CHAT_IT_DB`, default `scd_chat_it`) in the `scd-pg` container with every core migration and the sqlx history;
+- `chat-it-redis-rt` and `chat-it-redis` (music);
+- dev keys: `ock-1` is the test OCK from `utils/chat-wire/vectors/request.json`, the KEKs, the admin token and `mod-ai-key` are random;
+- `chat-it-ai`, a fake OpenAI-compatible judge (`scripts/chat-it/fake-ai.py`) that checks the key and the strict schema;
+- `chat-it-relay`, nginx that forwards `/chat/x` to chat-api like a relay;
+- chat-api (`API_ROLE=rt`, debug build) on `127.0.0.1:3417` with AI moderation on.
 
 ```sh
-API_ROLE=rt PORT=3417 CHAT_ACCESS=all CHAT_KEYS_DIR=<keys> \
-DATABASE_URL=postgres://scd:dev@127.0.0.1:5432/<db> \
-REDIS_URL=redis://127.0.0.1:<port> REDIS_RT_URL=redis://127.0.0.1:<port> \
-target/debug/api
+cd Backend && scripts/chat-it.sh up > /tmp/chat-it.env
 ```
 
 ## Run
 
 ```sh
-export CHAT_IT_ORIGIN=http://127.0.0.1:3417
-export CHAT_IT_PSQL="podman exec -i scd-pg psql -U scd -d <db>"
-export CHAT_IT_ADMIN_TOKEN_FILE=<keys>/chat-admin-token
-export SC_CHAT_DEV_OCK=1:dde332903df0f9e9fbc91a814131b5bcea28b46f5728e2a7e28700ed4a6c2d4d
-cargo test --test integration -- --ignored
+source /tmp/chat-it.env
+cd desktop/src-tauri
+cargo test --manifest-path ../../utils/chat-core/Cargo.toml --target-dir target --test integration -- --ignored
 ```
 
-`SC_CHAT_DEV_OCK` is read only by debug builds. Drop the database, the Redis container and the keys dir after.
+`SC_CHAT_DEV_OCK` is read only by debug builds. `scripts/chat-it.sh down` drops the database, the containers and the keys.
 
 ## Scenarios
 
 | File | Checks |
 |---|---|
-| `dm.rs` | DM both ways, `mine`, read marks |
-| `group.rs` | group fan-out, a promotion arrives as a `role` row |
-| `room.rs` | room chat opens from the seat, ends with a local purge |
-| `request.rs` | 1 h session rule, 3 posts before accept, decline closes the chat |
+| `dm.rs` | DM both ways, `mine`, delivered and read ticks on both sides |
+| `group.rs` | fan-out, a promotion row, a kick purges the chat on the kicked device, a leave |
+| `room.rs` | rename, mute, kick, ban, handoff, end with server and local purge; a quiet room is reaped after 10 min |
+| `request.rs` | 1 h session rule, 3 posts before accept, decline closes the chat, accept moves it to the list |
 | `block.rs` | block refuses posts, unblock lets them through |
 | `report.rs` | evidence decrypts on the admin route, decrypt is audited |
-| `relogin.rs` | unbound session, bound to another device, sealed pull and push links bind the new device |
+| `moderation.rs` | the AI judge rejects a harmless report, removes harassment, bans a repeat for 7 days, every step audited |
+| `relogin.rs` | unbound session, bound to another device, sealed relogin of the current session, sealed pull and push links |
 | `devices.rs` | young device rules, not me revokes |
-| `history.rs` | a new device reads only what came after it |
+| `history.rs` | a new device reads only what came after it until an older device says it is me |
+| `ttl.rs` | disappearing messages: timer rows, expiry on the server, `gone_msgs`, local expiry offline, timer off |
 | `replay.rs` | a captured request sent again is `chat_replay` |
-| `tiers.rs` | a dead direct route falls through to the relay |
+| `tiers.rs` | a dead direct route falls through to the podman relay |
+| `outbox.rs` | an outbox written offline or with a lost answer is sent once after a restart |
