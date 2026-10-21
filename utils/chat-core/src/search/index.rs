@@ -17,7 +17,7 @@ pub fn insert(conn: &Connection, key: &[u8; 32], rowid: i64, text: Option<&str>)
     let Some(text) = text else {
         return Ok(());
     };
-    let document = tokens::document(key, text);
+    let document = tokens::document(key, text)?;
     if document.is_empty() {
         return Ok(());
     }

@@ -4,6 +4,7 @@ use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
 use super::{PREFIX_MAX, PREFIX_MIN, TOKEN_BYTES};
+use crate::contracts::{ChatError, ChatResult};
 
 pub fn normalize(text: &str) -> String {
     text.to_lowercase()
@@ -25,8 +26,8 @@ pub fn words(text: &str) -> Vec<String> {
         .collect()
 }
 
-pub fn document(key: &[u8; 32], text: &str) -> String {
-    let keyed = keyed(key);
+pub fn document(key: &[u8; 32], text: &str) -> ChatResult<String> {
+    let keyed = keyed(key)?;
     let mut prefixes = BTreeSet::new();
     for word in words(text) {
         let chars: Vec<char> = word.chars().take(PREFIX_MAX).collect();
@@ -38,11 +39,11 @@ pub fn document(key: &[u8; 32], text: &str) -> String {
         .iter()
         .map(|prefix| token(&keyed, prefix))
         .collect();
-    tokens.into_iter().collect::<Vec<_>>().join(" ")
+    Ok(tokens.into_iter().collect::<Vec<_>>().join(" "))
 }
 
-pub fn query(key: &[u8; 32], text: &str) -> Option<String> {
-    let keyed = keyed(key);
+pub fn query(key: &[u8; 32], text: &str) -> ChatResult<Option<String>> {
+    let keyed = keyed(key)?;
     let terms: BTreeSet<String> = words(text)
         .iter()
         .map(|word| {
@@ -50,11 +51,11 @@ pub fn query(key: &[u8; 32], text: &str) -> Option<String> {
             format!("\"{}\"", token(&keyed, &prefix))
         })
         .collect();
-    (!terms.is_empty()).then(|| terms.into_iter().collect::<Vec<_>>().join(" AND "))
+    Ok((!terms.is_empty()).then(|| terms.into_iter().collect::<Vec<_>>().join(" AND ")))
 }
 
-fn keyed(key: &[u8; 32]) -> Hmac<Sha256> {
-    Hmac::<Sha256>::new_from_slice(key).expect("hmac takes any key length")
+fn keyed(key: &[u8; 32]) -> ChatResult<Hmac<Sha256>> {
+    Hmac::<Sha256>::new_from_slice(key).map_err(|_| ChatError::Crypto)
 }
 
 fn token(keyed: &Hmac<Sha256>, prefix: &str) -> String {

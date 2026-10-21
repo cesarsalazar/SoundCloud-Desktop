@@ -47,7 +47,7 @@ impl Search {
     }
 
     pub fn query(&self, query: &SearchQuery) -> ChatResult<Vec<SearchHit>> {
-        let Some(matched) = tokens::query(&self.store.keys().search, &query.text) else {
+        let Some(matched) = tokens::query(&self.store.keys().search, &query.text)? else {
             return Ok(Vec::new());
         };
         let limit = match query.limit {
