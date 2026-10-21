@@ -1,7 +1,7 @@
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use chat_core::{CoreEvent, Events, GoneEvent, Millis};
+use chat_core::{CoreEvent, Events, GoneEvent, GoneMessage, Millis};
 
 use super::Runtime;
 use super::local::Core;
@@ -9,13 +9,18 @@ use super::local::Core;
 const LOOK_AGAIN: Duration = Duration::from_secs(15);
 const SOONEST: Duration = Duration::from_secs(1);
 
+struct Swept {
+    gone: Vec<GoneMessage>,
+    next: Option<Millis>,
+}
+
 impl Runtime {
     pub(super) fn watch_expiry(self: &Arc<Self>, core: &Arc<Core>) {
         let runtime = self.clone();
         let core = Arc::downgrade(core);
         self.rt.spawn(async move {
             while let Some(current) = runtime.current(&core) {
-                let wait = runtime.expire(&current);
+                let wait = runtime.expire(&current).await;
                 drop(current);
                 tokio::time::sleep(wait).await;
             }
@@ -28,19 +33,27 @@ impl Runtime {
         open.then_some(core)
     }
 
-    fn expire(&self, core: &Core) -> Duration {
+    async fn expire(&self, core: &Arc<Core>) -> Duration {
         let now = self.clock.now_ms();
-        if let Ok(gone) = core.store.purge_expired(now)
-            && !gone.is_empty()
-        {
+        let swept = self
+            .on_store(core, move |core| {
+                Ok(Swept {
+                    gone: core.store.purge_expired(now).unwrap_or_default(),
+                    next: core.store.next_expiry().ok().flatten(),
+                })
+            })
+            .await;
+        let Ok(swept) = swept else {
+            return LOOK_AGAIN;
+        };
+        if !swept.gone.is_empty() {
             self.events.emit(CoreEvent::Gone(GoneEvent {
                 conversations: Vec::new(),
-                messages: gone,
+                messages: swept.gone,
             }));
             self.recount(core);
         }
-        let next = core.store.next_expiry().ok().flatten();
-        until(next, now)
+        until(swept.next, now)
     }
 }
 

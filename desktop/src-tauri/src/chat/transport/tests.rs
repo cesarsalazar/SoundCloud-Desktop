@@ -5,7 +5,7 @@ use chat_core::{Tier, Transport, TransportError, TransportRequest};
 use warp::Filter;
 use warp::http::{Response, StatusCode};
 
-use super::client::{lost_on_the_way, seconds_to_ms};
+use super::client::{ANSWER_MAX, gather, lost_on_the_way, seconds_to_ms};
 use super::hops::{Hop, hops_over, order};
 use super::{EdgeTransport, Route};
 
@@ -36,6 +36,18 @@ async fn serve(status: u16, retry_after: Option<&'static str>, delay: Duration) 
             echoed.reverse();
             answer.body(echoed).unwrap()
         });
+    let (addr, server) = warp::serve(route).bind_ephemeral(([127, 0, 0, 1], 0));
+    tokio::spawn(server);
+    addr
+}
+
+async fn serve_bytes(size: usize) -> SocketAddr {
+    let route = warp::post().and(warp::path!("chat" / "x")).map(move || {
+        Response::builder()
+            .status(200)
+            .body(vec![7u8; size])
+            .unwrap()
+    });
     let (addr, server) = warp::serve(route).bind_ephemeral(([127, 0, 0, 1], 0));
     tokio::spawn(server);
     addr
@@ -164,4 +176,37 @@ async fn a_tier_the_route_lacks_is_unreachable() {
     let addr = serve(200, None, Duration::ZERO).await;
     let failed = fixed(addr).exchange(request(Tier::Relay, 5_000)).await;
     assert_eq!(failed, Err(TransportError::Unreachable));
+}
+
+#[tokio::test]
+async fn an_answer_over_the_cap_is_dropped() {
+    let addr = serve_bytes(ANSWER_MAX + 1).await;
+    let failed = fixed(addr).exchange(request(Tier::Direct, 5_000)).await;
+    assert_eq!(failed, Err(TransportError::Unreachable));
+    let addr = serve_bytes(ANSWER_MAX).await;
+    let answer = fixed(addr)
+        .exchange(request(Tier::Direct, 5_000))
+        .await
+        .unwrap();
+    assert_eq!(answer.body.len(), ANSWER_MAX);
+}
+
+#[tokio::test]
+async fn a_stream_without_a_length_stops_at_the_cap() {
+    let half = || Ok::<_, ()>(vec![0u8; ANSWER_MAX / 2]);
+    let endless = futures_util::stream::iter([half(), half(), half()]);
+    assert_eq!(
+        gather(endless, |_| TransportError::Timeout).await,
+        Err(TransportError::Unreachable)
+    );
+    let broken = futures_util::stream::iter([Ok(vec![1u8]), Err(())]);
+    assert_eq!(
+        gather(broken, |_| TransportError::Timeout).await,
+        Err(TransportError::Timeout)
+    );
+    let small = futures_util::stream::iter([Ok::<_, ()>(vec![1u8, 2]), Ok(vec![3])]);
+    assert_eq!(
+        gather(small, |_| TransportError::Timeout).await,
+        Ok(vec![1, 2, 3])
+    );
 }

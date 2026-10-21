@@ -8,11 +8,10 @@ use chat_core::crypto::{self, MessageAt};
 use chat_core::outbox::OutboxItem;
 use chat_core::{
     ChatError, ChatResult, ClientId, ConvId, CoreEvent, Events, HistoryQuery, MessagesEvent,
-    MessagesOrigin, Seq,
+    MessagesOrigin, Millis,
 };
 
 use super::Runtime;
-use super::keys;
 use super::local::Core;
 
 const BATCH: usize = 16;
@@ -58,8 +57,12 @@ pub fn retry_in(error: &ChatError, attempts: u32) -> Option<Duration> {
 }
 
 impl Runtime {
-    async fn drain(&self, core: &Core) -> Duration {
-        let Ok(due) = core.outbox.due(self.clock.now_ms(), BATCH) else {
+    async fn drain(&self, core: &Arc<Core>) -> Duration {
+        let now = self.clock.now_ms();
+        let Ok(due) = self
+            .on_store(core, move |core| core.outbox.due(now, BATCH))
+            .await
+        else {
             return IDLE;
         };
         let full = due.len() == BATCH;
@@ -72,7 +75,7 @@ impl Runtime {
         if full { Duration::ZERO } else { soonest }
     }
 
-    async fn deliver(&self, core: &Core, item: OutboxItem) -> Option<Duration> {
+    async fn deliver(&self, core: &Arc<Core>, item: OutboxItem) -> Option<Duration> {
         let mut sent = self.send_once(core, &item).await;
         if matches!(sent, Err(ChatError::EpochStale)) {
             self.epochs.forget(item.conversation_id);
@@ -80,8 +83,8 @@ impl Runtime {
         }
         match sent {
             Ok(answer) => {
-                let _ = core.outbox.sent(item.client_id, answer.seq, answer.ts);
-                self.announce_sent(core, item.conversation_id, answer.seq);
+                self.announce_sent(core, item.client_id, item.conversation_id, answer)
+                    .await;
                 None
             }
             Err(error) => {
@@ -92,17 +95,17 @@ impl Runtime {
                 let retry_at = retry.map(|retry| {
                     self.clock.now_ms() + i64::try_from(retry.as_millis()).unwrap_or(i64::MAX)
                 });
-                let _ = core.outbox.failed(item.client_id, retry_at);
-                self.announce_pending(core, item.conversation_id, item.client_id);
+                self.announce_pending(core, item.conversation_id, item.client_id, retry_at)
+                    .await;
                 retry
             }
         }
     }
 
-    async fn send_once(&self, core: &Core, item: &OutboxItem) -> ChatResult<SendAnswer> {
+    async fn send_once(&self, core: &Arc<Core>, item: &OutboxItem) -> ChatResult<SendAnswer> {
         let conversation_id = item.conversation_id;
-        let epoch = keys::current(&self.api, core, &self.epochs, conversation_id).await?;
-        let ck = keys::ck(&self.api, core, conversation_id, epoch).await?;
+        let epoch = self.current_epoch(core, conversation_id).await?;
+        let ck = self.ck_of(core, conversation_id, epoch).await?;
         let envelope =
             Envelope::decode(item.envelope.as_slice()).map_err(|_| ChatError::Protocol)?;
         let at = MessageAt {
@@ -123,13 +126,26 @@ impl Runtime {
         self.api.send(conversation_id, &message).await
     }
 
-    fn announce_sent(&self, core: &Core, conversation_id: ConvId, seq: Seq) {
-        let query = HistoryQuery {
-            before: None,
-            after: Some(seq - 1),
-            limit: 1,
-        };
-        if let Ok(page) = core.store.messages(conversation_id, &query) {
+    async fn announce_sent(
+        &self,
+        core: &Arc<Core>,
+        client_id: ClientId,
+        conversation_id: ConvId,
+        answer: SendAnswer,
+    ) {
+        let seq = answer.seq;
+        let stored = self
+            .on_store(core, move |core| {
+                core.outbox.sent(client_id, seq, answer.ts)?;
+                let query = HistoryQuery {
+                    before: None,
+                    after: Some(seq - 1),
+                    limit: 1,
+                };
+                core.store.messages(conversation_id, &query)
+            })
+            .await;
+        if let Ok(page) = stored {
             let messages = page
                 .messages
                 .into_iter()
@@ -139,8 +155,20 @@ impl Runtime {
         }
     }
 
-    fn announce_pending(&self, core: &Core, conversation_id: ConvId, client_id: ClientId) {
-        if let Ok(pending) = core.outbox.pending(conversation_id) {
+    async fn announce_pending(
+        &self,
+        core: &Arc<Core>,
+        conversation_id: ConvId,
+        client_id: ClientId,
+        retry_at: Option<Millis>,
+    ) {
+        let pending = self
+            .on_store(core, move |core| {
+                core.outbox.failed(client_id, retry_at)?;
+                core.outbox.pending(conversation_id)
+            })
+            .await;
+        if let Ok(pending) = pending {
             let messages = pending
                 .into_iter()
                 .filter(|message| message.client_id == client_id)

@@ -37,7 +37,7 @@ use status::StatusCell;
 
 pub use bringup::config_of;
 pub use clock::SystemClock;
-pub use local::Core;
+pub use local::{Core, database_path};
 pub use tap::Tap;
 
 const AUTH_CHANGED: &str = "auth:changed";

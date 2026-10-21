@@ -1,4 +1,3 @@
-use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -8,7 +7,9 @@ use chat_core::outbox::Outbox;
 use chat_core::search::Search;
 use chat_core::store::Store;
 use chat_core::sync::SyncEngine;
-use chat_core::{ChatError, ChatResult, DeviceId, Events, KeyName, KeyStore, Zeroizing};
+use chat_core::{ChatError, ChatResult, DeviceId, Events, KeyStore};
+
+use super::Runtime;
 
 const DATABASE: &str = "chat.db";
 
@@ -30,7 +31,7 @@ impl Core {
     ) -> ChatResult<Self> {
         std::fs::create_dir_all(dir).map_err(|_| ChatError::Store)?;
         let (device_id, keys) = DeviceKeys::load_or_create(keychain)?;
-        let store = Arc::new(open_store(&database_path(dir), keychain)?);
+        let store = Arc::new(Store::open_keyed(&database_path(dir), keychain)?);
         Ok(Self {
             device_id,
             keys: Arc::new(keys),
@@ -42,54 +43,24 @@ impl Core {
     }
 }
 
+impl Runtime {
+    pub(super) async fn on_store<T, F>(&self, core: &Arc<Core>, work: F) -> ChatResult<T>
+    where
+        T: Send + 'static,
+        F: FnOnce(&Core) -> ChatResult<T> + Send + 'static,
+    {
+        let core = core.clone();
+        self.rt
+            .spawn_blocking(move || work(&core))
+            .await
+            .map_err(|_| ChatError::Internal)?
+    }
+}
+
 pub fn has_local_state(dir: &Path) -> bool {
     database_path(dir).exists()
 }
 
-pub fn remove_database(dir: &Path) -> ChatResult<()> {
-    let path = database_path(dir);
-    for file in [path.clone(), sibling(&path, "-wal"), sibling(&path, "-shm")] {
-        match std::fs::remove_file(&file) {
-            Err(error) if error.kind() != ErrorKind::NotFound => return Err(ChatError::Store),
-            _ => {}
-        }
-    }
-    Ok(())
-}
-
-fn open_store(path: &Path, keychain: &dyn KeyStore) -> ChatResult<Store> {
-    let (master, fresh) = database_key(keychain)?;
-    let dir = path.parent().unwrap_or(path);
-    if fresh {
-        remove_database(dir)?;
-    }
-    match Store::open(path, &master) {
-        Err(ChatError::Crypto) => {
-            remove_database(dir)?;
-            Store::open(path, &master)
-        }
-        opened => opened,
-    }
-}
-
-fn database_key(keychain: &dyn KeyStore) -> ChatResult<(Zeroizing<[u8; 32]>, bool)> {
-    if let Some(saved) = keychain.load(KeyName::Database)?
-        && let Ok(master) = <[u8; 32]>::try_from(saved.as_slice())
-    {
-        return Ok((Zeroizing::new(master), false));
-    }
-    let master = chat_core::chat_wire::random_bytes::<32>().map_err(|_| ChatError::Crypto)?;
-    let master = Zeroizing::new(master);
-    keychain.save(KeyName::Database, master.as_slice())?;
-    Ok((master, true))
-}
-
-fn database_path(dir: &Path) -> PathBuf {
+pub fn database_path(dir: &Path) -> PathBuf {
     dir.join(DATABASE)
-}
-
-fn sibling(path: &Path, suffix: &str) -> PathBuf {
-    let mut name = path.as_os_str().to_os_string();
-    name.push(suffix);
-    PathBuf::from(name)
 }

@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use chat_core::{TransportError, TransportResponse};
-use futures_util::StreamExt;
+use futures_util::{Stream, StreamExt};
 use wreq::header::{CONTENT_TYPE, HeaderMap, RETRY_AFTER};
 use wreq::redirect::Policy;
 
@@ -15,6 +15,7 @@ use crate::network::{fetch, system_proxy};
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const IDLE_PER_HOST: usize = 2;
 const OCTET_STREAM: &str = "application/octet-stream";
+pub const ANSWER_MAX: usize = 2 * 1024 * 1024;
 
 pub async fn send(hop: &Hop, envelope: &[u8]) -> Result<TransportResponse, TransportError> {
     match hop {
@@ -53,10 +54,16 @@ async fn post(url: &str, envelope: &[u8]) -> Result<TransportResponse, Transport
     if lost_on_the_way(status, retry_after_ms) {
         return Err(TransportError::Unreachable);
     }
-    let body = response.bytes().await.map_err(|error| failure(&error))?;
+    if response
+        .content_length()
+        .is_some_and(|length| length > ANSWER_MAX as u64)
+    {
+        return Err(TransportError::Unreachable);
+    }
+    let body = gather(response.bytes_stream(), |error| failure(&error)).await?;
     Ok(TransportResponse {
         status,
-        body: body.to_vec(),
+        body,
         retry_after_ms,
     })
 }
@@ -72,7 +79,7 @@ async fn through_pro(
         headers: vec![(CONTENT_TYPE.as_str().to_string(), OCTET_STREAM.to_string())],
         body: Some(envelope.to_vec()),
     };
-    let mut answer = pro::fetch(node, asked)
+    let answer = pro::fetch(node, asked)
         .await
         .map_err(|_| TransportError::Unreachable)?;
     let retry_after_ms = answer
@@ -83,15 +90,32 @@ async fn through_pro(
     if lost_on_the_way(answer.status, retry_after_ms) {
         return Err(TransportError::Unreachable);
     }
-    let mut body = Vec::new();
-    while let Some(piece) = answer.body.next().await {
-        body.extend_from_slice(&piece.map_err(|_| TransportError::Unreachable)?);
-    }
+    let body = gather(answer.body, |_| TransportError::Unreachable).await?;
     Ok(TransportResponse {
         status: answer.status,
         body,
         retry_after_ms,
     })
+}
+
+pub async fn gather<S, P, E>(
+    pieces: S,
+    lost: impl Fn(E) -> TransportError,
+) -> Result<Vec<u8>, TransportError>
+where
+    S: Stream<Item = Result<P, E>>,
+    P: AsRef<[u8]>,
+{
+    let mut pieces = std::pin::pin!(pieces);
+    let mut body = Vec::new();
+    while let Some(piece) = pieces.next().await {
+        let piece = piece.map_err(&lost)?;
+        if body.len() + piece.as_ref().len() > ANSWER_MAX {
+            return Err(TransportError::Unreachable);
+        }
+        body.extend_from_slice(piece.as_ref());
+    }
+    Ok(body)
 }
 
 pub fn lost_on_the_way(status: u16, retry_after_ms: Option<u64>) -> bool {

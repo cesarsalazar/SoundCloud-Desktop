@@ -71,7 +71,13 @@ impl Runtime {
                     ladder.answered(Instant::now());
                     Duration::ZERO
                 }
-                Next::Fallback => ladder.missed(Instant::now()),
+                Next::Fallback => {
+                    let pause = ladder.missed(Instant::now());
+                    if pause.is_zero() {
+                        last_step = None;
+                    }
+                    pause
+                }
                 Next::Wait(pause) => pause,
                 Next::Stop(phase) => return Halt::Phase(phase),
             };

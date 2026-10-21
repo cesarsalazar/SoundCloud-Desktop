@@ -1,10 +1,11 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
-use chat_core::api::Api;
+use chat_core::api::wire::SealedKey;
 use chat_core::crypto::Ck;
 use chat_core::{ChatError, ChatResult, ConvId};
 
+use super::Runtime;
 use super::local::Core;
 
 #[derive(Default)]
@@ -35,38 +36,49 @@ impl Epochs {
     }
 }
 
-pub async fn current(
-    api: &Api,
-    core: &Core,
-    epochs: &Epochs,
-    conversation_id: ConvId,
-) -> ChatResult<u32> {
-    if let Some(epoch) = epochs.get(conversation_id) {
-        return Ok(epoch);
+impl Runtime {
+    pub(super) async fn current_epoch(
+        &self,
+        core: &Arc<Core>,
+        conversation_id: ConvId,
+    ) -> ChatResult<u32> {
+        if let Some(epoch) = self.epochs.get(conversation_id) {
+            return Ok(epoch);
+        }
+        let newest = self.fetch_keys(core, conversation_id, None).await?;
+        self.epochs.raise(conversation_id, newest);
+        Ok(newest)
     }
-    let newest = fetch(api, core, conversation_id, None).await?;
-    epochs.raise(conversation_id, newest);
-    Ok(newest)
+
+    pub(super) async fn ck_of(
+        &self,
+        core: &Arc<Core>,
+        conversation_id: ConvId,
+        epoch: u32,
+    ) -> ChatResult<Ck> {
+        let cached = move |core: &Core| core.store.ck(conversation_id, epoch);
+        if let Some(ck) = self.on_store(core, cached).await? {
+            return Ok(ck);
+        }
+        self.fetch_keys(core, conversation_id, Some(epoch)).await?;
+        self.on_store(core, cached).await?.ok_or(ChatError::Crypto)
+    }
+
+    async fn fetch_keys(
+        &self,
+        core: &Arc<Core>,
+        conversation_id: ConvId,
+        from_epoch: Option<u32>,
+    ) -> ChatResult<u32> {
+        let sealed = self.api.keys(conversation_id, from_epoch).await?;
+        self.on_store(core, move |core| keep(core, conversation_id, &sealed))
+            .await
+    }
 }
 
-pub async fn ck(api: &Api, core: &Core, conversation_id: ConvId, epoch: u32) -> ChatResult<Ck> {
-    if let Some(ck) = core.store.ck(conversation_id, epoch)? {
-        return Ok(ck);
-    }
-    fetch(api, core, conversation_id, Some(epoch)).await?;
-    core.store
-        .ck(conversation_id, epoch)?
-        .ok_or(ChatError::Crypto)
-}
-
-async fn fetch(
-    api: &Api,
-    core: &Core,
-    conversation_id: ConvId,
-    from_epoch: Option<u32>,
-) -> ChatResult<u32> {
+fn keep(core: &Core, conversation_id: ConvId, sealed: &[SealedKey]) -> ChatResult<u32> {
     let mut newest = None;
-    for key in api.keys(conversation_id, from_epoch).await? {
+    for key in sealed {
         let epoch = u32::try_from(key.epoch).map_err(|_| ChatError::Protocol)?;
         let ck = core
             .keys
