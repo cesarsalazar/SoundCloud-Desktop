@@ -6,6 +6,7 @@ use super::{Channel, Sealed};
 use crate::contracts::{ChatError, ChatResult, TransportResponse};
 
 pub const BUSY_RETRY_MS: u64 = 1_000;
+pub const BUSY_RETRY_MAX_MS: u64 = 60_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InnerAnswer {
@@ -60,15 +61,18 @@ impl Channel {
         let answer = match response.status {
             200 => sealed.open(&response.body)?,
             503 => {
+                let retry_ms = response.retry_after_ms.unwrap_or(BUSY_RETRY_MS);
                 return Err(ChatError::Busy {
-                    retry_ms: response.retry_after_ms.unwrap_or(BUSY_RETRY_MS),
+                    retry_ms: retry_ms.clamp(BUSY_RETRY_MS, BUSY_RETRY_MAX_MS),
                 });
             }
             400 => return Err(ChatError::Protocol),
             413 => return Err(ChatError::Invalid),
             _ => return Err(ChatError::Offline),
         };
-        if let Some(ChatError::Clock { server_now }) = answer.error() {
+        if let Some(ChatError::Clock { server_now }) = answer.error()
+            && server_now > 0
+        {
             self.note_server_now(server_now);
         }
         Ok(answer)

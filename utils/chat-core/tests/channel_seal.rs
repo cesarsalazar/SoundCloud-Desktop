@@ -2,7 +2,7 @@ mod origin;
 
 use std::sync::Arc;
 
-use chat_core::channel::{BUSY_RETRY_MS, Caller, Channel, InnerCall};
+use chat_core::channel::{BUSY_RETRY_MAX_MS, BUSY_RETRY_MS, Caller, Channel, InnerCall};
 use chat_core::chat_wire::sign::verify_request;
 use chat_core::crypto::DeviceKeys;
 use chat_core::{ChatError, Tier, TransportResponse};
@@ -139,6 +139,22 @@ fn a_clock_answer_moves_the_request_clock_to_the_server() {
 }
 
 #[test]
+fn a_clock_answer_without_server_time_keeps_the_clock() {
+    let origin = Origin::new();
+    let channel = origin.channel();
+    let keys = DeviceKeys::generate().unwrap();
+    let sealed = channel
+        .seal(&sync_call(), &caller(&keys), Tier::Direct)
+        .unwrap();
+    let response = origin
+        .receive(&sealed.envelope)
+        .answer(401, r#"{"error":"chat_clock"}"#);
+    let answer = channel.receive(&sealed, &response).unwrap();
+    assert_eq!(answer.error(), Some(ChatError::Clock { server_now: 0 }));
+    assert_eq!(channel.offset_ms(), 0);
+}
+
+#[test]
 fn outer_statuses_map_to_errors_without_touching_the_clock() {
     let origin = Origin::new();
     let channel = origin.channel();
@@ -152,6 +168,18 @@ fn outer_statuses_map_to_errors_without_touching_the_clock() {
             outer(503, None),
             ChatError::Busy {
                 retry_ms: BUSY_RETRY_MS,
+            },
+        ),
+        (
+            outer(503, Some(0)),
+            ChatError::Busy {
+                retry_ms: BUSY_RETRY_MS,
+            },
+        ),
+        (
+            outer(503, Some(u64::MAX)),
+            ChatError::Busy {
+                retry_ms: BUSY_RETRY_MAX_MS,
             },
         ),
         (outer(400, None), ChatError::Protocol),

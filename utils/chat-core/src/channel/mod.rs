@@ -10,7 +10,7 @@ use chat_wire::seal::{ENC_LEN, RequestSealer, ResponseKey};
 use crate::contracts::{ChatError, ChatResult, Clock, DeviceId, Millis, Tier};
 use crate::crypto::DeviceKeys;
 
-pub use answer::{BUSY_RETRY_MS, InnerAnswer};
+pub use answer::{BUSY_RETRY_MAX_MS, BUSY_RETRY_MS, InnerAnswer};
 
 pub const CHANNEL_PATH: &str = "/chat/x";
 
