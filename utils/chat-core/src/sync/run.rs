@@ -112,7 +112,7 @@ impl<L: Local> SyncEngine<L> {
             hold_ms: plan.hold_ms,
             max_bytes: plan.tier.max_bytes(),
             known: known.clone(),
-            focus: self.focus(),
+            focus: self.focus().filter(|_| self.visible()),
             read: marks.read.clone(),
             delivered: marks.delivered.clone(),
         };

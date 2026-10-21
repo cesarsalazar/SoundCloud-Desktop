@@ -342,6 +342,7 @@ async fn received_messages_are_marked_delivered_and_typing_reaches_the_focus() {
     synced(&rig);
     rig.local.put_conversations(&[summary(A, 1)]).unwrap();
     rig.local.add_key(A, 1, sync_support::ck_bytes(A, 1));
+    rig.engine.set_visible(true);
     rig.engine.set_focus(Some(A));
     let mut live = entry(A, 2, vec![post(A, 2, 1, "hey")]);
     live["typing"] = json!([PEER]);
@@ -424,4 +425,23 @@ async fn the_badge_counts_loud_unread_chats_and_every_mention() {
     rig.engine.step(plan(&rig)).await.unwrap();
     let status = rig.engine.status();
     assert_eq!((status.unread, status.mentions), (0, 0));
+}
+
+#[tokio::test]
+async fn a_hidden_window_sends_no_focus() {
+    let rig = rig();
+    synced(&rig);
+    rig.engine.set_focus(Some(A));
+    rig.server
+        .on("POST", "/chat/sync", sync_support::Step::Empty(204, vec![]));
+    rig.server
+        .on("POST", "/chat/sync", sync_support::Step::Empty(204, vec![]));
+
+    rig.engine.step(plan(&rig)).await.unwrap();
+    rig.engine.set_visible(true);
+    rig.engine.step(plan(&rig)).await.unwrap();
+
+    let syncs = rig.server.calls_to("POST", "/chat/sync");
+    assert_eq!(syncs[0].body["focus"], json!(null));
+    assert_eq!(syncs[1].body["focus"], json!(A));
 }
