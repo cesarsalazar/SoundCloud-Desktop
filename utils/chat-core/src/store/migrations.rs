@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 
-pub const VERSION: i64 = 1;
+pub const VERSION: i64 = 2;
 
 const V1: &str = "
 CREATE TABLE meta (
@@ -130,6 +130,16 @@ CREATE INDEX outbox_due ON outbox (next_at) WHERE failed = 0;
 CREATE INDEX outbox_conversation ON outbox (conversation_id, created_at);
 ";
 
+const V2: &str = "
+CREATE TABLE hidden_messages (
+    conversation_id BLOB NOT NULL,
+    seq INTEGER NOT NULL,
+    PRIMARY KEY (conversation_id, seq)
+) WITHOUT ROWID;
+";
+
+const STEPS: [&str; 2] = [V1, V2];
+
 pub fn prepare(conn: &Connection) -> rusqlite::Result<()> {
     conn.pragma_update(None, "secure_delete", "ON")?;
     conn.pragma_update(None, "journal_mode", "WAL")?;
@@ -141,11 +151,14 @@ pub fn version(conn: &Connection) -> rusqlite::Result<i64> {
 }
 
 pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
-    if version(conn)? >= VERSION {
+    let from = version(conn)?;
+    if from >= VERSION {
         return Ok(());
     }
     let tx = conn.unchecked_transaction()?;
-    tx.execute_batch(V1)?;
+    for step in STEPS.iter().skip(usize::try_from(from).unwrap_or_default()) {
+        tx.execute_batch(step)?;
+    }
     tx.pragma_update(None, "user_version", VERSION)?;
     tx.commit()
 }

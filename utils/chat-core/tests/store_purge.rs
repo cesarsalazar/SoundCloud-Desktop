@@ -226,6 +226,57 @@ fn gone_messages_drop_their_index_embeds_and_modifiers() {
 }
 
 #[test]
+fn a_message_deleted_for_me_stays_gone_when_history_brings_it_back() {
+    let store = Arc::new(store());
+    let id = conv();
+    store
+        .put_messages(&[post(id, 1, PEER, "секрет"), post(id, 2, PEER, "видно")])
+        .unwrap();
+    let hidden = GoneMessage {
+        conversation_id: id,
+        seq: 1,
+    };
+    store.hide_messages(&[hidden]).unwrap();
+    store
+        .put_messages(&[
+            post(id, 1, PEER, "секрет"),
+            edit(id, 3, PEER, 1, "секрет поправлен"),
+            react(id, 4, PEER, 1, "🔥", true),
+        ])
+        .unwrap();
+    assert_eq!(hits(&store, "секрет"), 0);
+    assert_eq!(
+        count(
+            &store,
+            "SELECT count(*) FROM messages WHERE conversation_id = ?1 AND seq IN (1, 3, 4)",
+            id
+        ),
+        0
+    );
+    let page = store
+        .messages(
+            id,
+            &HistoryQuery {
+                before: None,
+                after: None,
+                limit: 50,
+            },
+        )
+        .unwrap();
+    let seqs: Vec<_> = page.messages.iter().map(|message| message.seq).collect();
+    assert_eq!(seqs, vec![Some(2)]);
+    store.purge_conversations(&[id]).unwrap();
+    assert_eq!(
+        count(
+            &store,
+            "SELECT count(*) FROM hidden_messages WHERE conversation_id = ?1",
+            id
+        ),
+        0
+    );
+}
+
+#[test]
 fn wipe_empties_the_store_and_keeps_it_usable() {
     let store = Arc::new(store());
     let id = conv();

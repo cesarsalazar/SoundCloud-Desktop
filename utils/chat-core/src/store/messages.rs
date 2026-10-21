@@ -59,7 +59,7 @@ impl Store {
 
 pub fn write(tx: &Connection, keys: &StoreKeys, item: &StoredMessage) -> ChatResult<bool> {
     let conv = item.conversation_id;
-    if !item.local_only && item.seq <= hidden_before(tx, conv)? {
+    if !item.local_only && hidden(tx, conv, item)? {
         return Ok(false);
     }
     let (kind, sealed) = items::seal_content(keys, conv, item.seq, &item.content)?;
@@ -180,6 +180,20 @@ fn blank(tx: &Connection, id: i64) -> ChatResult<()> {
     )?
     .execute([id])?;
     Ok(())
+}
+
+fn hidden(tx: &Connection, conv: ConvId, item: &StoredMessage) -> ChatResult<bool> {
+    if item.seq <= hidden_before(tx, conv)? {
+        return Ok(true);
+    }
+    let mut tombstone =
+        tx.prepare_cached("SELECT 1 FROM hidden_messages WHERE conversation_id = ?1 AND seq = ?2")?;
+    for seq in std::iter::once(item.seq).chain(item.target_seq) {
+        if tombstone.exists(params![conv.as_bytes(), seq])? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 pub fn hidden_before(conn: &Connection, conv: ConvId) -> ChatResult<Seq> {

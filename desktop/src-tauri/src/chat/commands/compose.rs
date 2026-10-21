@@ -100,7 +100,7 @@ pub async fn delete(
                 conversation_id,
                 seq,
             };
-            blocking(state, move |core| core.store.purge_messages(&[gone])).await?;
+            blocking(state, move |core| core.store.hide_messages(&[gone])).await?;
             state.events.emit(CoreEvent::Gone(GoneEvent {
                 conversations: Vec::new(),
                 messages: vec![gone],
