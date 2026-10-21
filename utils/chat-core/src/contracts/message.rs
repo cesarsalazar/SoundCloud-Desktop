@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use super::conversation::MemberRole;
 use super::embed::Embed;
 use super::ids::{ClientId, ConvId, DeviceId, Millis, Seq, UserId};
 
@@ -115,6 +116,10 @@ pub enum SystemKind {
     Handoff,
     Track,
     Ttl,
+    Role,
+    Deleted,
+    Moderator,
+    Suggest,
     Other,
 }
 
@@ -128,6 +133,10 @@ pub struct SystemEvent {
     pub ttl_s: Option<u32>,
     pub until: Option<Millis>,
     pub track: Option<Box<Embed>>,
+    #[serde(default)]
+    pub role: Option<MemberRole>,
+    #[serde(default)]
+    pub on: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

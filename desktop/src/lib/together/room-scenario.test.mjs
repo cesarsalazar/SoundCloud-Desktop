@@ -475,10 +475,24 @@ test('titles are cleaned like the server does', () => {
 
 test('room rows pick out track changes, suggestions and moderator changes', () => {
   const track = { kind: 'track', urn: 'soundcloud:tracks:1', title: 'Song' };
-  const base = { actor: null, target: null, name: null, ttlS: null, until: null, track: null };
+  const base = {
+    actor: null,
+    target: null,
+    name: null,
+    ttlS: null,
+    until: null,
+    track: null,
+    role: null,
+    on: null,
+  };
   assert.equal(roomRowKind({ ...base, kind: 'track', track }), 'track');
-  assert.equal(roomRowKind({ ...base, kind: 'other', actor: '7', track }), 'suggest');
-  assert.equal(roomRowKind({ ...base, kind: 'other', actor: '7', target: '8' }), 'moderator');
+  assert.equal(roomRowKind({ ...base, kind: 'suggest', actor: '7', track }), 'suggest');
+  assert.equal(
+    roomRowKind({ ...base, kind: 'moderator', actor: '7', target: '8', on: false }),
+    'moderator',
+  );
+  assert.equal(roomRowKind({ ...base, kind: 'other', actor: '7', track }), null);
+  assert.equal(roomRowKind({ ...base, kind: 'deleted', actor: '7' }), null);
   assert.equal(roomRowKind({ ...base, kind: 'muted', actor: '7', target: '8' }), null);
   assert.equal(roomRowKind({ ...base, kind: 'other' }), null);
 });

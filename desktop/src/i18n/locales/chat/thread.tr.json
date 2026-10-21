@@ -62,6 +62,9 @@
     "renamed": "Yeni ad: {{name}}",
     "handoff": "Artık {{name}} yönetiyor",
     "track": "Şimdi çalıyor: {{name}}",
+    "roleOwner": "{{name}} artık sahip",
+    "roleAdmin": "{{name}} artık yönetici",
+    "roleMember": "{{name}} artık yönetici değil",
     "other": "Sohbet güncellendi"
   },
   "bubble": {

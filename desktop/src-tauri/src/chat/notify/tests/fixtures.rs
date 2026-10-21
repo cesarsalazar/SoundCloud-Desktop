@@ -86,6 +86,8 @@ pub fn system(seq: Seq, kind: SystemKind, target: &str) -> Message {
         ttl_s: None,
         until: None,
         track: None,
+        role: None,
+        on: None,
     };
     message(seq, MessageBody::System(event))
 }

@@ -316,6 +316,68 @@ async fn system_rows_of_both_shapes_are_parsed() {
 }
 
 #[tokio::test]
+async fn role_delete_moderator_and_suggest_rows_keep_their_kind() {
+    let rig = rig();
+    synced(&rig);
+    rig.local.put_conversations(&[summary(A, 0)]).unwrap();
+    let track = json!({"urn": "soundcloud:tracks:1", "title": "Nightcall", "artist": "Kavinsky"});
+    rig.server.json(
+        "POST",
+        "/chat/sync",
+        answer(
+            4,
+            INC,
+            vec![entry(
+                A,
+                4,
+                vec![
+                    system(1, json!({"kind": "role", "actor": PEER, "target": ME, "role": "admin"})),
+                    system(2, json!({"kind": "deleted", "actor": PEER})),
+                    system(3, json!({"type": "moderator", "user_id": ME, "name": "me", "by": PEER, "on": false})),
+                    system(4, json!({"type": "suggest", "user_id": PEER, "name": "peer", "track": track})),
+                ],
+            )],
+        ),
+    );
+    rig.server
+        .json("GET", &format!("/chat/conversations/{A}"), view(A, 4));
+    rig.server
+        .json("GET", "/chat/users/200/card", card(PEER, "peer"));
+
+    rig.engine.step(plan(&rig)).await.unwrap();
+
+    let events: Vec<chat_core::SystemEvent> = rig
+        .local
+        .stored(A)
+        .into_iter()
+        .filter_map(|row| match row.content {
+            StoredContent::System(event) => Some(event),
+            _ => None,
+        })
+        .collect();
+    let kinds: Vec<SystemKind> = events.iter().map(|event| event.kind).collect();
+    assert_eq!(
+        kinds,
+        [
+            SystemKind::Role,
+            SystemKind::Deleted,
+            SystemKind::Moderator,
+            SystemKind::Suggest
+        ]
+    );
+    assert_eq!(events[0].role, Some(chat_core::MemberRole::Admin));
+    assert_eq!(events[0].target.as_deref(), Some(ME));
+    assert_eq!(
+        (events[2].on, events[2].target.as_deref()),
+        (Some(false), Some(ME))
+    );
+    assert_eq!(
+        events[3].track.as_ref().map(|track| track.title.as_str()),
+        Some("Nightcall")
+    );
+}
+
+#[tokio::test]
 async fn read_marks_ride_the_next_sync_once() {
     let rig = rig();
     synced(&rig);

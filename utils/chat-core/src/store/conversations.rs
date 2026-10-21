@@ -6,7 +6,7 @@ use super::project::Context;
 use super::{Store, StoreKeys, history, meta, people, seal};
 use crate::contracts::{
     ChatResult, ConvId, ConversationPage, ConversationSummary, ListFilter, ListQuery, Message,
-    MessageBody, MessagePreview, PreviewKind, Seq,
+    MessageBody, MessagePreview, PreviewKind, Seq, SystemKind,
 };
 
 const PAGE_DEFAULT: u32 = 50;
@@ -253,6 +253,9 @@ pub fn preview(message: &Message) -> MessagePreview {
             Some(embed) => (PreviewKind::Embed, embed.title.clone()),
             None => (PreviewKind::Text, String::new()),
         },
+        MessageBody::System(event) if event.kind == SystemKind::Deleted => {
+            (PreviewKind::Deleted, String::new())
+        }
         MessageBody::System(_) => (PreviewKind::System, String::new()),
         MessageBody::Deleted => (PreviewKind::Deleted, String::new()),
         MessageBody::Locked => (PreviewKind::Locked, String::new()),

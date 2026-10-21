@@ -24,6 +24,8 @@ fn conversation_event(row: &Value, kind: &str) -> SystemEvent {
         "banned" => SystemKind::Banned,
         "renamed" => SystemKind::Renamed,
         "ttl" => SystemKind::Ttl,
+        "role" => SystemKind::Role,
+        "deleted" => SystemKind::Deleted,
         _ => SystemKind::Other,
     });
     parsed.actor = text(row, "actor");
@@ -31,6 +33,7 @@ fn conversation_event(row: &Value, kind: &str) -> SystemEvent {
     parsed.ttl_s = row["ttl_s"]
         .as_u64()
         .and_then(|ttl| u32::try_from(ttl).ok());
+    parsed.role = serde_json::from_value(row["role"].clone()).ok();
     parsed
 }
 
@@ -45,6 +48,8 @@ fn room_event(row: &Value, kind: &str) -> SystemEvent {
         "mute" => SystemKind::Muted,
         "title" => SystemKind::Renamed,
         "track" => SystemKind::Track,
+        "moderator" => SystemKind::Moderator,
+        "suggest" => SystemKind::Suggest,
         _ => SystemKind::Other,
     });
     match kind {
@@ -62,6 +67,7 @@ fn room_event(row: &Value, kind: &str) -> SystemEvent {
         _ => shown(row, "name"),
     };
     parsed.until = row["until_ms"].as_i64();
+    parsed.on = row["on"].as_bool();
     parsed.track = match kind {
         "track" => track(row),
         "suggest" => track(&row["track"]),
@@ -114,5 +120,7 @@ fn event(kind: SystemKind) -> SystemEvent {
         ttl_s: None,
         until: None,
         track: None,
+        role: None,
+        on: None,
     }
 }

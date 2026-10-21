@@ -23,6 +23,10 @@ function joins(a: Message, b: Message, day: number, prevDay: number): boolean {
   );
 }
 
+function isDeleteMarker(message: Message): boolean {
+  return message.body.type === 'system' && message.body.kind === 'deleted';
+}
+
 function startsUnread(message: Message, unread: UnreadMark): boolean {
   return message.seq !== null && message.seq > unread.after && !message.mine;
 }
@@ -36,6 +40,7 @@ export function buildRows(messages: Message[], unread: UnreadMark | null): Row[]
   let lastMessageRow = -1;
 
   for (const message of messages) {
+    if (isDeleteMarker(message)) continue;
     const day = dayNumber(message.ts);
     let broken = prev === null || !joins(prev, message, day, prevDay);
     if (day !== prevDay && !days.has(day)) {

@@ -61,6 +61,7 @@
     "wait": "{{value}} sn bekle"
   },
   "moderatorRow": "Moderatörlük: {{name}}",
+  "moderatorOffRow": "Moderatörlük kaldırıldı: {{name}}",
   "toast": {
     "youLead": "Müziği artık sen yönetiyorsun",
     "ended": "Oturum bitti, sohbet silindi",

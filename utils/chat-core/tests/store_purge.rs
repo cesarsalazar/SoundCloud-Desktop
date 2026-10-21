@@ -82,6 +82,8 @@ fn fill(store: &Arc<Store>, id: uuid::Uuid) {
         ttl_s: None,
         until: None,
         track: None,
+        role: None,
+        on: None,
     };
     store
         .put_messages(&[

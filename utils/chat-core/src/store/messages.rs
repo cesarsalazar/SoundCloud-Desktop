@@ -5,7 +5,7 @@ use super::project::{self, Context};
 use super::{
     Store, StoreKeys, StoredContent, StoredMessage, content, conversations, embeds, purge,
 };
-use crate::contracts::{ChatResult, ConvId, MessageBody, MessageClass, Seq};
+use crate::contracts::{ChatResult, ConvId, MessageBody, MessageClass, Seq, SystemKind};
 use crate::envelope::Content;
 use crate::search::index;
 
@@ -96,7 +96,32 @@ pub fn write(tx: &Connection, keys: &StoreKeys, item: &StoredMessage) -> ChatRes
     {
         cleared |= refresh(tx, keys, conv, target)?;
     }
+    if let Some(target) = redacted_target(item) {
+        cleared |= redact(tx, keys, conv, target)?;
+    }
     Ok(cleared)
+}
+
+fn redacted_target(item: &StoredMessage) -> Option<Seq> {
+    match &item.content {
+        StoredContent::System(event) if event.kind == SystemKind::Deleted => item.target_seq,
+        _ => None,
+    }
+}
+
+fn redact(tx: &Connection, keys: &StoreKeys, conv: ConvId, seq: Seq) -> ChatResult<bool> {
+    let Some(item) = items::by_seq(tx, keys, conv, seq)? else {
+        return Ok(false);
+    };
+    if item.message.class != MessageClass::Post || item.message.content == StoredContent::Deleted {
+        return Ok(false);
+    }
+    blank(tx, item.id)?;
+    for edit in items::edits(tx, keys, conv, seq)? {
+        blank(tx, edit.id)?;
+    }
+    reindex(tx, keys, conv, seq, false)?;
+    Ok(true)
 }
 
 pub fn refresh(tx: &Connection, keys: &StoreKeys, conv: ConvId, seq: Seq) -> ChatResult<bool> {
