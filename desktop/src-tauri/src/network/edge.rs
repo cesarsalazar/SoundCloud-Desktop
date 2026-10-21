@@ -595,7 +595,31 @@ pub fn plan(url: &str) -> Vec<Hop> {
 }
 
 pub fn upload_plan(url: &str) -> Vec<Hop> {
-    planned(url, Tier::Relay)
+    upload_plan_of(url, u64::MAX)
+}
+
+pub fn upload_plan_of(url: &str, bytes: u64) -> Vec<Hop> {
+    let ladder = planned(url, Tier::Relay);
+    if ladder.is_empty() || bytes > crate::network::pro::MOST_BODY as u64 {
+        return ladder;
+    }
+    let inner = match state().lock() {
+        Ok(g) => g,
+        Err(e) => e.into_inner(),
+    };
+    with_staged(&inner, url, ladder, Instant::now())
+}
+
+fn with_staged(inner: &Inner, url: &str, ladder: Vec<Hop>, now: Instant) -> Vec<Hop> {
+    let Some(origin) = host_of(url) else {
+        return ladder;
+    };
+    let staged = pro_hops(inner, url, &origin);
+    if inner.level(&origin, now) == Tier::Pro {
+        staged.into_iter().chain(ladder).collect()
+    } else {
+        ladder.into_iter().chain(staged).collect()
+    }
 }
 
 fn planned(url: &str, highest: Tier) -> Vec<Hop> {
@@ -967,10 +991,12 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::{
-        Change, Event, INHERIT, Inner, PROVEN_BYTES, Persisted, RELAYS, REVALIDATE, Tier,
+        Change, Event, Hop, INHERIT, Inner, PROVEN_BYTES, Persisted, RELAYS, REVALIDATE, Tier,
         audio_tier_order, host_of, is_known_host, is_routed, pro_hops, relay_hosts_over, restore,
-        set_pool, snapshot, swap_host, transport_failure, zone_hosts,
+        set_pool, snapshot, swap_host, transport_failure, upload_plan, upload_plan_of, with_staged,
+        zone_hosts,
     };
+    use crate::network::pro::MOST_BODY;
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD as BASE64_URL};
 
     const ORIGIN: &str = "stream.scnative.dev";
@@ -1382,6 +1408,54 @@ mod tests {
         assert_eq!(restored.level(ORIGIN, now), Tier::Pro);
         let expired = now + REVALIDATE + Duration::from_secs(1);
         assert_eq!(restored.level(ORIGIN, expired), Tier::Direct);
+    }
+
+    const UPLOAD: &str = "https://stream.scnative.dev/upload";
+
+    fn ladder() -> Vec<Hop> {
+        [Tier::Direct, Tier::Relay]
+            .into_iter()
+            .map(|tier| Hop {
+                url: UPLOAD.to_string(),
+                tier,
+                origin: ORIGIN.to_string(),
+            })
+            .collect()
+    }
+
+    fn tiers(hops: &[Hop]) -> Vec<Tier> {
+        hops.iter().map(|hop| hop.tier).collect()
+    }
+
+    fn gatewayed() -> Inner {
+        Inner {
+            gateway_port: Some(4321),
+            ..Inner::default()
+        }
+    }
+
+    #[test]
+    fn a_small_upload_tries_the_pro_stage_after_direct_and_relay() {
+        let hops = with_staged(&gatewayed(), UPLOAD, ladder(), Instant::now());
+        assert_eq!(tiers(&hops), [Tier::Direct, Tier::Relay, Tier::Pro]);
+    }
+
+    #[test]
+    fn a_small_upload_of_an_origin_pinned_to_pro_starts_on_the_pro_stage() {
+        let now = Instant::now();
+        let mut inner = gatewayed();
+        inner.conclude(ORIGIN, Tier::Pro, now);
+        let hops = with_staged(&inner, UPLOAD, ladder(), now);
+        assert_eq!(tiers(&hops), [Tier::Pro, Tier::Direct, Tier::Relay]);
+    }
+
+    #[test]
+    fn an_upload_too_big_for_a_stage_never_goes_through_pro() {
+        let too_big = MOST_BODY as u64 + 1;
+        for hops in [upload_plan(UPLOAD), upload_plan_of(UPLOAD, too_big)] {
+            assert!(!hops.is_empty());
+            assert!(hops.iter().all(|hop| hop.tier != Tier::Pro));
+        }
     }
 
     #[test]

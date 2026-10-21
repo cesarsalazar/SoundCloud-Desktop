@@ -23,6 +23,11 @@ export interface RoomPlayback {
   crossfadeSec?: number;
 }
 
+export interface RoomMute {
+  userId: string;
+  untilMs: number;
+}
+
 export interface RoomView {
   code: string;
   hostId: string;
@@ -33,6 +38,14 @@ export interface RoomView {
   online: string[];
   serverNow: number;
   public?: boolean;
+  title?: string | null;
+  chatId?: string | null;
+  chatEnabled?: boolean;
+  moderators?: string[];
+  muted?: RoomMute[];
+  slowModeS?: number;
+  links?: boolean;
+  banned?: string[];
 }
 
 export interface OpenRoomTrack {

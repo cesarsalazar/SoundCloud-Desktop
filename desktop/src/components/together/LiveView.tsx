@@ -1,34 +1,20 @@
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { art } from '../../lib/formatters';
 import { Check, Copy, Power } from '../../lib/icons';
-import { leaveSession, shareText } from '../../lib/together/session';
+import { nextHost } from '../../lib/together/room-rules';
+import { leaveSession } from '../../lib/together/session';
 import type { RoomView } from '../../lib/together/types';
 import { getArtistDisplay, getDisplayTitle } from '../../lib/track-display';
-import { type RoomCrossfade, useSettingsStore } from '../../stores/settings';
 import { isRoomHost, useTogetherStore } from '../../stores/together';
+import { CrossfadeChoice } from './CrossfadeChoice';
 import { MemberList } from './MemberList';
 import { RoomVisibility } from './RoomVisibility';
 import { SyncBadge } from './SyncBadge';
-
-const COPIED_MS = 1600;
+import { useCopyInvite } from './useCopyInvite';
 
 function CodeCard({ code }: { code: string }) {
   const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), COPIED_MS);
-    return () => clearTimeout(timer);
-  }, [copied]);
-
-  const copy = () => {
-    void navigator.clipboard
-      .writeText(shareText(code))
-      .then(() => setCopied(true))
-      .catch(() => undefined);
-  };
+  const { copied, copy } = useCopyInvite(code);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-accent/[0.14] via-white/[0.03] to-transparent p-3">
@@ -94,39 +80,11 @@ function NowShared({ room, host }: { room: RoomView; host: boolean }) {
   );
 }
 
-const CROSSFADE_MODES: RoomCrossfade[] = ['mine', 'room'];
-
-function CrossfadeChoice() {
-  const { t } = useTranslation();
-  const mode = useSettingsStore((s) => s.roomCrossfade);
-  const setMode = useSettingsStore((s) => s.setRoomCrossfade);
-  return (
-    <div className="flex items-center justify-between gap-2 px-1">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">
-        {t('together.crossfade')}
-      </p>
-      <div className="flex rounded-lg bg-white/[0.05] p-0.5">
-        {CROSSFADE_MODES.map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setMode(value)}
-            className={`cursor-pointer rounded-md px-2.5 py-1 text-[11.5px] font-semibold transition-all duration-200 ${
-              mode === value ? 'bg-white/[0.14] text-white' : 'text-white/45 hover:text-white/70'
-            }`}
-          >
-            {t(value === 'mine' ? 'together.crossfadeMine' : 'together.crossfadeRoom')}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function LiveView({ room }: { room: RoomView }) {
   const { t } = useTranslation();
   const host = useTogetherStore(isRoomHost);
   const selfId = useTogetherStore((s) => s.selfId);
+  const ends = host && (!selfId || !nextHost(room, selfId));
 
   return (
     <div className="relative space-y-3">
@@ -161,7 +119,7 @@ export function LiveView({ room }: { room: RoomView }) {
         className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] py-2 text-[12.5px] font-semibold text-white/60 transition-all duration-200 hover:border-rose-400/30 hover:bg-rose-400/[0.08] hover:text-rose-200 active:scale-[0.98]"
       >
         <Power size={14} />
-        {host ? t('together.end') : t('together.leave')}
+        {ends ? t('together.end') : t('together.leave')}
       </button>
     </div>
   );
