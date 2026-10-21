@@ -1,6 +1,24 @@
+mod ck;
+pub(crate) mod codec;
+mod content;
+mod conversations;
+mod dbkey;
+mod drafts;
+mod embeds;
+pub mod expiry;
+mod history;
+mod items;
+mod local;
+pub(crate) mod messages;
+pub(crate) mod meta;
 pub mod migrations;
+mod people;
+pub(crate) mod project;
+mod purge;
+pub(crate) mod seal;
 
 use std::path::Path;
+use std::sync::atomic::AtomicI64;
 use std::sync::{Mutex, MutexGuard};
 
 use hmac::{Hmac, Mac};
@@ -10,11 +28,12 @@ use uuid::Uuid;
 use zeroize::Zeroizing;
 
 use crate::contracts::{
-    ChatError, ChatResult, ClientId, ConvId, ConversationPage, ConversationSummary, DeviceId,
-    EmbedPage, EmbedsQuery, GoneMessage, HistoryPage, HistoryQuery, ListQuery, Member,
-    MessageClass, Millis, PeerMark, RichText, Seq, SystemEvent, UserId, UserRef,
+    ChatError, ChatResult, ClientId, ConvId, DeviceId, KeyStore, MessageClass, Millis, Seq,
+    SystemEvent, UserId,
 };
-use crate::crypto::Ck;
+
+pub use expiry::ExpiryTimer;
+pub use purge::COMPACTION_GAP_MS;
 
 const BODY_LABEL: &[u8] = b"chat-store body";
 const SEARCH_LABEL: &[u8] = b"chat-store fts";
@@ -72,10 +91,12 @@ pub struct StoredMessage {
 pub struct Store {
     conn: Mutex<Connection>,
     keys: StoreKeys,
+    compacted_at: AtomicI64,
 }
 
 impl Store {
     pub fn open(path: &Path, master: &[u8; 32]) -> ChatResult<Self> {
+        dbkey::owner_only(path)?;
         Self::with_connection(Connection::open(path)?, master)
     }
 
@@ -83,12 +104,29 @@ impl Store {
         Self::with_connection(Connection::open_in_memory()?, master)
     }
 
+    pub fn open_keyed(path: &Path, keys: &dyn KeyStore) -> ChatResult<Self> {
+        let (master, fresh) = dbkey::load_or_create(keys)?;
+        if fresh {
+            dbkey::remove_files(path)?;
+        }
+        match Self::open(path, &master) {
+            Err(ChatError::Crypto) => {
+                dbkey::remove_files(path)?;
+                Self::open(path, &master)
+            }
+            opened => opened,
+        }
+    }
+
     fn with_connection(conn: Connection, master: &[u8; 32]) -> ChatResult<Self> {
         migrations::prepare(&conn)?;
         migrations::migrate(&conn)?;
+        let keys = StoreKeys::derive(master)?;
+        dbkey::verify(&conn, &keys)?;
         Ok(Self {
             conn: Mutex::new(conn),
-            keys: StoreKeys::derive(master)?,
+            keys,
+            compacted_at: AtomicI64::new(Millis::MIN),
         })
     }
 
@@ -98,109 +136,5 @@ impl Store {
 
     pub fn conn(&self) -> ChatResult<MutexGuard<'_, Connection>> {
         self.conn.lock().map_err(|_| ChatError::Store)
-    }
-
-    pub fn sync_state(&self) -> ChatResult<SyncState> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn set_sync_state(&self, _state: SyncState) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn known(&self, _limit: usize) -> ChatResult<Vec<(ConvId, Seq)>> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn put_users(&self, _users: &[UserRef]) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn users(&self, _ids: &[UserId]) -> ChatResult<Vec<UserRef>> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn put_conversations(&self, _items: &[ConversationSummary]) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn conversations(&self, _query: &ListQuery) -> ChatResult<ConversationPage> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn conversation(&self, _id: ConvId) -> ChatResult<Option<ConversationSummary>> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn put_members(&self, _id: ConvId, _members: &[Member]) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn members(&self, _id: ConvId) -> ChatResult<Vec<Member>> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn put_marks(&self, _id: ConvId, _marks: &[PeerMark]) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn marks(&self, _id: ConvId) -> ChatResult<Vec<PeerMark>> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn put_messages(&self, _items: &[StoredMessage]) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn messages(&self, _id: ConvId, _query: &HistoryQuery) -> ChatResult<HistoryPage> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn embeds(&self, _id: ConvId, _query: &EmbedsQuery) -> ChatResult<EmbedPage> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn sealed_messages(&self, _id: ConvId, _epoch: u32) -> ChatResult<Vec<StoredMessage>> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn put_ck(&self, _id: ConvId, _epoch: u32, _ck: &Ck) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn ck(&self, _id: ConvId, _epoch: u32) -> ChatResult<Option<Ck>> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn save_draft(&self, _id: ConvId, _draft: Option<&RichText>) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn draft(&self, _id: ConvId) -> ChatResult<Option<RichText>> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn purge_conversations(&self, _ids: &[ConvId]) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn purge_messages(&self, _gone: &[GoneMessage]) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn purge_expired(&self, _now: Millis) -> ChatResult<Vec<GoneMessage>> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn next_expiry(&self) -> ChatResult<Option<Millis>> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn keep_local_above(&self, _server_last: &[(ConvId, Seq)]) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
-    }
-
-    pub fn wipe(&self) -> ChatResult<()> {
-        Err(ChatError::Unimplemented)
     }
 }
