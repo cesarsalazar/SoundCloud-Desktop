@@ -11,6 +11,8 @@ pub struct ConfigView {
     pub incarnation: Uuid,
     pub ock_current: u8,
     pub limits: LimitsView,
+    #[serde(default)]
+    pub user_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

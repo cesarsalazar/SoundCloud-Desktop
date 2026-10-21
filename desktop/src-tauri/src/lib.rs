@@ -1,7 +1,7 @@
 mod app;
 mod audio;
 mod auth;
-pub mod chat;
+mod chat;
 mod discord;
 mod import;
 mod local_library;
@@ -430,9 +430,10 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app, event| {
-            if let tauri::RunEvent::Exit = event {
-                app::themes::clear_applying(app);
-            }
+        .run(|app, event| match event {
+            tauri::RunEvent::Exit => app::themes::clear_applying(app),
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { .. } => app::visibility::show_main(app),
+            _ => {}
         });
 }

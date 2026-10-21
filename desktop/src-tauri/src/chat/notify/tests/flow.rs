@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 
 use chat_core::{ConversationKind, SystemKind};
@@ -6,7 +7,7 @@ use uuid::Uuid;
 use super::super::history::{History, ONE_PER_CHAT_MS, OPEN_WITHIN_MS};
 use super::super::rules::Reason;
 use super::super::{Notifier, pick};
-use super::fixtures::{ME, chat, system, text};
+use super::fixtures::{ANN, ME, NOW, channel_at, chat, system, text};
 
 fn since(notifier: &Notifier) -> i64 {
     notifier.since.load(Ordering::Acquire)
@@ -27,7 +28,13 @@ fn an_expired_message_is_dropped_before_anything_is_shown() {
     let mut later = live(&notifier, 2, "still here");
     later.expires_at = Some(now + 60_000);
     let messages = [gone, later];
-    let fresh = notifier.fresh(&chat(ConversationKind::Direct), &messages, ME, now);
+    let fresh = notifier.fresh(
+        &chat(ConversationKind::Direct),
+        &messages,
+        ME,
+        &HashSet::new(),
+        now,
+    );
     assert_eq!(fresh.len(), 1);
     assert_eq!(fresh[0].0.seq, Some(2));
 }
@@ -46,7 +53,7 @@ fn read_seen_and_old_messages_do_not_notify() {
         live(&notifier, 3, "c"),
         before_start,
     ];
-    let fresh = notifier.fresh(&read, &messages, ME, now);
+    let fresh = notifier.fresh(&read, &messages, ME, &HashSet::new(), now);
     assert_eq!(
         fresh
             .iter()
@@ -54,7 +61,11 @@ fn read_seen_and_old_messages_do_not_notify() {
             .collect::<Vec<_>>(),
         [Some(3)]
     );
-    assert!(notifier.fresh(&read, &messages, ME, now).is_empty());
+    assert!(
+        notifier
+            .fresh(&read, &messages, ME, &HashSet::new(), now)
+            .is_empty()
+    );
 }
 
 #[test]
@@ -64,7 +75,13 @@ fn quiet_chats_filter_out_plain_posts() {
     let mut mention = live(&notifier, 2, "@me");
     mention.mentions_me = true;
     let messages = [live(&notifier, 1, "hello room"), mention];
-    let fresh = notifier.fresh(&chat(ConversationKind::Room), &messages, ME, now);
+    let fresh = notifier.fresh(
+        &chat(ConversationKind::Room),
+        &messages,
+        ME,
+        &HashSet::new(),
+        now,
+    );
     assert_eq!(fresh.len(), 1);
     assert_eq!(fresh[0].1, Reason::Mention);
 }
@@ -76,7 +93,13 @@ fn an_event_about_me_wins_over_newer_posts() {
     let mut kicked = system(1, SystemKind::Kicked, ME);
     kicked.ts = since(&notifier) + 1_000;
     let messages = [kicked, live(&notifier, 2, "bye")];
-    let fresh = notifier.fresh(&chat(ConversationKind::Direct), &messages, ME, now);
+    let fresh = notifier.fresh(
+        &chat(ConversationKind::Direct),
+        &messages,
+        ME,
+        &HashSet::new(),
+        now,
+    );
     let picked = pick(&fresh).map(|(message, reason)| (message.seq, *reason));
     assert_eq!(
         picked,
@@ -89,7 +112,13 @@ fn the_newest_post_is_picked() {
     let notifier = Notifier::default();
     let now = since(&notifier) + 5_000;
     let messages = [live(&notifier, 1, "a"), live(&notifier, 2, "b")];
-    let fresh = notifier.fresh(&chat(ConversationKind::Direct), &messages, ME, now);
+    let fresh = notifier.fresh(
+        &chat(ConversationKind::Direct),
+        &messages,
+        ME,
+        &HashSet::new(),
+        now,
+    );
     assert_eq!(pick(&fresh).map(|(message, _)| message.seq), Some(Some(2)));
     assert!(pick(&[]).is_none());
 }
@@ -150,14 +179,57 @@ fn a_new_sign_in_moves_the_cutoff_but_a_reattach_keeps_it() {
     let notifier = Notifier::default();
     let store = chat_core::store::Store::open_in_memory(&[7; 32]).expect("in-memory store");
     let store = std::sync::Arc::new(store);
+    let channel = channel_at(NOW);
     notifier.since.store(1, Ordering::Release);
-    notifier.attach(store.clone(), ME.to_owned());
+    notifier.attach(store.clone(), ME.to_owned(), channel.clone());
     let signed_in = since(&notifier);
     assert!(signed_in > 1);
     notifier.since.store(2, Ordering::Release);
-    notifier.attach(store.clone(), ME.to_owned());
+    notifier.attach(store.clone(), ME.to_owned(), channel.clone());
     assert_eq!(since(&notifier), 2);
     notifier.detach();
-    notifier.attach(store, ME.to_owned());
+    notifier.attach(store, ME.to_owned(), channel);
     assert!(since(&notifier) > 2);
+}
+
+#[test]
+fn a_blocked_member_never_notifies_but_news_about_me_still_does() {
+    let notifier = Notifier::default();
+    let now = since(&notifier) + 5_000;
+    let mut mention = live(&notifier, 1, "@me");
+    mention.mentions_me = true;
+    let mut kicked = system(2, SystemKind::Kicked, ME);
+    kicked.ts = since(&notifier) + 1_000;
+    let messages = [mention, kicked];
+    let blocked = HashSet::from([ANN.to_owned()]);
+    let fresh = notifier.fresh(&chat(ConversationKind::Group), &messages, ME, &blocked, now);
+    assert_eq!(
+        fresh
+            .iter()
+            .map(|(message, reason)| (message.seq, *reason))
+            .collect::<Vec<_>>(),
+        [(Some(2), Reason::Personal(SystemKind::Kicked))]
+    );
+}
+
+#[test]
+fn the_start_cutoff_follows_the_server_clock_not_a_skewed_local_one() {
+    let notifier = Notifier::default();
+    let store = chat_core::store::Store::open_in_memory(&[7; 32]).expect("in-memory store");
+    notifier.attach(std::sync::Arc::new(store), ME.to_owned(), channel_at(NOW));
+    assert_eq!(since(&notifier), NOW);
+    let mut before = text(1, "sent before the start");
+    before.ts = NOW - 1;
+    let mut after = text(2, "sent after the start");
+    after.ts = NOW + 1;
+    let messages = [before, after];
+    let fresh = notifier.fresh(
+        &chat(ConversationKind::Direct),
+        &messages,
+        ME,
+        &HashSet::new(),
+        NOW + 5_000,
+    );
+    assert_eq!(fresh.len(), 1);
+    assert_eq!(fresh[0].0.seq, Some(2));
 }

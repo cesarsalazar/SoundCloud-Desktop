@@ -11,9 +11,11 @@ mod strings;
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, Once, RwLock};
 
+use chat_core::channel::Channel;
 use chat_core::store::Store;
 use chat_core::{
     ConversationKind, ConversationSummary, Device, DeviceAddedEvent, DeviceStatus, Message,
@@ -30,6 +32,7 @@ use crate::rt::AppHandle;
 struct Source {
     store: Arc<Store>,
     me: UserId,
+    channel: Arc<Channel>,
 }
 
 pub struct Notifier {
@@ -79,15 +82,15 @@ impl Notifier {
         }
     }
 
-    pub fn attach(&self, store: Arc<Store>, me: UserId) {
+    pub fn attach(&self, store: Arc<Store>, me: UserId, channel: Arc<Channel>) {
         let Ok(mut source) = self.source.write() else {
             return;
         };
         let same_user = source.as_ref().is_some_and(|current| current.me == me);
-        *source = Some(Arc::new(Source { store, me }));
         if !same_user {
-            self.since.store(now_ms(), Ordering::Release);
+            self.since.store(channel.now_ms(), Ordering::Release);
         }
+        *source = Some(Arc::new(Source { store, me, channel }));
     }
 
     pub fn detach(&self) {
@@ -103,7 +106,7 @@ impl Notifier {
         self.source.read().ok().and_then(|source| source.clone())
     }
 
-    fn messages(&self, app: &AppHandle, event: &MessagesEvent) {
+    fn messages(&self, app: &AppHandle, event: &MessagesEvent, blocked: &HashSet<UserId>) {
         let prefs = self.prefs(None);
         let Some(source) = self.source() else {
             return;
@@ -111,11 +114,12 @@ impl Notifier {
         let Ok(Some(chat)) = source.store.conversation(event.conversation_id) else {
             return;
         };
-        let now = now_ms();
-        let fresh = self.fresh(&chat, &event.messages, &source.me, now);
+        let server_now = source.channel.now_ms();
+        let fresh = self.fresh(&chat, &event.messages, &source.me, blocked, server_now);
         let Some(&(message, reason)) = pick(&fresh) else {
             return;
         };
+        let now = now_ms();
         if !prefs.enabled || screen::app_focused(app) || self.throttled(&chat, reason, now) {
             return;
         }
@@ -137,6 +141,7 @@ impl Notifier {
         chat: &ConversationSummary,
         messages: &'a [Message],
         me: &str,
+        blocked: &HashSet<UserId>,
         now: Millis,
     ) -> Vec<(&'a Message, Reason)> {
         let Ok(seen) = self
@@ -153,6 +158,7 @@ impl Notifier {
             .filter(|message| message.seq.is_some_and(|seq| seq > after))
             .filter(|message| message.ts >= since && !rules::expired(message, now))
             .filter_map(|message| rules::reason(message, me).map(|reason| (message, reason)))
+            .filter(|(message, reason)| reason.personal() || !blocked.contains(&message.sender))
             .filter(|(_, reason)| rules::allowed(*reason, chat, now))
             .collect()
     }
@@ -201,7 +207,9 @@ pub fn on_messages(app: &AppHandle, event: &MessagesEvent) {
         return;
     }
     if let Some(state) = app.try_state::<ChatState>() {
-        state.notifier.messages(app, event);
+        state
+            .notifier
+            .messages(app, event, &state.runtime.blocked());
     }
 }
 

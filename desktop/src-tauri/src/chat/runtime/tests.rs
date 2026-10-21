@@ -238,6 +238,7 @@ fn server_config_maps_to_the_client_config() {
             envelope_max: 65_536,
             disappearing_ttls: vec![3_600, 86_400, 604_800],
         },
+        user_id: Some("100".into()),
     });
     assert_eq!(config.access, Access::All);
     assert_eq!(config.limits.group_members_max, 200);
@@ -257,6 +258,7 @@ fn server_config_maps_to_the_client_config() {
             envelope_max: 1,
             disappearing_ttls: Vec::new(),
         },
+        user_id: None,
     });
     assert_eq!(beta.access, Access::Beta);
     assert!(beta.send_paused);

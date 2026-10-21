@@ -29,11 +29,6 @@ impl Runtime {
         }
     }
 
-    pub fn relogged(&self) {
-        self.session.log_in();
-        self.restart();
-    }
-
     pub async fn log_out(&self) -> ChatResult<()> {
         self.session.log_out();
         self.wipe(true).await
@@ -68,6 +63,7 @@ impl Runtime {
 
     pub async fn wipe(&self, forget_device: bool) -> ChatResult<()> {
         let _lifecycle = self.lifecycle.lock().await;
+        self.forget_user();
         let core = self.core.write().ok().and_then(|mut core| core.take());
         self.api.set_identity(None);
         self.restart();
@@ -93,6 +89,15 @@ impl Runtime {
             status.requests = 0;
         });
         wiped
+    }
+
+    fn forget_user(&self) {
+        self.notifier.detach();
+        if let Some(core) = self.core() {
+            core.sync.set_user(None);
+        }
+        self.note_blocked([]);
+        self.status.update(|status| status.user_id = None);
     }
 
     pub(super) fn set_core(&self, core: Option<Arc<Core>>) {
@@ -127,6 +132,9 @@ impl Runtime {
                 }
             }
             Halt::Phase(phase) => {
+                if signed_out(phase) {
+                    self.forget_user();
+                }
                 self.status.update(|status| {
                     status.phase = phase;
                     status.online = false;
@@ -149,6 +157,13 @@ impl Runtime {
             }
         }
     }
+}
+
+pub fn signed_out(phase: ChatPhase) -> bool {
+    matches!(
+        phase,
+        ChatPhase::SignedOut | ChatPhase::Unbound | ChatPhase::BoundOther | ChatPhase::Revoked
+    )
 }
 
 pub fn auth_move(
