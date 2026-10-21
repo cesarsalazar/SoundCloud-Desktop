@@ -4,6 +4,7 @@ import {type Aura, auraRgb, auraRgba} from '../../lib/aura';
 import {Calendar, Globe, Sparkles} from '../../lib/icons';
 import {likedTracksCount} from '../../lib/likes';
 import {usePerfMode} from '../../lib/perf';
+import {MessageButton} from '../chat/share/MessageButton';
 import {BlockArtistButton} from '../music/blocklist/BlockArtistButton';
 import {userTarget} from '../music/blocklist/targets';
 import {CopyLinkButton} from '../ui/CopyLinkButton';
@@ -148,6 +149,7 @@ export function IdentityHub({
 
           <div className="flex flex-wrap items-center gap-3 pt-1 justify-center lg:justify-start">
             {!isOwnProfile && <FollowBtn userUrn={user.urn} aura={aura} />}
+            {!isOwnProfile && <MessageButton userUrn={user.urn} name={user.username} />}
             {!isOwnProfile && (
               <PinArtistButton
                 artist={{

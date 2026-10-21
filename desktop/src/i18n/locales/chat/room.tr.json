@@ -1,1 +1,82 @@
-{}
+{
+  "untitled": "{{name}} odası",
+  "titlePlaceholder": "Oda adı",
+  "rename": "Yeniden adlandır",
+  "ephemeral": "Sohbet oturumdan sonra silinir",
+  "copyInvite": "Daveti kopyala",
+  "copied": "Kopyalandı",
+  "access": {
+    "private": "Özel, kodla giriş",
+    "public": "Açık, herkes katılabilir",
+    "toPublic": "Herkese aç",
+    "toPrivate": "Özel yap"
+  },
+  "leave": "Oturumdan ayrıl",
+  "end": "Oturumu bitir",
+  "confirmLeave": "Ayrılsın mı?",
+  "confirmEnd": "Bitirilsin mi?",
+  "leaveHint": "Ayrıl, sunucu {{name}} olur",
+  "role": {
+    "moderator": "Moderatör"
+  },
+  "menu": {
+    "mute": "Sustur",
+    "minutes": "{{value}} dk",
+    "unmute": "Susturmayı kaldır",
+    "kick": "At",
+    "ban": "Yasakla",
+    "banConfirm": "Kesin yasaklansın mı?",
+    "makeModerator": "Moderatör yap",
+    "dropModerator": "Moderatörlüğü al",
+    "moderatorsFull": "Zaten 3 moderatör var"
+  },
+  "muted": {
+    "title": "Susturuldun"
+  },
+  "handoff": {
+    "mine": "Artık sunucu sensin",
+    "other": "Sunucu artık {{name}}"
+  },
+  "exit": {
+    "ended": "Oturum bitti, sohbet silindi",
+    "kicked": "Odadan çıkarıldın",
+    "evicted": "Odadaki yerin doldu",
+    "close": "Kapat"
+  },
+  "quiet": {
+    "off": "Sunucu sohbeti kapattı",
+    "failed": "Sohbet açılmadı",
+    "gone": "Sohbet kullanılamıyor",
+    "retry": "Tekrar dene"
+  },
+  "suggest": {
+    "button": "Parça öner",
+    "short": "Parça",
+    "search": "Parça bul",
+    "by": "{{name}} öneriyor",
+    "queue": "Sıraya ekle",
+    "queued": "Sırada",
+    "playing": "Çalıyor",
+    "empty": "Hiçbir şey bulunamadı",
+    "wait": "{{value}} sn bekle"
+  },
+  "moderatorRow": "Moderatörlük: {{name}}",
+  "toast": {
+    "youLead": "Müziği artık sen yönetiyorsun",
+    "ended": "Oturum bitti, sohbet silindi",
+    "kicked": "Odadan çıkarıldın"
+  },
+  "errors": {
+    "banned": "Bu odaya girişin kapalı",
+    "muted": "Susturuldun",
+    "slow_mode": "Biraz bekle",
+    "unavailable": "Bunu yapma yetkin yok",
+    "not_member": "Artık odada değilsin",
+    "not_found": "Bu kişi ya da oda artık yok",
+    "busy": "Sunucu meşgul, tekrar dene",
+    "offline": "Bağlantı yok",
+    "disabled": "Sohbetler şu an kapalı",
+    "invalid": "Olmadı",
+    "generic": "Bir şeyler ters gitti, tekrar dene"
+  }
+}
