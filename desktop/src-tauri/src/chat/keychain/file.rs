@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 
 use chat_core::{ChatError, ChatResult, KeyName, Zeroizing};
 
+use super::Vault;
+
 const DIR: &str = "keys";
 
 pub struct FileVault {
@@ -26,14 +28,13 @@ impl FileVault {
         private_dir(&self.dir)
     }
 
-    pub fn remove(&self) -> ChatResult<()> {
-        match fs::remove_dir_all(&self.dir) {
-            Err(error) if error.kind() != ErrorKind::NotFound => Err(failed(error)),
-            _ => Ok(()),
-        }
+    fn path(&self, name: KeyName) -> PathBuf {
+        self.dir.join(name.as_str())
     }
+}
 
-    pub fn load(&self, name: KeyName) -> ChatResult<Option<Zeroizing<Vec<u8>>>> {
+impl Vault for FileVault {
+    fn load(&self, name: KeyName) -> ChatResult<Option<Zeroizing<Vec<u8>>>> {
         let mut file = match File::open(self.path(name)) {
             Ok(file) => file,
             Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
@@ -44,7 +45,7 @@ impl FileVault {
         Ok(Some(secret))
     }
 
-    pub fn save(&self, name: KeyName, secret: &[u8]) -> ChatResult<()> {
+    fn save(&self, name: KeyName, secret: &[u8]) -> ChatResult<()> {
         self.create()?;
         let path = self.path(name);
         let staged = path.with_extension("new");
@@ -55,15 +56,11 @@ impl FileVault {
         })
     }
 
-    pub fn delete(&self, name: KeyName) -> ChatResult<()> {
+    fn delete(&self, name: KeyName) -> ChatResult<()> {
         match fs::remove_file(self.path(name)) {
             Err(error) if error.kind() != ErrorKind::NotFound => Err(failed(error)),
             _ => Ok(()),
         }
-    }
-
-    fn path(&self, name: KeyName) -> PathBuf {
-        self.dir.join(name.as_str())
     }
 }
 

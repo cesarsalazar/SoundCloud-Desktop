@@ -19,6 +19,10 @@ impl Session {
         true
     }
 
+    pub fn signed_in(&self) -> bool {
+        self.last.lock().is_ok_and(|last| last.is_some())
+    }
+
     pub fn log_out(&self) {
         self.logged_out.store(true, Ordering::Release);
     }

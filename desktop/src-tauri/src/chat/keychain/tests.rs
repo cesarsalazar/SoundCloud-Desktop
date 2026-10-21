@@ -1,8 +1,24 @@
 use std::path::PathBuf;
 
-use chat_core::{KeyName, KeyStorage, KeyStore};
+use chat_core::{ChatError, ChatResult, KeyName, KeyStorage, KeyStore, Zeroizing};
 
-use super::{FileVault, Keychain, should_fall_back};
+use super::{FileVault, Keychain, Vault, should_fall_back};
+
+struct Broken;
+
+impl Vault for Broken {
+    fn load(&self, _name: KeyName) -> ChatResult<Option<Zeroizing<Vec<u8>>>> {
+        Err(ChatError::Keychain)
+    }
+
+    fn save(&self, _name: KeyName, _secret: &[u8]) -> ChatResult<()> {
+        Err(ChatError::Keychain)
+    }
+
+    fn delete(&self, _name: KeyName) -> ChatResult<()> {
+        Err(ChatError::Keychain)
+    }
+}
 
 fn scratch(name: &str) -> PathBuf {
     let dir =
@@ -71,7 +87,7 @@ fn a_keychain_with_a_key_file_stays_on_the_file() {
 }
 
 #[test]
-fn wiping_a_file_keychain_removes_every_key() {
+fn wiping_a_file_keychain_removes_every_key_and_stays_on_the_file() {
     let dir = scratch("wipe");
     let keychain = Keychain::new("sc-chat-test", &dir);
     keychain.fall_back().unwrap();
@@ -79,6 +95,42 @@ fn wiping_a_file_keychain_removes_every_key() {
         keychain.save(name, &[7; 32]).unwrap();
     }
     keychain.wipe().unwrap();
+    assert_eq!(keychain.storage(), KeyStorage::File);
+    for name in KeyName::ALL {
+        assert!(keychain.load(name).unwrap().is_none());
+    }
+    assert_eq!(std::fs::read_dir(dir.join("keys")).unwrap().count(), 0);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_broken_os_keychain_with_no_local_chat_moves_to_the_file_at_once() {
+    let dir = scratch("broken-fresh");
+    let keychain = Keychain::with_os(Box::new(Broken), &dir);
+    assert_eq!(keychain.storage(), KeyStorage::Os);
+    assert!(keychain.load(KeyName::DeviceId).unwrap().is_none());
+    assert_eq!(keychain.storage(), KeyStorage::File);
+    keychain.save(KeyName::DeviceId, b"device").unwrap();
+    assert_eq!(
+        keychain
+            .load(KeyName::DeviceId)
+            .unwrap()
+            .unwrap()
+            .as_slice(),
+        b"device"
+    );
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_broken_os_keychain_with_a_local_chat_keeps_failing() {
+    let dir = scratch("broken-old");
+    std::fs::write(dir.join("chat.db"), b"").unwrap();
+    let keychain = Keychain::with_os(Box::new(Broken), &dir);
+    assert_eq!(
+        keychain.load(KeyName::Database).err(),
+        Some(ChatError::Keychain)
+    );
     assert_eq!(keychain.storage(), KeyStorage::Os);
     assert!(!dir.join("keys").exists());
     std::fs::remove_dir_all(dir).unwrap();

@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use chat_core::api::{Api, CallOptions};
+use chat_core::channel::InnerCall;
 use chat_core::{ChatError, ChatPhase, ChatResult, HistoryGate};
 
 use super::bringup::Halt;
@@ -9,6 +11,14 @@ use super::{Runtime, clock};
 
 const OFF_RECHECK: Duration = Duration::from_secs(3600);
 const OFF_SPREAD_MS: u64 = 600_000;
+const OWN_DEVICE: &str = "/chat/devices/me";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuthMove {
+    Stay,
+    Restart,
+    DropDevice,
+}
 
 impl Runtime {
     pub(super) fn reroute(&self) {
@@ -30,15 +40,29 @@ impl Runtime {
 
     pub(super) async fn auth_changed(&self) {
         let token = crate::auth::session_token(Some(&self.app)).await;
-        let rebound = token.is_some()
-            && matches!(
-                self.status().phase,
-                ChatPhase::Unbound | ChatPhase::BoundOther
-            );
-        if self.session.changed(token.as_deref()) || rebound {
-            self.session.log_in();
-            self.restart();
+        let was_signed_in = self.session.signed_in();
+        let changed = self.session.changed(token.as_deref());
+        match auth_move(was_signed_in, token.is_some(), changed, self.status().phase) {
+            AuthMove::DropDevice => self.drop_device().await,
+            AuthMove::Restart => {
+                self.session.log_in();
+                self.restart();
+            }
+            AuthMove::Stay => {}
         }
+    }
+
+    async fn drop_device(&self) {
+        let identity = self.api.identity();
+        let _ = self.wipe(true).await;
+        let Some(identity) = identity else {
+            return;
+        };
+        let api = Api::new(self.api.channel().clone(), self.api.transport().clone());
+        api.set_identity(Some(identity));
+        self.rt.spawn(async move {
+            let _ = api.call(own_device_removal(), CallOptions::default()).await;
+        });
     }
 
     pub async fn wipe(&self, forget_device: bool) -> ChatResult<()> {
@@ -104,6 +128,12 @@ impl Runtime {
                     status.phase = phase;
                     status.online = false;
                 });
+                let generation = if phase == ChatPhase::Revoked {
+                    let _ = self.wipe(true).await;
+                    generation + 1
+                } else {
+                    generation
+                };
                 if phase == ChatPhase::Off {
                     let recheck = OFF_RECHECK + Duration::from_millis(clock::jitter(OFF_SPREAD_MS));
                     tokio::select! {
@@ -115,5 +145,34 @@ impl Runtime {
                 }
             }
         }
+    }
+}
+
+pub fn auth_move(
+    was_signed_in: bool,
+    signed_in: bool,
+    changed: bool,
+    phase: ChatPhase,
+) -> AuthMove {
+    if was_signed_in && !signed_in {
+        return AuthMove::DropDevice;
+    }
+    let stuck = matches!(
+        phase,
+        ChatPhase::Unbound | ChatPhase::BoundOther | ChatPhase::Revoked
+    );
+    if changed || (signed_in && stuck) {
+        AuthMove::Restart
+    } else {
+        AuthMove::Stay
+    }
+}
+
+fn own_device_removal() -> InnerCall {
+    InnerCall {
+        method: "DELETE".to_string(),
+        path: OWN_DEVICE.to_string(),
+        query: String::new(),
+        body: Vec::new(),
     }
 }

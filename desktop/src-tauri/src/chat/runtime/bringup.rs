@@ -137,10 +137,18 @@ impl Runtime {
             }
             ChatError::Clock { server_now } => {
                 self.api.channel().note_server_now(*server_now);
-                Halt::Retry(Duration::ZERO)
+                Halt::Retry(clock_retry(failures))
             }
             _ => Halt::Retry(backoff(failures)),
         }
+    }
+}
+
+pub fn clock_retry(failures: u32) -> Duration {
+    if failures <= 1 {
+        Duration::ZERO
+    } else {
+        backoff(failures)
     }
 }
 

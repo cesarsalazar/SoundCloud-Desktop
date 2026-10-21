@@ -8,11 +8,12 @@ use chat_core::{
 };
 use uuid::Uuid;
 
-use super::bringup::{backoff, config_of, history_gate};
+use super::bringup::{backoff, clock_retry, config_of, history_gate};
 use super::counts::quiet;
 use super::drive::{Next, capped, next_of};
 use super::expiry::until;
 use super::ladder::{Ladder, spread};
+use super::lifecycle::{AuthMove, auth_move};
 use super::sender::retry_in;
 use super::signals::Signals;
 use super::wake::WakeWatch;
@@ -363,4 +364,51 @@ fn summary() -> ConversationSummary {
         history_locked: false,
         has_draft: false,
     }
+}
+
+#[test]
+fn a_music_logout_drops_the_chat_device() {
+    assert_eq!(
+        auth_move(true, false, true, ChatPhase::Ready),
+        AuthMove::DropDevice
+    );
+    assert_eq!(
+        auth_move(true, false, true, ChatPhase::Off),
+        AuthMove::DropDevice
+    );
+    assert_eq!(
+        auth_move(false, false, false, ChatPhase::SignedOut),
+        AuthMove::Stay
+    );
+}
+
+#[test]
+fn a_new_session_or_a_relogin_from_a_stuck_phase_restarts() {
+    assert_eq!(
+        auth_move(false, true, true, ChatPhase::SignedOut),
+        AuthMove::Restart
+    );
+    assert_eq!(
+        auth_move(true, true, true, ChatPhase::Ready),
+        AuthMove::Restart
+    );
+    for stuck in [
+        ChatPhase::Unbound,
+        ChatPhase::BoundOther,
+        ChatPhase::Revoked,
+    ] {
+        assert_eq!(auth_move(true, true, false, stuck), AuthMove::Restart);
+    }
+    assert_eq!(
+        auth_move(true, true, false, ChatPhase::Ready),
+        AuthMove::Stay
+    );
+    assert_eq!(auth_move(true, true, false, ChatPhase::Off), AuthMove::Stay);
+}
+
+#[test]
+fn a_repeated_clock_answer_backs_off() {
+    assert_eq!(clock_retry(1), Duration::ZERO);
+    assert!(clock_retry(2) >= Duration::from_millis(3_200));
+    assert!(clock_retry(9) <= Duration::from_secs(72));
 }
