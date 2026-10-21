@@ -9,8 +9,8 @@
   },
   "tier": {
     "direct": "direct",
-    "relay": "via relay",
-    "pro": "via pro"
+    "relay": "via a backup route",
+    "pro": "via a second backup route"
   },
   "version": "v{{version}}",
   "alert": {

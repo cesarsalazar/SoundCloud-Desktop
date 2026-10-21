@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { CheckCheck } from '../../../lib/chat/icons';
 import type { ChatSettings, SettingsPatch } from '../../../lib/chat/types';
-import { Eye } from '../../../lib/icons';
+import { Eye, Headphones, Keyboard } from '../../../lib/icons';
 import { Card, Divider, Row, Toggle } from '../../settings/primitives';
 
 interface VisibilityCardProps {
@@ -14,8 +14,13 @@ export function VisibilityCard({ settings, onPatch }: VisibilityCardProps) {
   return (
     <Card title={t('chat.settings.visibility.title')} icon={<Eye size={17} />}>
       <Row
-        title={t('chat.settings.visibility.presence')}
-        desc={t('chat.settings.visibility.presenceHint')}
+        title={
+          <>
+            <Headphones size={14} className="text-white/40" />
+            {t('chat.settings.visibility.presence')}
+          </>
+        }
+        desc={<span className="block pl-[22px]">{t('chat.settings.visibility.presenceHint')}</span>}
       >
         <Toggle
           checked={settings.presenceShare}
@@ -39,7 +44,14 @@ export function VisibilityCard({ settings, onPatch }: VisibilityCardProps) {
         />
       </Row>
       <Divider />
-      <Row title={t('chat.settings.visibility.typing')}>
+      <Row
+        title={
+          <>
+            <Keyboard size={14} className="text-white/40" />
+            {t('chat.settings.visibility.typing')}
+          </>
+        }
+      >
         <Toggle
           checked={settings.typing}
           onChange={() => onPatch({ typing: !settings.typing })}

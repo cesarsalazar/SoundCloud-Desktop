@@ -1,7 +1,8 @@
 import { type KeyboardEvent, type MouseEvent, memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BellOff, Timer } from '../../../lib/chat/icons';
-import type { ConversationSummary, ConvId, Message } from '../../../lib/chat/types';
+import { ink } from '../../../lib/chat/tone';
+import type { ConversationSummary, ConvId, Message, UserId } from '../../../lib/chat/types';
 import { Ellipsis, Lock } from '../../../lib/icons';
 import { useChatStore } from '../../../stores/chat';
 import { useChatThreadStore } from '../../../stores/chat/thread';
@@ -17,9 +18,8 @@ export const ROW_HEIGHT = 64;
 const RECENT_SCAN = 50;
 
 const SELECTED = {
-  background:
-    'linear-gradient(180deg, var(--color-accent-glow), transparent), var(--color-bg-glass-hover)',
-  boxShadow: 'inset 0 0.5px 0 rgba(255,255,255,0.14)',
+  background: `linear-gradient(180deg, var(--color-chat-tint), transparent), ${ink(6)}`,
+  boxShadow: `inset 0 0.5px 0 ${ink(14)}`,
 };
 
 function hasFailed(messages: Message[] | undefined): boolean {
@@ -29,6 +29,11 @@ function hasFailed(messages: Message[] | undefined): boolean {
     if (messages[index].state === 'failed') return true;
   }
   return false;
+}
+
+function typingCount(users: UserId[] | undefined, me: UserId | null): number {
+  if (!users) return 0;
+  return users.filter((userId) => userId !== me).length;
 }
 
 export type RowMenu = (
@@ -50,12 +55,12 @@ export const ConversationRow = memo(function ConversationRow({
   onMenu,
 }: ConversationRowProps) {
   const { t, i18n } = useTranslation();
-  const typing = useChatThreadStore(
-    (state) => (state.threads[conversation.id]?.typing.length ?? 0) > 0,
+  const myId = useChatStore((state) => state.status?.userId ?? null);
+  const typing = useChatThreadStore((state) =>
+    typingCount(state.threads[conversation.id]?.typing, myId),
   );
   const messages = useChatThreadStore((state) => state.threads[conversation.id]?.messages);
   const failed = useMemo(() => hasFailed(messages), [messages]);
-  const myId = useChatStore((state) => state.status?.userId ?? null);
   const now = Date.now();
   const muted = isMuted(conversation, now);
   const title = conversationTitle(conversation, t);

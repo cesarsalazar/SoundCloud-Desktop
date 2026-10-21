@@ -21,7 +21,9 @@
     "groups": "Groups",
     "unread": "Unread",
     "requests": "Requests",
-    "archived": "Archive"
+    "archived": "Archive",
+    "back": "Back",
+    "more": "More"
   },
   "preview": {
     "embed": "Music",

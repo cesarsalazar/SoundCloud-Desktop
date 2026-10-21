@@ -4,6 +4,7 @@ import { art } from '../../../lib/formatters';
 import { Disc3 } from '../../../lib/icons';
 import { usePerfMode } from '../../../lib/perf';
 import { usePlayerStore } from '../../../stores/player';
+import '../embeds/vinyl.css';
 
 export const NowPlayingButton = memo(function NowPlayingButton({
   onAttach,
@@ -34,14 +35,7 @@ export const NowPlayingButton = memo(function NowPlayingButton({
           style={{ animation: spin ? 'chat-thread-spin 6s linear infinite' : undefined }}
         >
           <img src={cover} alt="" className="size-full object-cover" />
-          <span
-            aria-hidden
-            className="absolute inset-0 rounded-full"
-            style={{
-              background:
-                'radial-gradient(circle, rgb(16,16,20) 0 3px, rgba(255,255,255,0.35) 3.5px 4px, transparent 4.5px), repeating-radial-gradient(circle, transparent 0 2px, rgba(0,0,0,0.12) 2px 3px)',
-            }}
-          />
+          <span aria-hidden className="chat-vinyl-label absolute inset-0 rounded-full" />
         </span>
       ) : (
         <Disc3 size={19} className={track ? 'text-white/70' : 'text-white/25'} />

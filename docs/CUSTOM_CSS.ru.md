@@ -47,6 +47,7 @@
 | `[data-ui="chat-dock"]` | Панель чатов у правого края |
 | `[data-ui="chat-dock-tabs"]` | Ряд вкладок панели чатов |
 | `[data-ui="chat-list"]` | Список чатов |
+| `[data-ui="chat-filter"]` | Фильтр над списком чатов. `[data-kind]`: `all`, `direct`, `groups`, `unread`, `requests` или `archived`, у выбранного есть `[aria-pressed="true"]` |
 | `[data-ui="chat-row"]` | Чат в списке. `[data-kind]`: `direct`, `group`, `self` или `room`, у открытого есть `[aria-current]` |
 | `[data-ui="chat-thread"]` | Открытый чат с сообщениями, `[data-kind]` как выше |
 | `[data-ui="chat-thread-header"]` | Шапка открытого чата |
@@ -62,7 +63,7 @@
 | `[data-ui="chat-device-alert"]` | Окно о новом устройстве |
 | `[data-ui="chat-relogin"]` | Карточка входа в чаты |
 
-Остальные окна чатов (новый чат, жалоба, удаление) это `[data-ui="modal"]`. Цвета чатов берутся из `--color-white` (текст и линии), `--color-black` (подложки), `--color-bg-glass*` и `--color-border-glass*`, поэтому светлая тема, которая их переопределяет, меняет и чаты.
+Остальные окна чатов (новый чат, жалоба, удаление) это `[data-ui="modal"]`. Цвета чатов берутся из `--color-white` (текст и линии), `--color-black` (подложки), `--color-bg-glass*` и `--color-border-glass*`, поэтому светлая тема, которая их переопределяет, меняет и чаты. Ваши сообщения, открытый чат и выбранный фильтр подкрашены `--color-chat-tint`.
 
 ## Переменные
 

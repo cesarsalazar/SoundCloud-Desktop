@@ -85,7 +85,7 @@ export const ThreadHeader = memo(function ThreadHeader({
   return (
     <header
       data-ui="chat-thread-header"
-      className="relative z-20 h-[58px] shrink-0 border-b border-white/[0.05]"
+      className="@container/header relative z-20 h-[58px] shrink-0 border-b border-white/[0.05]"
     >
       <GlassLayer blur={30} tint={surface(6, 55)} solid={surface(7)} />
       <div
@@ -144,7 +144,7 @@ export const ThreadHeader = memo(function ThreadHeader({
           type="button"
           aria-label={t('chat.thread.menu.info')}
           onClick={onInfo}
-          className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white/50 transition-colors duration-150 hover:bg-white/[0.07] hover:text-white"
+          className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white/50 transition-colors duration-150 hover:bg-white/[0.07] hover:text-white @max-[480px]/header:hidden"
         >
           <Info size={17} />
         </button>

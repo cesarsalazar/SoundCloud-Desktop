@@ -21,7 +21,9 @@
     "groups": "그룹",
     "unread": "읽지 않음",
     "requests": "요청",
-    "archived": "보관함"
+    "archived": "보관함",
+    "back": "이전",
+    "more": "더 보기"
   },
   "preview": {
     "embed": "음악",

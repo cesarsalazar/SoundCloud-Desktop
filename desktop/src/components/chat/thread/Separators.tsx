@@ -19,7 +19,7 @@ export function dayText(ts: number, t: TFunction, language: string): string {
 export const DaySeparator = memo(function DaySeparator({ ts }: { ts: number }) {
   const { t, i18n } = useTranslation();
   return (
-    <div className="flex justify-center px-3 pt-4 pb-1.5">
+    <div className="flex justify-center px-3 pt-4 pb-3">
       <span className="rounded-full bg-white/[0.05] px-3 py-1 text-[11px] font-semibold text-white/50">
         {dayText(ts, t, i18n.language)}
       </span>
@@ -30,7 +30,7 @@ export const DaySeparator = memo(function DaySeparator({ ts }: { ts: number }) {
 export const UnreadDivider = memo(function UnreadDivider({ count }: { count: number }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center gap-3 px-3 pt-4 pb-1.5" role="separator">
+    <div className="flex items-center gap-3 px-3 pt-4 pb-3" role="separator">
       <span className="h-px flex-1" style={{ background: 'var(--color-accent-glow)' }} />
       <span className="text-[11px] font-semibold" style={{ color: 'var(--color-accent-hover)' }}>
         {t('chat.thread.unread', { count })}
@@ -57,7 +57,7 @@ export const SystemRow = memo(function SystemRow({ message }: { message: Message
     <div
       data-ui="chat-system-row"
       data-kind={message.body.kind}
-      className="flex justify-center px-6 pt-2.5 pb-0.5"
+      className="flex justify-center px-6 pt-2.5 pb-3"
     >
       <span
         className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1 text-center text-[11.5px] ${

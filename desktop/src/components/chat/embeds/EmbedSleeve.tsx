@@ -3,6 +3,7 @@ import { ink } from '../../../lib/chat/tone';
 import { art } from '../../../lib/formatters';
 import { Music, Pause, Play } from '../../../lib/icons';
 import { usePerfMode } from '../../../lib/perf';
+import './vinyl.css';
 
 interface EmbedSleeveProps {
   artworkUrl: string | null;
@@ -14,12 +15,6 @@ interface EmbedSleeveProps {
   label: string;
   onToggle?: () => void;
 }
-
-const DISC = [
-  'radial-gradient(circle, var(--color-accent) 0 17%, #0b0b0d 17.5% 19.5%, transparent 20%)',
-  'conic-gradient(from 40deg, transparent 0 10%, rgba(255,255,255,0.14) 17%, transparent 25% 60%, rgba(255,255,255,0.1) 67%, transparent 75%)',
-  'repeating-radial-gradient(circle, #18181c 0 1.3px, #24242a 1.3px 2.6px)',
-].join(', ');
 
 function Disc({ size, current, playing }: { size: number; current: boolean; playing: boolean }) {
   const perf = usePerfMode();
@@ -35,9 +30,8 @@ function Disc({ size, current, playing }: { size: number; current: boolean; play
       }}
     >
       <span
-        className="block h-full w-full rounded-full"
+        className="chat-vinyl-disc block h-full w-full rounded-full"
         style={{
-          background: DISC,
           border: '0.5px solid rgba(255,255,255,0.18)',
           boxShadow: '0 6px 18px rgba(0,0,0,0.45), inset 0 0 0 3px rgba(0,0,0,0.35)',
           animation: playing && perf.idleAnim ? 'spin 3.6s linear infinite' : undefined,

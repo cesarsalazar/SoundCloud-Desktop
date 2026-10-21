@@ -21,7 +21,9 @@
     "groups": "Gruplar",
     "unread": "Okunmamış",
     "requests": "İstekler",
-    "archived": "Arşiv"
+    "archived": "Arşiv",
+    "back": "Geri",
+    "more": "Daha fazla"
   },
   "preview": {
     "embed": "Müzik",

@@ -125,8 +125,8 @@ function textLines(text: string, perLine: number): number {
 }
 
 export function estimateRow(row: Row, perLine: number): number {
-  if (row.kind === 'day' || row.kind === 'unread') return 40;
-  if (row.kind === 'system') return 34;
+  if (row.kind === 'day' || row.kind === 'unread') return 46;
+  if (row.kind === 'system') return 44;
   const { message } = row;
   const text = message.body.type === 'text' ? message.body.text : '';
   const extras =

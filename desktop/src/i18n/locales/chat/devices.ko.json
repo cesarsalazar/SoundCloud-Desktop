@@ -9,8 +9,8 @@
   },
   "tier": {
     "direct": "직접 연결",
-    "relay": "릴레이 경유",
-    "pro": "pro 경유"
+    "relay": "예비 경로 경유",
+    "pro": "두 번째 예비 경로 경유"
   },
   "version": "v{{version}}",
   "alert": {

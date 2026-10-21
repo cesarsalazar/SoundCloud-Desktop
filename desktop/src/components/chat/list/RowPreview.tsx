@@ -6,7 +6,7 @@ import { TypingDots } from './TypingDots';
 
 interface RowPreviewProps {
   conversation: ConversationSummary;
-  typing: boolean;
+  typing: number;
   mine: boolean;
 }
 
@@ -53,11 +53,13 @@ export const RowPreview = memo(function RowPreview({
   mine,
 }: RowPreviewProps) {
   const { t } = useTranslation();
-  if (typing) {
+  if (typing > 0) {
     return (
       <span className="flex min-w-0 items-center gap-1.5 text-[var(--color-accent)]">
         <TypingDots />
-        <span className="truncate">{t('chat.list.typing')}</span>
+        <span className="truncate">
+          {typing > 1 ? t('chat.thread.typing.many', { count: typing }) : t('chat.list.typing')}
+        </span>
       </span>
     );
   }

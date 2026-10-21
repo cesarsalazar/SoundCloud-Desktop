@@ -23,7 +23,7 @@ export const Reactions = memo(function Reactions({
               ? 'border-[var(--color-accent)] text-white'
               : 'border-white/[0.07] bg-white/[0.05] text-white/70 hover:bg-white/[0.09]'
           }`}
-          style={group.mine ? { background: 'var(--color-accent-glow)' } : undefined}
+          style={group.mine ? { background: 'var(--color-chat-tint)' } : undefined}
         >
           <span className="text-[13px] leading-none">{group.emoji}</span>
           <span className="text-[11px] font-semibold tabular-nums">{group.count}</span>

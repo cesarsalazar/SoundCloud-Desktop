@@ -39,7 +39,7 @@ export function EmbedShell({
       role="group"
       aria-label={label}
       className={`@container relative w-full min-w-0 overflow-hidden ${
-        compact ? 'max-w-[320px] rounded-[14px] p-2' : 'max-w-[360px] rounded-[18px] p-3'
+        compact ? 'rounded-[14px] p-2' : 'max-w-[360px] rounded-[18px] p-3'
       }`}
       style={{
         background: background(dim ? null : tint, mine),
