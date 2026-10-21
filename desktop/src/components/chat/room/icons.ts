@@ -1,5 +1,4 @@
 import {
-  DoorOpen as _DoorOpen,
   MicOff as _MicOff,
   ShieldMinus as _ShieldMinus,
   ShieldPlus as _ShieldPlus,
@@ -7,7 +6,6 @@ import {
 } from 'lucide-react';
 import { memo } from 'react';
 
-export const DoorOpen = memo(_DoorOpen);
 export const MicOff = memo(_MicOff);
 export const ShieldMinus = memo(_ShieldMinus);
 export const ShieldPlus = memo(_ShieldPlus);

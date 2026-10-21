@@ -11,7 +11,7 @@ import { acceptTimed, type RoomRole, resetClock, serverTime, setViewListener, sl
 import { roomChanges } from './room-changes';
 import { startRoomChat } from './room-chat';
 import { exited } from './room-chat-state';
-import { exitOf, type RoomExit } from './room-rules';
+import { exitOf, exitToast, type RoomExit } from './room-rules';
 import type { Profile, RoomView } from './types';
 
 const CLOCK_WARMUP_SAMPLES = 3;
@@ -63,17 +63,13 @@ function followHost(view: RoomView, previous: RoomView | null): void {
   }
 }
 
-const EXIT_TOASTS: Record<RoomExit, string> = {
-  ended: 'chat.room.toast.ended',
-  kicked: 'chat.room.toast.kicked',
-  evicted: 'together.toast.evicted',
-};
-
 function endSession(reason: RoomExit | 'left'): void {
   generation++;
   role?.detach();
   role = null;
   setViewListener(null);
+  const withChat = useChatRoomStore.getState().code !== null;
+  const wasGuest = !isRoomHost(useTogetherStore.getState());
   if (reason !== 'left') useChatRoomStore.getState().apply((state) => exited(state, reason));
   useChatRoomStore.getState().setHandoff(null);
   useTogetherStore.setState({
@@ -83,7 +79,8 @@ function endSession(reason: RoomExit | 'left'): void {
     sync: 'synced',
     waitingFor: 0,
   });
-  if (reason !== 'left') toast(i18n.t(EXIT_TOASTS[reason]));
+  const message = reason === 'left' ? null : exitToast(reason, withChat, wasGuest);
+  if (message) toast(i18n.t(message));
 }
 
 async function warmClock(gen: number, code: string): Promise<void> {

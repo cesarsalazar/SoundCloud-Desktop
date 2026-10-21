@@ -10,6 +10,7 @@ import {
   opened,
   opening,
   refused,
+  retryDelay,
   showsThread,
 } from './room-chat-state.ts';
 import { roomRowKind } from './room-rows.ts';
@@ -17,6 +18,7 @@ import {
   chatMembers,
   cleanTitle,
   exitOf,
+  exitToast,
   isHost,
   memberActions,
   mutedUntil,
@@ -435,6 +437,27 @@ test('a member who was away and lost the seat is evicted, not kicked', () => {
   assert.equal(exitOf(503, null, true), null);
 });
 
+test('a refused room chat backs off and never retries faster than the server asks', () => {
+  assert.equal(retryDelay('not_member', undefined, 0), 1_500);
+  assert.equal(retryDelay('not_member', undefined, 3), 12_000);
+  assert.equal(retryDelay('busy', 500, 0), 1_500);
+  assert.equal(retryDelay('busy', 4_000, 1), 8_000);
+  assert.equal(retryDelay(null, undefined, 0), 15_000);
+  assert.equal(retryDelay(null, undefined, 50), 120_000);
+  let total = 0;
+  for (let failure = 0; failure < 20; failure++)
+    total += retryDelay('not_member', undefined, failure);
+  assert.ok(total > 25 * MINUTE);
+});
+
+test('the end toast speaks of the chat only to those who had it', () => {
+  assert.equal(exitToast('ended', true, true), 'chat.room.toast.ended');
+  assert.equal(exitToast('ended', false, true), 'together.toast.ended');
+  assert.equal(exitToast('ended', false, false), null);
+  assert.equal(exitToast('kicked', false, true), 'chat.room.toast.kicked');
+  assert.equal(exitToast('evicted', true, true), 'together.toast.evicted');
+});
+
 test('the host chat switch closes the tab without an exit card', () => {
   const open = opened(opening('K7M2QX'), 'K7M2QX', 'conv-1');
   assert.deepEqual(nextStep(open, null), { kind: 'clear' });
@@ -447,6 +470,7 @@ test('titles are cleaned like the server does', () => {
   assert.equal(cleanTitle('x'.repeat(60)).length, 48);
   assert.equal(cleanTitle('   '), '');
   assert.equal(Array.from(cleanTitle('🎧'.repeat(50))).length, 48);
+  assert.equal(cleanTitle('a\ufeffb\u0085c\u00a0d'), 'ab c d');
 });
 
 test('room rows pick out track changes, suggestions and moderator changes', () => {

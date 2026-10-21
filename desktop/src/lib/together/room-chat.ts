@@ -15,12 +15,11 @@ import {
   type RoomChatWish,
   refused,
   retry,
+  retryDelay,
 } from './room-chat-state';
 
-const RETRY_MS = 15_000;
-const NOT_MEMBER_RETRY_MS = 1_500;
-
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let failures = 0;
 
 function chatReady(state: ChatState): boolean {
   return selectChatEnabled(state) && state.status?.phase === 'ready';
@@ -46,20 +45,22 @@ async function open(code: string): Promise<void> {
   useChatRoomStore.getState().apply(() => opening(code));
   try {
     const summary = await chatBridge.roomChat(code);
+    failures = 0;
     useChatRoomStore.getState().apply((state) => opened(state, code, summary.id));
   } catch (error) {
+    const room = useChatRoomStore.getState();
+    if (room.code !== code || room.exit !== null) return;
     const failure = chatError(error);
     const off = failure?.code === 'unavailable';
-    useChatRoomStore.getState().apply((state) => refused(state, code, off));
-    if (off) return;
-    if (failure?.code === 'not_member') later(NOT_MEMBER_RETRY_MS);
-    else later(failure?.retryMs ?? RETRY_MS);
+    room.apply((state) => refused(state, code, off));
+    if (!off) later(retryDelay(failure?.code ?? null, failure?.retryMs, failures++));
   }
 }
 
 function sync(): void {
   const room = useChatRoomStore.getState();
   const step = nextStep(room, wish());
+  if (step.kind === 'open' && step.code !== room.code) failures = 0;
   if (step.kind === 'open') void open(step.code);
   if (step.kind === 'move') room.apply((state) => moved(state, step.code));
   if (step.kind === 'clear') room.apply(() => NO_ROOM_CHAT);
@@ -70,6 +71,7 @@ export function openRoomDock(): void {
 }
 
 export function retryRoomChat(): void {
+  failures = 0;
   useChatRoomStore.getState().apply(retry);
   sync();
 }
@@ -80,6 +82,7 @@ export function startRoomChat(): void {
   });
   useChatStore.subscribe((state, previous) => {
     if (chatReady(state) === chatReady(previous)) return;
+    failures = 0;
     useChatRoomStore.getState().apply(retry);
     sync();
   });

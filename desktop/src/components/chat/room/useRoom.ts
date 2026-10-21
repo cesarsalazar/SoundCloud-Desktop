@@ -18,8 +18,9 @@ export function useRoom(): RoomView | null {
 
 export function useRoomSelf(room: RoomView | null): RoomSelf {
   const id = useTogetherStore((state) => state.selfId);
-  if (!room) return { id, host: false, moderates: false };
-  return { id, host: isHost(room, id), moderates: canModerate(room, id) };
+  const host = !!room && isHost(room, id);
+  const moderates = !!room && canModerate(room, id);
+  return useMemo(() => ({ id, host, moderates }), [id, host, moderates]);
 }
 
 export function useServerNow(stepMs: number, active: boolean): number {

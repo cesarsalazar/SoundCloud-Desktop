@@ -31,6 +31,23 @@ export const NO_ROOM_CHAT: RoomChatSnapshot = {
 
 const NONE: RoomChatStep = { kind: 'none' };
 
+const RETRY_MS = 15_000;
+const NOT_MEMBER_RETRY_MS = 1_500;
+const RETRY_MAX_MS = 120_000;
+const RETRY_MAX_DOUBLINGS = 10;
+
+export function retryDelay(
+  code: string | null,
+  retryMs: number | undefined,
+  failures: number,
+): number {
+  const base =
+    code === 'not_member'
+      ? NOT_MEMBER_RETRY_MS
+      : Math.max(retryMs ?? RETRY_MS, NOT_MEMBER_RETRY_MS);
+  return Math.min(base * 2 ** Math.min(failures, RETRY_MAX_DOUBLINGS), RETRY_MAX_MS);
+}
+
 export function nextStep(state: RoomChatSnapshot, wish: RoomChatWish | null): RoomChatStep {
   if (!wish) return state.code !== null && state.exit === null ? { kind: 'clear' } : NONE;
   if (wish.code === state.code && state.exit === null) {

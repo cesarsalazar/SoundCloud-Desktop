@@ -94,8 +94,12 @@ function visible(char: string): boolean {
   return !HIDDEN_RANGES.some(([from, to]) => code >= from && code <= to);
 }
 
+function blank(char: string): boolean {
+  return char === '\u0085' || (char !== '\ufeff' && /\s/.test(char));
+}
+
 export function cleanTitle(raw: string): string {
-  const chars = Array.from(raw).map((char) => (/\s/.test(char) ? ' ' : char));
+  const chars = Array.from(raw).map((char) => (blank(char) ? ' ' : char));
   const words = chars.filter(visible).join('').split(' ').filter(Boolean);
   return Array.from(words.join(' ')).slice(0, TITLE_MAX).join('').trimEnd();
 }
@@ -114,6 +118,17 @@ export function exitOf(status: number, code: string | null, wasLive: boolean): R
   if (status !== 404) return null;
   if (code === 'room_not_member') return wasLive ? 'kicked' : 'evicted';
   return 'ended';
+}
+
+const EXIT_TOASTS: Record<RoomExit, string> = {
+  ended: 'chat.room.toast.ended',
+  kicked: 'chat.room.toast.kicked',
+  evicted: 'together.toast.evicted',
+};
+
+export function exitToast(exit: RoomExit, withChat: boolean, wasGuest: boolean): string | null {
+  if (exit !== 'ended' || withChat) return EXIT_TOASTS[exit];
+  return wasGuest ? 'together.toast.ended' : null;
 }
 
 export function chatMembers(view: RoomView): Member[] {
