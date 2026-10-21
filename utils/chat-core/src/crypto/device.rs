@@ -29,8 +29,12 @@ impl DeviceKeys {
         })
     }
 
+    pub fn exclusive() -> MutexGuard<'static, ()> {
+        KEYCHAIN.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
     pub fn load_or_create(store: &dyn KeyStore) -> ChatResult<(DeviceId, Self)> {
-        let _one_at_a_time = keychain();
+        let _one_at_a_time = Self::exclusive();
         match Self::load(store)? {
             Some(found) => Ok(found),
             None => Self::create(store),
@@ -38,7 +42,7 @@ impl DeviceKeys {
     }
 
     pub fn erase(store: &dyn KeyStore) -> ChatResult<()> {
-        let _one_at_a_time = keychain();
+        let _one_at_a_time = Self::exclusive();
         store.delete(KeyName::DeviceId)?;
         store.delete(KeyName::DeviceAuth)?;
         store.delete(KeyName::DeviceBox)
@@ -123,10 +127,6 @@ impl DeviceKeys {
         )?;
         Ok(Ck::from_bytes(ck))
     }
-}
-
-fn keychain() -> MutexGuard<'static, ()> {
-    KEYCHAIN.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 fn secret(stored: Option<Zeroizing<Vec<u8>>>) -> Option<Zeroizing<[u8; 32]>> {
