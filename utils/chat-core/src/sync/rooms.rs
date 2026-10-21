@@ -1,8 +1,8 @@
 use super::local::Local;
-use super::{SyncEngine, summary};
+use super::{SyncEngine, summary, transient};
 use crate::contracts::{
-    ChatResult, ConvId, ConversationKind, ConversationSummary, CoreEvent, MemberRole, MemberState,
-    MessagesEvent, MessagesOrigin, Millis, NotifyLevel, Seq,
+    ChatError, ChatResult, ConvId, ConversationKind, ConversationSummary, CoreEvent, HistoryQuery,
+    MemberRole, MemberState, MessagesEvent, MessagesOrigin, Millis, NotifyLevel, Seq,
 };
 
 impl<L: Local> SyncEngine<L> {
@@ -38,11 +38,16 @@ impl<L: Local> SyncEngine<L> {
         local: &[(ConvId, Seq)],
     ) -> ChatResult<Vec<ConversationSummary>> {
         let mut rooms = Vec::new();
+        let mut ended = Vec::new();
         for (id, _) in local {
             let Some(mut summary) = self.store.conversation(*id)? else {
                 continue;
             };
             if summary.kind != ConversationKind::Room {
+                continue;
+            }
+            if self.seat_lost(*id, summary.last_seq).await? {
+                ended.push(*id);
                 continue;
             }
             let messages = self.catch_up(*id, summary.last_seq).await?;
@@ -57,7 +62,22 @@ impl<L: Local> SyncEngine<L> {
             }
             rooms.push(summary);
         }
+        self.purge(&ended, &[])?;
         Ok(rooms)
+    }
+
+    async fn seat_lost(&self, id: ConvId, last_seq: Seq) -> ChatResult<bool> {
+        let probe = HistoryQuery {
+            before: None,
+            after: Some(last_seq.max(0)),
+            limit: 1,
+        };
+        match self.api.history(id, &probe).await {
+            Ok(_) => Ok(false),
+            Err(ChatError::NotMember | ChatError::NotFound) => Ok(true),
+            Err(error) if transient(&error) => Err(error),
+            Err(_) => Ok(false),
+        }
     }
 
     pub(super) fn is_room(&self, id: ConvId) -> ChatResult<bool> {

@@ -626,11 +626,13 @@ async fn a_reset_keeps_room_chats_the_list_never_shows_and_catches_them_up() {
         "/chat/conversations",
         json!({"items": [], "next_cursor": null}),
     );
-    rig.server.json(
-        "GET",
-        &format!("/chat/conversations/{ROOM}/messages"),
-        json!({"messages": [post(ROOM, 3, 1, "while away")], "more": false}),
-    );
+    for _ in 0..2 {
+        rig.server.json(
+            "GET",
+            &format!("/chat/conversations/{ROOM}/messages"),
+            json!({"messages": [post(ROOM, 3, 1, "while away")], "more": false}),
+        );
+    }
     rig.server.json(
         "GET",
         &format!("/chat/conversations/{ROOM}/keys"),
@@ -643,4 +645,36 @@ async fn a_reset_keeps_room_chats_the_list_never_shows_and_catches_them_up() {
     assert_eq!(rig.local.summary(ROOM).unwrap().last_seq, 3);
     let shown = rig.events.messages().pop().unwrap();
     assert_eq!(shown.conversation_id, ROOM);
+}
+
+#[tokio::test]
+async fn a_reset_purges_a_room_chat_whose_room_ended_while_away() {
+    let rig = rig();
+    let mut room = summary(ROOM, 2);
+    room.kind = ConversationKind::Room;
+    room.room_code = Some("ROOM42".into());
+    rig.local.put_conversations(&[room]).unwrap();
+    rig.server
+        .json("POST", "/chat/sync", answer(5, INC, vec![]));
+    assert_eq!(rig.engine.step(plan(&rig)).await, Ok(SyncOutcome::Reset));
+    rig.server.json(
+        "GET",
+        "/chat/conversations",
+        json!({"items": [], "next_cursor": null}),
+    );
+    rig.server.on(
+        "GET",
+        &format!("/chat/conversations/{ROOM}/messages"),
+        sync_support::Step::Json(403, json!({"error": "chat_not_member"})),
+    );
+
+    rig.engine.reconcile().await.unwrap();
+
+    assert!(rig.local.summary(ROOM).is_none());
+    assert!(
+        rig.events
+            .gone()
+            .iter()
+            .any(|gone| gone.conversations.contains(&ROOM))
+    );
 }
