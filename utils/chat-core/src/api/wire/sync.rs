@@ -5,6 +5,7 @@ use super::device::DeviceView;
 use super::message::MessageView;
 
 pub const KNOWN_MAX: usize = 64;
+pub const MARKS_MAX: usize = 64;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyncRequest {

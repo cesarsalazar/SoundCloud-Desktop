@@ -53,7 +53,7 @@ pub async fn report(state: &ChatState, report: ReportInput) -> ChatResult<()> {
         reason: reason(report.reason).to_string(),
         comment,
     };
-    state.api.report(&body).await
+    state.api.report(&body).await.map(|_| ())
 }
 
 pub async fn settings(state: &ChatState) -> ChatResult<ChatSettings> {
