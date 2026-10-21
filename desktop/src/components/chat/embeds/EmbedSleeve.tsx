@@ -1,0 +1,114 @@
+import { memo } from 'react';
+import { art } from '../../../lib/formatters';
+import { Music, Pause, Play } from '../../../lib/icons';
+import { usePerfMode } from '../../../lib/perf';
+
+interface EmbedSleeveProps {
+  artworkUrl: string | null;
+  size: number;
+  current: boolean;
+  playing: boolean;
+  disc?: boolean;
+  disabled?: boolean;
+  label: string;
+  onToggle?: () => void;
+}
+
+const DISC = [
+  'radial-gradient(circle, var(--color-accent) 0 17%, #0b0b0d 17.5% 19.5%, transparent 20%)',
+  'conic-gradient(from 40deg, transparent 0 10%, rgba(255,255,255,0.14) 17%, transparent 25% 60%, rgba(255,255,255,0.1) 67%, transparent 75%)',
+  'repeating-radial-gradient(circle, #18181c 0 1.3px, #24242a 1.3px 2.6px)',
+].join(', ');
+
+function Disc({ size, current, playing }: { size: number; current: boolean; playing: boolean }) {
+  const perf = usePerfMode();
+  return (
+    <span
+      aria-hidden
+      className="absolute left-0 top-0"
+      style={{
+        width: size,
+        height: size,
+        transform: `translateX(${Math.round(size * (current ? 0.36 : 0.2))}px)`,
+        transition: 'transform 700ms var(--ease-apple)',
+      }}
+    >
+      <span
+        className="block h-full w-full rounded-full"
+        style={{
+          background: DISC,
+          border: '0.5px solid rgba(255,255,255,0.18)',
+          boxShadow: '0 6px 18px rgba(0,0,0,0.45), inset 0 0 0 3px rgba(0,0,0,0.35)',
+          animation: playing && perf.idleAnim ? 'spin 3.6s linear infinite' : undefined,
+        }}
+      />
+    </span>
+  );
+}
+
+export const EmbedSleeve = memo(function EmbedSleeve({
+  artworkUrl,
+  size,
+  current,
+  playing,
+  disc = false,
+  disabled = false,
+  label,
+  onToggle,
+}: EmbedSleeveProps) {
+  const src = art(artworkUrl, 't200x200');
+  const reach = disc ? Math.round(size * 0.36) : 0;
+  return (
+    <div className="relative shrink-0" style={{ width: size + reach, height: size }}>
+      {disc && <Disc size={size} current={current} playing={playing} />}
+      <button
+        type="button"
+        aria-label={label}
+        title={label}
+        disabled={disabled || !onToggle}
+        onClick={onToggle}
+        className="group/sleeve relative z-[1] block overflow-hidden rounded-[12px] cursor-pointer disabled:cursor-default"
+        style={{
+          width: size,
+          height: size,
+          boxShadow: '0 8px 20px rgba(0,0,0,0.4), inset 0 0 0 0.5px rgba(255,255,255,0.1)',
+        }}
+      >
+        {src ? (
+          <img
+            src={src}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span
+            className="flex h-full w-full items-center justify-center text-white/30"
+            style={{
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
+            }}
+          >
+            <Music size={Math.round(size * 0.34)} />
+          </span>
+        )}
+        {!disabled && onToggle && (
+          <span
+            className={`absolute inset-0 flex items-center justify-center bg-black/45 text-white transition-opacity duration-300 ${
+              current
+                ? 'opacity-100'
+                : 'opacity-0 group-hover/sleeve:opacity-100 group-focus-visible/sleeve:opacity-100'
+            }`}
+          >
+            {playing ? (
+              <Pause size={Math.round(size * 0.3)} fill="currentColor" strokeWidth={0} />
+            ) : (
+              <Play size={Math.round(size * 0.3)} fill="currentColor" strokeWidth={0} />
+            )}
+          </span>
+        )}
+      </button>
+    </div>
+  );
+});
