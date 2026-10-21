@@ -3,6 +3,7 @@ import { DOCK_LIST, DOCK_ROOM, useChatPrefsStore } from '../../../stores/chat/pr
 import { useChatRoomStore } from '../../../stores/chat/room';
 import { ConversationList } from '../list/ConversationList';
 import { ChatGate } from './ChatGate';
+import { RoomTab } from './RoomTab';
 import { ThreadSlot } from './ThreadSlot';
 
 function DockList() {
@@ -25,7 +26,7 @@ export const DockBody = memo(function DockBody() {
 
   let content = <DockList />;
   if (active === DOCK_ROOM && roomChat) {
-    content = <ThreadSlot key={roomChat} conversationId={roomChat} variant="dock" />;
+    content = <RoomTab conversationId={roomChat} />;
   } else if (active !== DOCK_LIST && tabs.includes(active)) {
     content = <ThreadSlot key={active} conversationId={active} variant="dock" />;
   }
