@@ -621,6 +621,17 @@
       "images": "Kapaklar",
       "relay": "Yedek yol {{node}}"
     },
+    "route": {
+      "origin": {
+        "main": "Ana",
+        "star": "Star",
+        "s3": "S3",
+        "images": "Kapaklar"
+      },
+      "ok": "{{name}}: röle doğrudan ulaşıyor",
+      "backup": "{{name}}: röle yalnızca yedek yoldan ulaşıyor",
+      "down": "{{name}}: röle ulaşamıyor"
+    },
     "col": {
       "dns": "DNS",
       "tcp": "TCP",

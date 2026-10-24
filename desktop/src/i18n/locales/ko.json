@@ -682,6 +682,17 @@
       "images": "커버",
       "relay": "백업 경로 {{node}}"
     },
+    "route": {
+      "origin": {
+        "main": "메인",
+        "star": "Star",
+        "s3": "S3",
+        "images": "커버"
+      },
+      "ok": "{{name}}: 릴레이가 직접 연결됨",
+      "backup": "{{name}}: 릴레이가 백업 경로로만 연결됨",
+      "down": "{{name}}: 릴레이가 연결하지 못함"
+    },
     "col": {
       "dns": "DNS",
       "tcp": "TCP",

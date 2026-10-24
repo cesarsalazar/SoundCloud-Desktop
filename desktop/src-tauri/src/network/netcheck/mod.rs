@@ -7,6 +7,7 @@ pub mod model;
 pub mod paths;
 mod phases;
 mod report;
+pub mod route;
 mod scrub;
 mod store;
 mod targets;

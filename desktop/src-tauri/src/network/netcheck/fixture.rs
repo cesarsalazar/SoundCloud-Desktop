@@ -83,6 +83,7 @@ fn reset_target(id: TargetId, node: Option<&str>, host: &str) -> TargetCheck {
         cells: [Tone::Ok, Tone::Ok, Tone::Fail, Tone::Skip],
         total_ms: None,
         volume: None,
+        route: None,
     }
 }
 
@@ -99,10 +100,10 @@ pub fn troubled() -> NetReport {
         reset_target(TargetId::Star, None, "api-star.scnative.dev"),
         reset_target(TargetId::Storage, None, "storage.scnative.dev"),
         reset_target(TargetId::Images, None, "images.scnative.dev"),
-        reset_target(TargetId::Relay, Some("r1"), "api.r1.relay.scnative.dev"),
-        reset_target(TargetId::Relay, Some("r2"), "api.r2.relay.scnative.dev"),
-        reset_target(TargetId::Relay, Some("r3"), "api.r3.relay.scnative.dev"),
-        reset_target(TargetId::Relay, Some("r4"), "api.r4.relay.scnative.dev"),
+        reset_target(TargetId::Relay, Some("r1"), "r1.relay.scnative.dev"),
+        reset_target(TargetId::Relay, Some("r2"), "r2.relay.scnative.dev"),
+        reset_target(TargetId::Relay, Some("r3"), "r3.relay.scnative.dev"),
+        reset_target(TargetId::Relay, Some("r4"), "r4.relay.scnative.dev"),
     ];
     report.doh = ["cloudflare", "google", "quad9", "adguard", "yandex"]
         .into_iter()

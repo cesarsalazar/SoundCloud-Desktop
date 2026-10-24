@@ -9,6 +9,7 @@ use super::model::{
 };
 use super::paths::millis;
 use super::phases::{self, Budget, Tls};
+use super::route;
 use super::verdict;
 use crate::network::dns::{self, doh};
 use crate::network::edge;
@@ -57,7 +58,7 @@ pub fn targets() -> Vec<Target> {
         .take(RELAY_TARGETS)
         .map(|node| Target {
             id: TargetId::Relay,
-            host: format!("api.{node}.{}", edge::relay_zone()),
+            host: format!("{node}.{}", edge::relay_zone()),
             node: Some(node),
         });
     let pros = edge::pro_hosts()
@@ -72,8 +73,22 @@ pub fn targets() -> Vec<Target> {
 }
 
 pub async fn check(target: &Target, app: Option<&wreq::Client>, trigger: Trigger) -> TargetCheck {
-    match tokio::time::timeout(TARGET_CAP, inspect(target, app, trigger)).await {
-        Ok(check) => check,
+    let routed = async {
+        match (target.id, &target.node) {
+            (TargetId::Relay, Some(node)) => route::of(node, app).await,
+            _ => None,
+        }
+    };
+    let checked = async { tokio::join!(inspect(target, app, trigger), routed) };
+    match tokio::time::timeout(TARGET_CAP, checked).await {
+        Ok((mut check, route)) => {
+            check.ok &= route
+                .as_ref()
+                .and_then(|route| route.through.as_ref())
+                .is_none_or(|through| through.ok);
+            check.route = route;
+            check
+        }
         Err(_) => {
             let mut check = target.pending();
             check.app = Some(AppProbe {
@@ -149,6 +164,7 @@ async fn inspect(target: &Target, client: Option<&wreq::Client>, trigger: Trigge
         cells: [Tone::Pending; 4],
         total_ms,
         volume: None,
+        route: None,
     };
     check.cells = verdict::cells(&check);
     check
@@ -273,7 +289,7 @@ async fn retried(
     }
 }
 
-async fn app_probe(client: &wreq::Client, url: &str, timeout: Duration) -> AppProbe {
+pub(super) async fn app_probe(client: &wreq::Client, url: &str, timeout: Duration) -> AppProbe {
     let started = Instant::now();
     match client.get(url).timeout(timeout).send().await {
         Ok(response) => {
@@ -484,7 +500,7 @@ mod tests {
             .find(|target| target.id == TargetId::Relay)
             .unwrap();
         let node = relay.node.as_deref().unwrap();
-        assert_eq!(relay.host, format!("api.{node}.relay.scnative.dev"));
+        assert_eq!(relay.host, format!("{node}.relay.scnative.dev"));
     }
 
     #[test]

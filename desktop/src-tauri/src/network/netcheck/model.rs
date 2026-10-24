@@ -145,6 +145,30 @@ pub struct TargetCheck {
     pub total_ms: Option<u32>,
     #[serde(default)]
     pub volume: Option<VolumeProbe>,
+    #[serde(default)]
+    pub route: Option<RelayRoute>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayRoute {
+    pub through: Option<AppProbe>,
+    pub upstreams: Vec<Upstream>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Upstream {
+    pub origin: String,
+    pub state: UpstreamState,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum UpstreamState {
+    Ok,
+    Backup,
+    Down,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -386,6 +410,7 @@ impl TargetCheck {
             cells: [Tone::Pending; 4],
             total_ms: None,
             volume: None,
+            route: None,
         }
     }
 }

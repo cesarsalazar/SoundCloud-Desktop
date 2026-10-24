@@ -703,6 +703,17 @@
       "relay": "Backup route {{node}}",
       "pro": "Pro relay {{node}}"
     },
+    "route": {
+      "origin": {
+        "main": "Main",
+        "star": "Star",
+        "s3": "S3",
+        "images": "Covers"
+      },
+      "ok": "{{name}}: the relay reaches it directly",
+      "backup": "{{name}}: the relay reaches it only through its backup path",
+      "down": "{{name}}: the relay does not reach it"
+    },
     "col": {
       "dns": "DNS",
       "tcp": "TCP",

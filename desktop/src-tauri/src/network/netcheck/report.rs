@@ -4,7 +4,7 @@ use chrono::{Local, TimeZone};
 
 use super::model::{
     AppProbe, DnsAnswer, DnsState, DohProbe, EdgeSnapshot, EnvInfo, NetReport, PathEvent,
-    PhaseProbe, TargetCheck, VolumeProbe,
+    PhaseProbe, TargetCheck, Upstream, UpstreamState, VolumeProbe,
 };
 use crate::network::edge::Tier;
 use crate::network::fail::{Fail, Phase};
@@ -305,7 +305,26 @@ fn target_parts(target: &TargetCheck, sep: &str) -> Vec<String> {
         };
         parts.push(format!("vol{sep}{state} {}KB", volume.bytes / 1024));
     }
+    if let Some(route) = &target.route {
+        parts.push(format!("route{sep}{}", upstreams(&route.upstreams)));
+        if let Some(through) = &route.through {
+            parts.push(format!("through{sep}{}", app_outcome(through)));
+        }
+    }
     parts
+}
+
+fn upstreams(upstreams: &[Upstream]) -> String {
+    let state = |state: UpstreamState| match state {
+        UpstreamState::Ok => "ok",
+        UpstreamState::Backup => "backup",
+        UpstreamState::Down => "down",
+    };
+    upstreams
+        .iter()
+        .map(|upstream| format!("{}={}", upstream.origin, state(upstream.state)))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn answer(answer: &DnsAnswer) -> String {
@@ -416,8 +435,11 @@ fn event_line(event: &PathEvent) -> String {
 #[cfg(test)]
 mod tests {
     use super::{log_lines, text};
+    use crate::network::fail::{Fail, FailKind};
     use crate::network::netcheck::fixture::{sample, troubled};
-    use crate::network::netcheck::model::{Verdict, VolumeProbe};
+    use crate::network::netcheck::model::{
+        AppProbe, RelayRoute, Upstream, UpstreamState, Verdict, VolumeProbe,
+    };
 
     #[test]
     fn a_full_report_stays_short_and_names_the_failure() {
@@ -431,6 +453,40 @@ mod tests {
         assert!(text.contains("service zapret"));
         assert!(text.contains("recent:"));
         assert!(!text.to_lowercase().contains("session"), "{text}");
+    }
+
+    #[test]
+    fn a_relay_line_says_what_the_relay_reaches_behind_it() {
+        let mut report = troubled();
+        let relay = report
+            .targets
+            .iter_mut()
+            .find(|target| target.node.as_deref() == Some("r2"))
+            .unwrap();
+        relay.route = Some(RelayRoute {
+            through: Some(AppProbe {
+                ok: false,
+                status: None,
+                ms: Some(10_000),
+                fail: Some(Fail {
+                    after_ms: Some(10_000),
+                    ..Fail::of(FailKind::Timeout)
+                }),
+            }),
+            upstreams: vec![
+                Upstream {
+                    origin: "main".to_string(),
+                    state: UpstreamState::Down,
+                },
+                Upstream {
+                    origin: "star".to_string(),
+                    state: UpstreamState::Backup,
+                },
+            ],
+        });
+        let text = text(&report);
+        assert!(text.contains("route main=down star=backup"), "{text}");
+        assert!(text.contains("through timeout@10000ms"), "{text}");
     }
 
     #[test]

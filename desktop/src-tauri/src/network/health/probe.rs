@@ -6,6 +6,7 @@ use wreq::Client;
 use super::link::{self, Shape};
 use super::model::{Link, PROBE_PATH, Route, Sample, Topology};
 use crate::network::edge::{self, Tier};
+use crate::network::netcheck::route;
 use crate::network::{fail, pro, system_proxy};
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
@@ -108,6 +109,23 @@ pub fn direct_clear(paths: &[Sample]) -> bool {
 pub fn usable_first(relays: &[String], paths: &[Sample]) -> Vec<String> {
     let mut ordered = relays.to_vec();
     ordered.sort_by_key(|node| rank(sample_of(node, paths)));
+    ordered
+}
+
+pub async fn main_lost(client: &Client, relays: &[String]) -> Vec<String> {
+    let checks = relays.iter().map(|node| async move {
+        let seen = route::seen(client, node).await?;
+        route::lost_main(&seen).then(|| node.clone())
+    });
+    futures_util::future::join_all(checks)
+        .await
+        .into_iter()
+        .flatten()
+        .collect()
+}
+
+pub fn reaching_main_first(mut ordered: Vec<String>, lost: &[String]) -> Vec<String> {
+    ordered.sort_by_key(|node| lost.contains(node));
     ordered
 }
 
@@ -304,7 +322,7 @@ mod tests {
 
     use super::{
         Outcome, Route, Sample, direct_bytes, direct_cut_while_others_pass, fail_label, hit_all,
-        judge, relays_lag, usable_first,
+        judge, reaching_main_first, relays_lag, usable_first,
     };
     use crate::network::edge::{self, Tier};
     use crate::network::health::model::Link;
@@ -359,6 +377,14 @@ mod tests {
         assert_eq!(
             usable_first(&pool(&["r3", "r1", "r2"]), &paths),
             ["r2", "r1", "r3"]
+        );
+    }
+
+    #[test]
+    fn a_relay_that_lost_main_goes_behind_the_rest() {
+        assert_eq!(
+            reaching_main_first(pool(&["r2", "r1", "r3"]), &pool(&["r2"])),
+            ["r1", "r3", "r2"]
         );
     }
 

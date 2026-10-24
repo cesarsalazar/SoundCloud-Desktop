@@ -33,6 +33,7 @@ import {
   Cloud as _Cloud,
   Compass as _Compass,
   Copy as _Copy,
+  CornerDownRight as _CornerDownRight,
   Crown as _Crown,
   Database as _Database,
   Disc3 as _Disc3,
@@ -188,6 +189,7 @@ export const ArrowUp = memo(_ArrowUp);
 export const ArrowUpDown = memo(_ArrowUpDown);
 export const ArrowUpToLine = memo(_ArrowUpToLine);
 export const ChevronRight = memo(_ChevronRight);
+export const CornerDownRight = memo(_CornerDownRight);
 export const ChevronUp = memo(_ChevronUp);
 export const CircleCheck = memo(_CircleCheck);
 export const Clock = memo(_Clock);

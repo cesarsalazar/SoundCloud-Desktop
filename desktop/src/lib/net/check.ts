@@ -90,6 +90,19 @@ export interface TargetCheck {
   cells: [Tone, Tone, Tone, Tone];
   totalMs: number | null;
   volume?: VolumeProbe | null;
+  route?: RelayRoute | null;
+}
+
+export type UpstreamState = 'ok' | 'backup' | 'down';
+
+export interface Upstream {
+  origin: string;
+  state: UpstreamState;
+}
+
+export interface RelayRoute {
+  through: AppProbe | null;
+  upstreams: Upstream[];
 }
 
 export interface VolumeProbe {

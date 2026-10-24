@@ -12,6 +12,7 @@ import {
 import { type TargetCheck, type Tone, useNetCheckStore } from '../../lib/net/check';
 import { COLUMNS, type Column, cellTitle, volumeTitle, volumeTone } from '../../lib/net/manual';
 import { Skeleton } from '../ui/Skeleton';
+import { RouteChips } from './RouteChips';
 
 type Shown = Column | 'vol';
 
@@ -53,22 +54,30 @@ const TargetRow = React.memo(({ target }: { target: TargetCheck }) => {
   const { t } = useTranslation();
   const ms = target.totalMs;
   return (
-    <div className="flex items-center gap-3 px-3.5 py-2.5">
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[12.5px] font-medium text-white/75">
-          {t(`netCheck.host.${target.id}`, { node: target.node ?? '' })}
+    <div className="px-3.5 py-2.5">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[12.5px] font-medium text-white/75">
+            {t(`netCheck.host.${target.id}`, { node: target.node ?? '' })}
+          </div>
+          <div className="truncate font-mono text-[10.5px] text-white/30">{target.host}</div>
         </div>
-        <div className="truncate font-mono text-[10.5px] text-white/30">{target.host}</div>
+        <div className="flex shrink-0">
+          {COLUMNS.map((col, index) => (
+            <Cell
+              key={col}
+              col={col}
+              tone={target.cells[index]}
+              title={cellTitle(t, col, target)}
+            />
+          ))}
+          <Cell col="vol" tone={volumeTone(target)} title={volumeTitle(t, target)} />
+        </div>
+        <span className="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/40">
+          {ms === null ? '—' : t('netCheck.detail.ms', { ms })}
+        </span>
       </div>
-      <div className="flex shrink-0">
-        {COLUMNS.map((col, index) => (
-          <Cell key={col} col={col} tone={target.cells[index]} title={cellTitle(t, col, target)} />
-        ))}
-        <Cell col="vol" tone={volumeTone(target)} title={volumeTitle(t, target)} />
-      </div>
-      <span className="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/40">
-        {ms === null ? '—' : t('netCheck.detail.ms', { ms })}
-      </span>
+      {target.route && <RouteChips route={target.route} />}
     </div>
   );
 });

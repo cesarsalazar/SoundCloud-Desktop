@@ -84,6 +84,7 @@ impl Agent {
         let mut topology = Topology::bootstrap();
         let mut round = 0usize;
         let mut last_paths = Vec::new();
+        let mut last_lost = Vec::new();
         loop {
             let started = Instant::now();
             round = round.wrapping_add(1);
@@ -96,15 +97,24 @@ impl Agent {
                 calls: discovery::calls(&topology.call_nodes()).await,
             };
             edge::set_pool(
-                probe::usable_first(&pool.relays, &last_paths),
+                probe::reaching_main_first(
+                    probe::usable_first(&pool.relays, &last_paths),
+                    &last_lost,
+                ),
                 topology.weighted_calls(&pool.calls),
             );
             edge::announce(&self.app);
 
             let pros = discovery::pros(&topology.pros).await;
             edge::set_pros(pros.clone());
-            let mut paths = probe::probe_paths(&self.probe_client, &pool, round).await;
-            edge::set_pool(probe::usable_first(&pool.relays, &paths), Vec::new());
+            let (mut paths, lost) = tokio::join!(
+                probe::probe_paths(&self.probe_client, &pool, round),
+                probe::main_lost(&self.probe_client, &pool.relays)
+            );
+            edge::set_pool(
+                probe::reaching_main_first(probe::usable_first(&pool.relays, &paths), &lost),
+                Vec::new(),
+            );
             let relays_lag = probe::relays_lag(&pool.relays, &paths);
             let pro_paths =
                 probe::probe_pros(&pros, relays_lag || !probe::direct_clear(&paths)).await;
@@ -152,6 +162,7 @@ impl Agent {
                 ),
             );
             last_paths = paths;
+            last_lost = lost;
 
             let interval = Duration::from_secs(topology.probe_interval_secs.max(30));
             tokio::select! {
