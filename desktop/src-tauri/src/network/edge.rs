@@ -299,6 +299,14 @@ impl Inner {
     fn level(&self, origin: &str, now: Instant) -> Tier {
         resolved_state(self, origin).map_or(Tier::Direct, |state| state.level(now))
     }
+
+    fn relayed(&self, now: Instant) -> Vec<String> {
+        self.origins
+            .iter()
+            .filter(|(_, state)| state.level(now) == Tier::Relay)
+            .map(|(host, _)| host.clone())
+            .collect()
+    }
 }
 
 static STATE: OnceLock<Mutex<Inner>> = OnceLock::new();
@@ -722,6 +730,21 @@ fn announce_change() {
 
 pub fn escalate_all() {
     for origin in routed_origins() {
+        record(&origin, false, |inner, now| {
+            inner.conclude(&origin, Tier::Pro, now)
+        });
+    }
+}
+
+pub fn escalate_relayed() {
+    let relayed = {
+        let inner = match state().lock() {
+            Ok(g) => g,
+            Err(e) => e.into_inner(),
+        };
+        inner.relayed(Instant::now())
+    };
+    for origin in relayed {
         record(&origin, false, |inner, now| {
             inner.conclude(&origin, Tier::Pro, now)
         });
@@ -1356,6 +1379,17 @@ mod tests {
         let changes = apply(&mut inner, &[Event::ProFailed; 3], now);
         assert_eq!(changes.last(), Some(&Change::Unpinned));
         assert_eq!(inner.level(ORIGIN, now), Tier::Direct);
+    }
+
+    #[test]
+    fn only_origins_on_relays_follow_lagging_relays_to_pro() {
+        let now = Instant::now();
+        let mut inner = Inner::default();
+        inner.conclude(ORIGIN, Tier::Relay, now);
+        inner.conclude("api.scnative.dev", Tier::Pro, now);
+        inner.apply("images.scnative.dev", Event::DirectFailed, now);
+        assert_eq!(inner.relayed(now), vec![ORIGIN.to_string()]);
+        assert!(inner.relayed(now + REVALIDATE).is_empty());
     }
 
     #[test]

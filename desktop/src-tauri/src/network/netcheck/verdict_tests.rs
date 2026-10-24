@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::IpAddr;
 
-use super::{cells, dns_state, hint, nothing_carries, verdict, with_volume};
+use super::{cells, dns_state, hint, nothing_carries, relays_lag, verdict, with_volume};
 use crate::network::fail::{Fail, FailKind, Phase};
 use crate::network::netcheck::model::{
     AppProbe, DnsAnswer, DnsState, DpiTool, EnvInfo, Hint, Internet, PhaseProbe, Remote,
@@ -424,6 +424,20 @@ fn the_pro_relay_is_for_links_where_neither_direct_nor_relays_carry() {
     assert!(nothing_carries(Verdict::Timeout, &[]));
     assert!(!nothing_carries(Verdict::Ok, &[probe(true)]));
     assert!(!nothing_carries(Verdict::RelayOnly, &[]));
+}
+
+#[test]
+fn relays_lag_when_none_of_them_carries_clear() {
+    let probe = |shape: &str| VolumeProbe {
+        host: "r1.relay.scnative.dev".to_string(),
+        shape: shape.to_string(),
+        bytes: 64 * 1024,
+        ms: 7_540,
+        cut: false,
+    };
+    assert!(relays_lag(&[probe("slow"), probe("blackhole")]));
+    assert!(!relays_lag(&[probe("slow"), probe("clear")]));
+    assert!(!relays_lag(&[]));
 }
 
 #[test]

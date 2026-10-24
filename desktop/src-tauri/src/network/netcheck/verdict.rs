@@ -5,6 +5,7 @@ use super::model::{
 };
 use crate::network::dns;
 use crate::network::fail::{FailKind, Phase};
+use crate::network::health::link::Shape;
 
 const TS_CONFIG_KEYS: [&str; 2] = ["NFQWS_OPT", "NFQWS2_OPT"];
 const TIMESTAMPS_OFF: [&str; 3] = ["disabled", "allowed", "default"];
@@ -64,6 +65,13 @@ pub fn nothing_carries(verdict: Verdict, relay_volume: &[VolumeProbe]) -> bool {
         Verdict::Reset | Verdict::Timeout => true,
         _ => false,
     }
+}
+
+pub fn relays_lag(relay_volume: &[VolumeProbe]) -> bool {
+    !relay_volume.is_empty()
+        && relay_volume
+            .iter()
+            .all(|volume| volume.shape != Shape::Clear.as_str())
 }
 
 fn tally(targets: &[TargetCheck]) -> Verdict {

@@ -105,8 +105,13 @@ impl Agent {
             edge::set_pros(pros.clone());
             let mut paths = probe::probe_paths(&self.probe_client, &pool, round).await;
             edge::set_pool(probe::usable_first(&pool.relays, &paths), Vec::new());
-            let pro_paths = probe::probe_pros(&pros, !probe::direct_clear(&paths)).await;
+            let relays_lag = probe::relays_lag(&pool.relays, &paths);
+            let pro_paths =
+                probe::probe_pros(&pros, relays_lag || !probe::direct_clear(&paths)).await;
             edge::set_pros(probe::usable_first(&pros, &pro_paths));
+            if relays_lag && pro_paths.iter().any(|sample| sample.ok) {
+                edge::escalate_relayed();
+            }
             paths.extend(pro_paths);
             let cut = probe::note_direct_cut(&paths);
             let early = self

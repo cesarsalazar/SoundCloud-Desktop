@@ -106,13 +106,36 @@ pub fn direct_clear(paths: &[Sample]) -> bool {
 }
 
 pub fn usable_first(relays: &[String], paths: &[Sample]) -> Vec<String> {
-    let usable = |node: &String| {
-        let ep = format!("@{node}");
-        paths.iter().any(|sample| sample.ok && sample.ep == ep)
-    };
     let mut ordered = relays.to_vec();
-    ordered.sort_by_key(|node| !usable(node));
+    ordered.sort_by_key(|node| rank(sample_of(node, paths)));
     ordered
+}
+
+pub fn relays_lag(relays: &[String], paths: &[Sample]) -> bool {
+    let mut probed = relays
+        .iter()
+        .filter_map(|node| sample_of(node, paths))
+        .peekable();
+    probed.peek().is_some() && probed.all(|sample| rank(Some(sample)) > 0)
+}
+
+fn sample_of<'a>(node: &str, paths: &'a [Sample]) -> Option<&'a Sample> {
+    let ep = format!("@{node}");
+    paths.iter().find(|sample| sample.ep == ep)
+}
+
+fn rank(sample: Option<&Sample>) -> u8 {
+    match sample {
+        Some(sample) if sample.ok && !slow(sample) => 0,
+        Some(sample) if sample.ok => 1,
+        _ => 2,
+    }
+}
+
+fn slow(sample: &Sample) -> bool {
+    sample
+        .link
+        .is_some_and(|link| link.shape != Shape::Clear.as_str())
 }
 
 /// Задушенный путь отдаёт маленький объект на полной скорости, а большой ползёт:
@@ -281,7 +304,7 @@ mod tests {
 
     use super::{
         Outcome, Route, Sample, direct_bytes, direct_cut_while_others_pass, fail_label, hit_all,
-        judge, usable_first,
+        judge, relays_lag, usable_first,
     };
     use crate::network::edge::{self, Tier};
     use crate::network::health::model::Link;
@@ -313,6 +336,44 @@ mod tests {
     #[test]
     fn an_unprobed_pool_keeps_its_order() {
         assert_eq!(usable_first(&pool(&["r1", "r2"]), &[]), ["r1", "r2"]);
+    }
+
+    fn shaped(node: &str, shape: &'static str) -> Sample {
+        Sample {
+            link: Some(Link {
+                shape,
+                kbps: 0,
+                bytes: 0,
+            }),
+            ..sample(node, shape == "clear" || shape == "slow")
+        }
+    }
+
+    #[test]
+    fn a_slow_relay_goes_behind_a_clear_one() {
+        let paths = [
+            shaped("r1", "slow"),
+            shaped("r2", "clear"),
+            shaped("r3", "blackhole"),
+        ];
+        assert_eq!(
+            usable_first(&pool(&["r3", "r1", "r2"]), &paths),
+            ["r2", "r1", "r3"]
+        );
+    }
+
+    #[test]
+    fn relays_lag_only_while_none_of_them_is_clear() {
+        let relays = pool(&["r1", "r2"]);
+        assert!(relays_lag(
+            &relays,
+            &[shaped("r1", "slow"), shaped("r2", "blackhole")]
+        ));
+        assert!(!relays_lag(
+            &relays,
+            &[shaped("r1", "slow"), shaped("r2", "clear")]
+        ));
+        assert!(!relays_lag(&relays, &[shaped("p1", "dead")]));
     }
 
     fn failed(node: &str, fail: &str) -> Sample {

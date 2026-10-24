@@ -269,6 +269,8 @@ async fn run(trigger: Trigger, reason: Option<String>) -> NetReport {
     let pro_carries = report.pro_volume.iter().any(|volume| !volume.cut);
     if verdict::nothing_carries(report.verdict, &report.relay_volume) && pro_carries {
         edge::escalate_all();
+    } else if verdict::relays_lag(&report.relay_volume) && pro_carries {
+        edge::escalate_relayed();
     }
     report.recent = paths::recent(RECENT_EVENTS);
     report.edge = edge_snapshot();
