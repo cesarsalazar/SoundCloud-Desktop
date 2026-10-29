@@ -194,7 +194,12 @@ pub async fn auth_logout(
         old
     };
 
-    if let Some(token) = old.token {
+    let revocable = cfg!(debug_assertions)
+        || crate::network::edge::is_own_endpoint(&format!(
+            "{}/auth/logout",
+            api_base.trim_end_matches('/')
+        ));
+    if let Some(token) = old.token.filter(|_| revocable) {
         let http = state.http.clone();
         let app = app.clone();
         state.rt.spawn(async move {

@@ -150,7 +150,7 @@ impl Topology {
 
     pub fn sanitized(mut self) -> Self {
         self.probe_interval_secs = self.probe_interval_secs.clamp(30, 86_400);
-        self.ingest.retain(|origin| origin.starts_with("https://"));
+        self.ingest.retain(|origin| in_own_zone(origin));
         self.ingest.truncate(MAX_INGEST);
         self.relays.retain(|node| is_node(node));
         self.relays.truncate(MAX_NODES);
@@ -159,7 +159,7 @@ impl Topology {
         self.pros.retain(|node| is_node(node));
         self.pros.truncate(MAX_NODES);
         self.endpoints
-            .retain(|endpoint| !endpoint.id.is_empty() && endpoint.url.starts_with("https://"));
+            .retain(|endpoint| !endpoint.id.is_empty() && edge::is_own_endpoint(&endpoint.url));
         self.endpoints.truncate(MAX_ENDPOINTS);
         self
     }
@@ -182,6 +182,19 @@ impl Topology {
             })
             .collect()
     }
+}
+
+/// The server must not be able to point every client at arbitrary hosts, so
+/// telemetry only goes to, and probes only hit, our own zones over https.
+fn in_own_zone(origin: &str) -> bool {
+    url::Url::parse(origin).is_ok_and(|url| {
+        url.scheme() == "https"
+            && url.host_str().is_some_and(|host| {
+                ["scnative.dev", "scnative.space"]
+                    .iter()
+                    .any(|zone| host.ends_with(&format!(".{zone}")))
+            })
+    })
 }
 
 pub fn is_node(name: &str) -> bool {
@@ -247,7 +260,11 @@ mod tests {
         let topology = Topology {
             version: 1,
             probe_interval_secs: 1,
-            ingest: vec!["http://plain".into(), "https://health.x".into()],
+            ingest: vec![
+                "http://plain".into(),
+                "https://health.x".into(),
+                "https://health.scnative.dev".into(),
+            ],
             relays: vec!["r1".into(), "R2".into()],
             calls: vec![CallNode {
                 id: "call-1".into(),
@@ -262,7 +279,7 @@ mod tests {
         }
         .sanitized();
         assert_eq!(topology.probe_interval_secs, 30);
-        assert_eq!(topology.ingest, ["https://health.x"]);
+        assert_eq!(topology.ingest, ["https://health.scnative.dev"]);
         assert_eq!(topology.relays, ["r1"]);
         assert_eq!(topology.pros, ["p1"]);
         assert!(topology.endpoints.is_empty());

@@ -184,21 +184,6 @@ jobs:
         working-directory: .
         run: bash scripts/ci-mtime.sh restore
 
-      - uses: actions/checkout@v7
-        with:
-          repository: ${{ github.repository_owner }}/SoundCloud-Internal
-          token: ${{ secrets.INTERNAL_PAT }}
-          path: _internal
-          sparse-checkout: |
-            call
-            decrypt-client
-
-      - name: Real crates
-        working-directory: .
-        run: |
-          rm -rf utils/call utils/decrypt-client
-          mv _internal/call _internal/decrypt-client utils/
-
       - name: Frontend placeholder
         run: mkdir -p ../dist && echo '<!doctype html>' > ../dist/index.html
 

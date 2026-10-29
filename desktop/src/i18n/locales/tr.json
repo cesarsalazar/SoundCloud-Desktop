@@ -1756,6 +1756,7 @@
   },
   "call": {
     "title": "Eslesme agi",
+    "description": "Açıkken geliştiricinin sunucuları, korumalı SoundCloud parçalarının şifresinin çözülmesi dahil üçüncü taraf istekleri internet bağlantınız ve IP adresiniz üzerinden yönlendirir. Varsayılan olarak kapalıdır.",
     "enable": "Etkinlestir",
     "disable": "Devre disi birak",
     "status": {

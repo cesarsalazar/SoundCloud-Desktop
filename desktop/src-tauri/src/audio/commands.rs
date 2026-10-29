@@ -42,35 +42,6 @@ pub async fn audio_load_file(
 }
 
 #[tauri::command]
-pub async fn audio_load_url(
-    url: String,
-    session_id: Option<String>,
-    cache_path: Option<String>,
-    cache_key: Option<String>,
-    start_paused: bool,
-    app: AppHandle,
-    state: State<'_, AudioState>,
-) -> Result<AudioLoadResult, String> {
-    let normalization_cache_dir = app
-        .path()
-        .app_cache_dir()
-        .ok()
-        .map(|dir| dir.join("audio-normalization"));
-    let result = engine::load_url(
-        url,
-        session_id,
-        cache_path,
-        normalization_cache_dir,
-        cache_key,
-        start_paused,
-        state,
-    )
-    .await?;
-    silence::scan(&app);
-    Ok(result)
-}
-
-#[tauri::command]
 pub fn audio_play(state: State<'_, AudioState>) {
     engine::play(state);
 }
@@ -149,8 +120,27 @@ pub fn audio_eq_import(text: String) -> Result<EqImport, String> {
     eq_preset::import(&text)
 }
 
+const EQ_IMPORT_EXTENSIONS: [&str; 2] = ["txt", "peace"];
+const EQ_SAVE_EXTENSIONS: [&str; 1] = ["txt"];
+
+/// The webview hands us the path, so only preset files are touched: no reading
+/// or overwriting arbitrary files (shell profiles, launch agents, keys).
+fn preset_path(path: &str, allowed: &[&str]) -> Result<std::path::PathBuf, String> {
+    let path = std::path::PathBuf::from(path);
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_default();
+    if !path.is_absolute() || !allowed.contains(&ext.as_str()) {
+        return Err("unsupported preset path".to_string());
+    }
+    Ok(path)
+}
+
 #[tauri::command]
 pub async fn audio_eq_import_file(path: String) -> Result<EqImport, String> {
+    let path = preset_path(&path, &EQ_IMPORT_EXTENSIONS)?;
     let bytes = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
     eq_preset::import(&eq_preset::decode(&bytes))
 }
@@ -164,6 +154,7 @@ pub fn audio_eq_export(gains: Vec<f64>, preamp: Option<f64>, format: EqFormat) -
 
 #[tauri::command]
 pub async fn audio_eq_save(path: String, text: String) -> Result<(), String> {
+    let path = preset_path(&path, &EQ_SAVE_EXTENSIONS)?;
     tokio::fs::write(&path, text)
         .await
         .map_err(|e| e.to_string())
@@ -216,11 +207,6 @@ pub async fn audio_switch_device(
 #[tauri::command]
 pub fn audio_set_follow_default_output(follow: bool, state: State<'_, AudioState>) {
     device::set_follow_default_output(state, follow);
-}
-
-#[tauri::command]
-pub async fn save_track_to_path(cache_path: String, dest_path: String) -> Result<String, String> {
-    engine::save_track_to_path(cache_path, dest_path).await
 }
 
 #[tauri::command]

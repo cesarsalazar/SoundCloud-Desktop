@@ -775,9 +775,15 @@ fn transport_failure(tier: Tier, status: u16, content_type: &str) -> bool {
     }
 }
 
+/// Upstreams come from the caller of the local proxy, which any web page can
+/// reach, so only https URLs on our own routed hosts are accepted. Anything
+/// else is dropped instead of being fetched as a direct hop.
 pub fn expand_upstreams(upstreams: &[String]) -> Vec<Hop> {
     let mut out = Vec::new();
     for u in upstreams {
+        if !is_own_endpoint(u) {
+            continue;
+        }
         let hops = plan(u);
         if hops.is_empty() {
             out.push(Hop {
@@ -790,6 +796,12 @@ pub fn expand_upstreams(upstreams: &[String]) -> Vec<Hop> {
         }
     }
     out
+}
+
+/// An https URL on one of our own routed hosts. Use it to vet any URL the
+/// webview supplies before the session token or local data is sent there.
+pub fn is_own_endpoint(url: &str) -> bool {
+    url::Url::parse(url).is_ok_and(|u| u.scheme() == "https") && is_routed(url)
 }
 
 pub fn audio_plan(url: &str) -> Vec<Hop> {
@@ -991,8 +1003,8 @@ mod tests {
 
     use super::{
         Change, Event, INHERIT, Inner, PROVEN_BYTES, Persisted, RELAYS, REVALIDATE, Tier,
-        audio_tier_order, host_of, is_known_host, is_routed, pro_hops, relay_hosts_over, restore,
-        set_pool, snapshot, swap_host, transport_failure, zone_hosts,
+        audio_tier_order, expand_upstreams, host_of, is_known_host, is_routed, pro_hops,
+        relay_hosts_over, restore, set_pool, snapshot, swap_host, transport_failure, zone_hosts,
     };
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD as BASE64_URL};
 
@@ -1561,5 +1573,22 @@ mod tests {
         let mut inner = Inner::default();
         restore(&mut inner, old, Instant::now(), 1);
         assert!(inner.origins.is_empty());
+    }
+
+    #[test]
+    fn foreign_upstreams_are_dropped() {
+        let upstreams = [
+            "http://192.168.1.1/admin".to_string(),
+            "https://evil.example/x".to_string(),
+            "http://images.scnative.dev".to_string(),
+            "https://images.scnative.dev.evil.example".to_string(),
+        ];
+        assert!(expand_upstreams(&upstreams).is_empty());
+    }
+
+    #[test]
+    fn our_upstreams_are_kept() {
+        let hops = expand_upstreams(&["https://images.scnative.dev".to_string()]);
+        assert!(!hops.is_empty());
     }
 }

@@ -124,6 +124,9 @@ async fn upload(
         .build()
         .map_err(|_| UploadFailure::of("network"))?;
     let url = format!("{}/tracks/upload", request.backend_url.trim_end_matches('/'));
+    if !cfg!(debug_assertions) && !edge::is_own_endpoint(&url) {
+        return Err(UploadFailure::of("network"));
+    }
     let mut hops = edge::upload_plan(&url);
     if hops.is_empty() {
         hops.push(Hop {

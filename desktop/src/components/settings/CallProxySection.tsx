@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { type CallStatus, callIsEnabled, callSetEnabled, callStatus } from '../../lib/call';
-import { Loader2, Lock, Power, Users } from '../../lib/icons';
+import { Loader2, Power, Users } from '../../lib/icons';
 import { usePerfMode } from '../../lib/perf';
-import { useStarSubscription } from '../layout/StarSubscription';
 
 const STATUS_POLL_MS = 5000;
 
@@ -50,13 +48,10 @@ const LINKS: Array<[number, number, number, number]> = [
 /** "Сеть пользователей" — a live peer mesh stretched across the whole card.
  *  Dormant and dim when off; when the link comes up it lights to the status hue,
  *  packets flow along the edges and the nodes breathe. The info row sits over the
- *  mesh on a bottom scrim. All logic (status poll, premium gate) kept; the gate
- *  now routes to the dedicated STAR PASS page instead of a modal. */
+ *  mesh on a bottom scrim. Off by default; anyone can switch it on or off. */
 export const CallProxySection: React.FC = React.memo(() => {
   const { t } = useTranslation();
   const perf = usePerfMode();
-  const navigate = useNavigate();
-  const { isPremium } = useStarSubscription();
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [status, setStatus] = useState<CallStatus>({ kind: 'disabled' });
   const [busy, setBusy] = useState(false);
@@ -84,10 +79,6 @@ export const CallProxySection: React.FC = React.memo(() => {
 
   const onToggle = async () => {
     if (busy || enabled === null) return;
-    if (enabled && !isPremium) {
-      navigate('/star');
-      return;
-    }
     setBusy(true);
     try {
       const next = !enabled;
@@ -104,7 +95,6 @@ export const CallProxySection: React.FC = React.memo(() => {
   const net = STATUS_COLOR[status.kind];
   const live = status.kind === 'active';
   const working = status.kind === 'connecting' || status.kind === 'provisioning';
-  const locked = enabled && !isPremium;
   const animate = perf.idleAnim && (live || working);
   const glow = perf.glow;
   const meshOpacity = live ? 1 : working ? 0.85 : status.kind === 'failed' ? 0.7 : 0.55;
@@ -268,6 +258,7 @@ export const CallProxySection: React.FC = React.memo(() => {
             />
             {t(`call.status.${status.kind}`)}
           </p>
+          <p className="text-[11px] text-white/45 mt-1 leading-snug">{t('call.description')}</p>
           {status.kind === 'failed' && status.error ? (
             <p
               className="text-[10px] text-red-400/80 mt-1 font-mono break-all"
@@ -312,8 +303,6 @@ export const CallProxySection: React.FC = React.memo(() => {
           >
             {busy ? (
               <Loader2 size={13} className="animate-spin" />
-            ) : locked ? (
-              <Lock size={12} />
             ) : (
               <Power size={13} strokeWidth={2.4} />
             )}

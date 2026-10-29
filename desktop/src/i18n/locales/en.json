@@ -1851,6 +1851,7 @@
   },
   "call": {
     "title": "Peer network",
+    "description": "When on, the developer's servers route third-party requests through your internet connection and IP address, including decrypting protected SoundCloud tracks. Off by default.",
     "enable": "Enable",
     "disable": "Disable",
     "status": {

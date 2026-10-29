@@ -80,7 +80,6 @@ jobs:
   build:
     needs: version
     env:
-      HAS_INTERNAL_PAT: ${{ secrets.INTERNAL_PAT != '' }}
       HAS_UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && vars.TAURI_UPDATER_PUBKEY != '' }}
     strategy:
       fail-fast: false
@@ -149,33 +148,6 @@ jobs:
           Expand-Archive "$protoc.zip" -DestinationPath $protoc
           Add-Content $env:GITHUB_PATH "$protoc\bin"
           choco install nasm -y --no-progress
-
-      - name: Checkout internal repo (when PAT present)
-        if: ${{ env.HAS_INTERNAL_PAT == 'true' }}
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ github.repository_owner }}/SoundCloud-Internal
-          token: ${{ secrets.INTERNAL_PAT }}
-          path: _internal
-          sparse-checkout: |
-            call
-            decrypt-client
-
-      - name: Replace mock crates with real (unix)
-        if: ${{ env.HAS_INTERNAL_PAT == 'true' && runner.os != 'Windows' }}
-        run: |
-          rm -rf utils/call utils/decrypt-client
-          cp -r _internal/call ./utils/call
-          cp -r _internal/decrypt-client ./utils/decrypt-client
-
-      - name: Replace mock crates with real (windows)
-        if: ${{ env.HAS_INTERNAL_PAT == 'true' && runner.os == 'Windows' }}
-        shell: pwsh
-        run: |
-          Remove-Item -Recurse -Force utils/call
-          Remove-Item -Recurse -Force utils/decrypt-client
-          Copy-Item -Recurse _internal/call ./utils/call
-          Copy-Item -Recurse _internal/decrypt-client ./utils/decrypt-client
 
       - name: Set cross-compilation environment for macOS x86_64
         if: matrix.job_name == 'macos-amd64'
@@ -294,7 +266,6 @@ jobs:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-49
       options: --privileged
     env:
-      HAS_INTERNAL_PAT: ${{ secrets.INTERNAL_PAT != '' }}
       HAS_FLATPAK_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY != '' }}
       FLATPAK_APP_ID: io.github.zxcloli666.SoundcloudDesktop
       FLATPAK_SITE_URL: ${{ vars.FLATPAK_SITE_URL || format('https://{0}.github.io/{1}/flatpak', github.repository_owner, github.event.repository.name) }}
@@ -304,27 +275,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.version.outputs.sha }}
-
-      - name: Checkout internal repo (when PAT present)
-        if: ${{ env.HAS_INTERNAL_PAT == 'true' }}
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ github.repository_owner }}/SoundCloud-Internal
-          token: ${{ secrets.INTERNAL_PAT }}
-          path: _internal
-          sparse-checkout: |
-            call
-            decrypt-client
-
-      - name: Replace mock crates with real
-        if: ${{ env.HAS_INTERNAL_PAT == 'true' }}
-        run: |
-          rm -rf utils/call utils/decrypt-client
-          cp -r _internal/call ./utils/call
-          cp -r _internal/decrypt-client ./utils/decrypt-client
-          rm -rf _internal
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-          RUSTUP_TOOLCHAIN=stable "$HOME/.cargo/bin/cargo" metadata --format-version 1 --manifest-path desktop/src-tauri/Cargo.toml > /dev/null
 
       - uses: actions/setup-node@v7
         with:

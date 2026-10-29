@@ -11,12 +11,9 @@ use crate::audio::eq_curve;
 use crate::audio::silence;
 use crate::audio::state::AudioState;
 use crate::audio::types::{AudioLoadResult, MediaCmd, STALL_SUPPRESS_MS, TICK_INTERVAL_MS};
-use crate::network::system_proxy::follow;
 use crate::rt::AppHandle;
 
 const ENDED_SUPPRESS_MS: u64 = 1200;
-const LOAD_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
-const LOAD_READ_TIMEOUT: Duration = Duration::from_secs(20);
 
 pub fn now_ms() -> u64 {
     std::time::SystemTime::now()
@@ -282,116 +279,6 @@ pub async fn load_file(
     Ok(AudioLoadResult { duration_secs })
 }
 
-pub async fn load_url(
-    url: String,
-    session_id: Option<String>,
-    cache_path: Option<String>,
-    normalization_cache_dir: Option<PathBuf>,
-    normalization_cache_key: Option<String>,
-    start_paused: bool,
-    state: State<'_, AudioState>,
-) -> Result<AudioLoadResult, String> {
-    let generation = state.load_gen.load(Ordering::Relaxed);
-
-    let client = follow(wreq::Client::builder())
-        .connect_timeout(LOAD_CONNECT_TIMEOUT)
-        .read_timeout(LOAD_READ_TIMEOUT)
-        .build()
-        .map_err(|e| format!("http client: {e}"))?;
-    let retry_delays = [300u64, 800, 2000];
-    let mut last_err = String::new();
-    let mut bytes: Vec<u8> = Vec::new();
-    let mut success = false;
-
-    for attempt in 0..=retry_delays.len() {
-        let mut req = client.get(&url);
-        if let Some(sid) = &session_id {
-            req = req.header("x-session-id", sid);
-        }
-
-        match req.send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                if status.is_success() {
-                    match resp.bytes().await {
-                        Ok(b) => {
-                            bytes = b.to_vec();
-                            success = true;
-                            break;
-                        }
-                        Err(e) => last_err = e.to_string(),
-                    }
-                } else if status.as_u16() == 429
-                    || (status.as_u16() >= 500 && status.as_u16() <= 599)
-                {
-                    last_err = format!("HTTP {}", status);
-                } else {
-                    return Err(format!("HTTP {}", status));
-                }
-            }
-            Err(e) => last_err = e.to_string(),
-        }
-
-        if attempt < retry_delays.len() {
-            tokio::time::sleep(std::time::Duration::from_millis(retry_delays[attempt])).await;
-            if state.load_gen.load(Ordering::Relaxed) != generation {
-                return Ok(AudioLoadResult {
-                    duration_secs: None,
-                });
-            }
-        }
-    }
-
-    if !success {
-        return Err(last_err);
-    }
-    let empty_result = AudioLoadResult {
-        duration_secs: None,
-    };
-
-    if state.load_gen.load(Ordering::Relaxed) != generation {
-        return Ok(empty_result);
-    }
-
-    if let Some(path) = cache_path {
-        let data = bytes.clone();
-        tokio::spawn(async move {
-            tokio::fs::write(&path, &data).await.ok();
-        });
-    }
-
-    stop_current_player(&state);
-
-    if state.load_gen.load(Ordering::Relaxed) != generation {
-        return Ok(empty_result);
-    }
-
-    let silence_cache = silence::cache_file(
-        normalization_cache_dir.as_deref(),
-        normalization_cache_key.as_deref(),
-    );
-    let mixer = state.mixer.lock().unwrap().clone();
-    let vol = *state.volume.lock().unwrap();
-    let normalization_enabled = state.normalization_enabled.load(Ordering::Relaxed);
-    let (bytes, new_player, duration_secs, normalization_gain) = build_player_from_bytes(
-        bytes,
-        mixer,
-        vol,
-        normalization_enabled,
-        normalization_cache_dir,
-        normalization_cache_key,
-        start_paused,
-        state.eq_params.clone(),
-        state.analyser_buffer.clone(),
-        state.pitch_ratio.clone(),
-    )
-    .await?;
-
-    commit_loaded_track(&state, bytes, new_player, normalization_gain, silence_cache, vol);
-
-    Ok(AudioLoadResult { duration_secs })
-}
-
 pub fn play(state: State<'_, AudioState>) {
     // If the device errored (sleep/wake, headphone unplug), reconnect immediately
     // instead of waiting for stall detection (2s delay).
@@ -625,13 +512,6 @@ pub fn set_media_position(position: f64, state: State<'_, AudioState>) {
     if let Some(tx) = state.media_tx.lock().unwrap().as_ref() {
         tx.send(MediaCmd::SetPosition(position)).ok();
     }
-}
-
-pub async fn save_track_to_path(cache_path: String, dest_path: String) -> Result<String, String> {
-    tokio::fs::copy(&cache_path, &dest_path)
-        .await
-        .map_err(|e| format!("Copy failed: {}", e))?;
-    Ok(dest_path)
 }
 
 /* ── Hover-preview channel ───────────────────────────────────────

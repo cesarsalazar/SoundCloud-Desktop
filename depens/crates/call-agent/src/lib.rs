@@ -70,7 +70,7 @@ impl CallAgent {
         })
     }
 
-    /// Автостарт, если флаг включён (по умолчанию ВКЛ — как легаси).
+    /// Автостарт, если флаг включён (по умолчанию ВЫКЛ).
     pub fn autostart(&self) {
         if self.is_enabled() {
             self.spawn();
@@ -92,8 +92,8 @@ impl CallAgent {
             Ok(bytes) => serde_json::from_slice::<serde_json::Value>(&bytes)
                 .ok()
                 .and_then(|v| v.get("enabled").and_then(|e| e.as_bool()))
-                .unwrap_or(true),
-            Err(_) => true,
+                .unwrap_or(false),
+            Err(_) => false,
         }
     }
 

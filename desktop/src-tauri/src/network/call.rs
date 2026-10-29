@@ -53,8 +53,8 @@ impl CallState {
         match std::fs::read(&self.config_path) {
             Ok(b) => serde_json::from_slice::<EnabledFlag>(&b)
                 .map(|f| f.enabled)
-                .unwrap_or(true),
-            Err(_) => true,
+                .unwrap_or(false),
+            Err(_) => false,
         }
     }
 
